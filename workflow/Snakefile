@@ -1,0 +1,18 @@
+__author__ = "Niklas Mähler"
+__copyright__ = "Copyright 2023, Niklas Mähler"
+__email__ = "niklas.mahler@regionvasterbotten.se"
+__license__ = "GPL-3"
+
+
+# Include pipeline specific rules
+include: "rules/common.smk"
+
+
+# 'All' rule, must be specified before any other modules are
+# included, since they also contain 'All' rule
+rule all:
+    input:
+        compile_output_file_list,
+
+
+# Include modules
