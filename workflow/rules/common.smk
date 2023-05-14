@@ -126,3 +126,38 @@ def generate_copy_rules(output_spec):
 
 
 generate_copy_rules(output_spec)
+
+
+def get_cnv_callers(tc_method):
+    for tcm in config.get("svdb_merge", {}).get("tc_method", []):
+        if tcm["name"] == tc_method:
+            return tcm["cnv_caller"]
+    raise ValueError(f"no cnv caller config available for tc_method {tc_method}")
+
+
+def get_json_for_merge_cnv_json(wildcards):
+    callers = get_cnv_callers(wildcards.tc_method)
+    return [
+        "reporting/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"
+            .format(caller=c, **wildcards) for c in callers
+    ]
+
+
+def get_cnv_ratios(wildcards):
+    match wildcards.caller:
+        case "cnvkit":
+            return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cnr"
+        case "gatk":
+            return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+        case c:
+            raise NotImplementedError(f"not implemented for caller {c}")
+
+
+def get_cnv_segments(wildcards):
+    match wildcards.caller:
+        case "cnvkit":
+            return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cns"
+        case "gatk":
+            return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+        case c:
+            raise NotImplementedError(f"not implemented for caller {c}")

@@ -2,3 +2,73 @@ $schema: "http://json-schema.org/draft-04/schema#"
 description: snakemake rule input and output files description file
 type: object
 properties:
+
+
+# Entry added using Hydra-Genetics CLI - please move it into alphabetically sorted order
+  cnv_html_report:
+    type: object
+    description: input and output parameters for cnv_html_report
+    properties:
+      input:
+        type: object
+        description: list of inputs
+        properties:
+          input1:
+            type: string
+            description: description input1
+            #value: set to override value in table, else remove
+
+      output:
+        type: object
+        description: list of outputs
+        properties:
+          output1:
+            type: string
+            description: description output1
+            #value: set to override value in table, else remove
+
+# Entry added using Hydra-Genetics CLI - please move it into alphabetically sorted order
+  cnv_json:
+    type: object
+    description: input and output parameters for cnv_json
+    properties:
+      input:
+        type: object
+        description: list of inputs
+        properties:
+          input1:
+            type: string
+            description: description input1
+            #value: set to override value in table, else remove
+
+      output:
+        type: object
+        description: list of outputs
+        properties:
+          output1:
+            type: string
+            description: description output1
+            #value: set to override value in table, else remove
+
+# Entry added using Hydra-Genetics CLI - please move it into alphabetically sorted order
+  merge_cnv_json:
+    type: object
+    description: input and output parameters for merge_cnv_json
+    properties:
+      input:
+        type: object
+        description: list of inputs
+        properties:
+          input1:
+            type: string
+            description: description input1
+            #value: set to override value in table, else remove
+
+      output:
+        type: object
+        description: list of outputs
+        properties:
+          output1:
+            type: string
+            description: description output1
+            #value: set to override value in table, else remove

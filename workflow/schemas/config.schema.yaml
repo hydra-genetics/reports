@@ -16,6 +16,57 @@ properties:
     type: string
     description: name or path to a default docker/singularity container
 
+  reference:
+    type: object
+    properties:
+      fai:
+        type: string
+        format: uri-reference
+    required:
+      - fai
+
+  cnv_html_report:
+    type: object
+    description: parameters for cnv_html_report
+    properties:
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      extra:
+        type: string
+        description: parameters that should be forwarded
+
+  cnv_json:
+    type: object
+    description: parameters for cnv_json
+    properties:
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      extra:
+        type: string
+        description: parameters that should be forwarded
+
+  merge_cnv_json:
+    type: object
+    description: parameters for merge_cnv_json
+    properties:
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      extra:
+        type: string
+        description: parameters that should be forwarded
+
 required:
   - samples
   - units
