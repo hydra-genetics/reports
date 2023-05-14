@@ -2,4 +2,16 @@ resources: "resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
 
+output: output_files.yaml
+
 default_container: "docker://hydragenetics/common:0.1.1"
+
+reference:
+  fai: reference/ref.fai
+
+svdb_merge:
+  tc_method:
+    - name: pathology
+      cnv_caller:
+        - cnvkit
+        - gatk
