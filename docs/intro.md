@@ -1,3 +1,3 @@
 # Introduction
 
-An introduction to reporting
+An introduction to reports

@@ -1,4 +1,4 @@
-site_name: reporting
+site_name: reports
 nav:
   - Introduction: intro.md
   - Softwares: softwares.md

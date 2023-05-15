@@ -1,6 +1,6 @@
-# Welcome to reporting
+# Welcome to reports
 
-A short introduction to our awesome pipeline reporting
+A short introduction to our awesome pipeline reports
 
 # Hydra-genetics
 

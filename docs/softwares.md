@@ -1,4 +1,4 @@
-# Softwares used in the reporting module
+# Softwares used in the reports module
 
 ## [cnv_html_report](url_to_tool)
 Introduction to cnv_html_report

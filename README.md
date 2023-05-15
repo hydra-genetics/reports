@@ -1,14 +1,14 @@
-# <img src="images/hydragenetics.png" width=40 /> hydra-genetics/reporting
+# <img src="images/hydragenetics.png" width=40 /> hydra-genetics/reports
 
 #### A module containing rules for various types of reports
 
-![Lint](https://github.com/hydra-genetics/reporting/actions/workflows/lint.yaml/badge.svg?branch=develop)
-![Snakefmt](https://github.com/hydra-genetics/reporting/actions/workflows/snakefmt.yaml/badge.svg?branch=develop)
-![snakemake dry run](https://github.com/hydra-genetics/reporting/actions/workflows/snakemake-dry-run.yaml/badge.svg?branch=develop)
-![integration test](https://github.com/hydra-genetics/reporting/actions/workflows/integration1.yaml/badge.svg?branch=develop)
+![Lint](https://github.com/hydra-genetics/reports/actions/workflows/lint.yaml/badge.svg?branch=develop)
+![Snakefmt](https://github.com/hydra-genetics/reports/actions/workflows/snakefmt.yaml/badge.svg?branch=develop)
+![snakemake dry run](https://github.com/hydra-genetics/reports/actions/workflows/snakemake-dry-run.yaml/badge.svg?branch=develop)
+![integration test](https://github.com/hydra-genetics/reports/actions/workflows/integration1.yaml/badge.svg?branch=develop)
 
-![pycodestyle](https://github.com/hydra-genetics/reporting/actions/workflows/pycodestyl.yaml/badge.svg?branch=develop)
-![pytest](https://github.com/hydra-genetics/reporting/actions/workflows/pytest.yaml/badge.svg?branch=develop)
+![pycodestyle](https://github.com/hydra-genetics/reports/actions/workflows/pycodestyl.yaml/badge.svg?branch=develop)
+![pytest](https://github.com/hydra-genetics/reports/actions/workflows/pytest.yaml/badge.svg?branch=develop)
 
 [![License: GPL-3](https://img.shields.io/badge/License-GPL3-yellow.svg)](https://opensource.org/licenses/gpl-3.0.html)
 
@@ -30,8 +30,8 @@ In order to use this module, the following dependencies are required:
 
 ### Sample data
 
-Input data should be added to [`samples.tsv`](https://github.com/hydra-genetics/reporting/blob/develop/config/samples.tsv)
-and [`units.tsv`](https://github.com/hydra-genetics/reporting/blob/develop/config/units.tsv).
+Input data should be added to [`samples.tsv`](https://github.com/hydra-genetics/reports/blob/develop/config/samples.tsv)
+and [`units.tsv`](https://github.com/hydra-genetics/reports/blob/develop/config/units.tsv).
 The following information need to be added to these files:
 
 | Column Id | Description |
@@ -65,10 +65,10 @@ To use this module in your workflow, follow the description in the
 Add the module to your `Snakefile` like so:
 
 ```bash
-module prealignment:
+module reports:
     snakefile:
         github(
-            "reporting",
+            "reports",
             path="workflow/Snakefile",
             tag="1.0.0",
         )
@@ -76,7 +76,7 @@ module prealignment:
         config
 
 
-use rule * from reporting as reporting_*
+use rule * from reports as reports_*
 ```
 
 ### Output files
@@ -85,6 +85,6 @@ The following output files should be targeted via another rule:
 
 | File | Description |
 |---|---|
-| `reporting/PATH/FILE` | DESCRIPTION |
+| `reports/PATH/FILE` | DESCRIPTION |
 
 ## :judge: Rule Graph

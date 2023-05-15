@@ -6,16 +6,16 @@ __license__ = "GPL-3"
 
 rule cnv_html_report:
     input:
-        json="reporting/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
+        json="reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
     output:
-        report="reporting/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html",
+        report=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:
         extra=config.get("cnv_html_report", {}).get("extra", ""),
     log:
-        "reporting/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",
+        "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",
     benchmark:
         repeat(
-            "reporting/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.benchmark.tsv",
+            "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.benchmark.tsv",
             config.get("cnv_html_report", {}).get("benchmark_repeats", 1)
         )
     threads: config.get("cnv_html_report", {}).get("threads", config["default_resources"]["threads"])
@@ -38,14 +38,14 @@ rule cnv_json:
         ratios=get_cnv_ratios,
         segments=get_cnv_segments,
     output:
-        json="reporting/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json",
+        json=temp("reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"),
     params:
         extra=config.get("cnv_json", {}).get("extra", ""),
     log:
-        "reporting/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.log",
+        "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.log",
     benchmark:
         repeat(
-            "reporting/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.benchmark.tsv",
+            "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.benchmark.tsv",
             config.get("cnv_json", {}).get("benchmark_repeats", 1)
         )
     threads: config.get("cnv_json", {}).get("threads", config["default_resources"]["threads"])
@@ -69,14 +69,14 @@ rule merge_cnv_json:
         json=get_json_for_merge_cnv_json,
         fai=config.get("reference", {}).get("fai", ""),
     output:
-        json="reporting/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
+        json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:
         extra=config.get("merge_cnv_json", {}).get("extra", ""),
     log:
-        "reporting/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
+        "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
     benchmark:
         repeat(
-            "reporting/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.benchmark.tsv",
+            "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.benchmark.tsv",
             config.get("merge_cnv_json", {}).get("benchmark_repeats", 1)
         )
     threads: config.get("merge_cnv_json", {}).get("threads", config["default_resources"]["threads"])

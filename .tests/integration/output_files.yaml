@@ -1,4 +1,4 @@
 files:
   - name: "CNV HTML report"
-    input: "reporting/cnv_html_report/{sample}_{type}.pathology.cnv_report.html"
+    input: "reports/cnv_html_report/{sample}_{type}.pathology.cnv_report.html"
     output: "results/cnv/{sample}_{type}.pathology.cnv_report.html"

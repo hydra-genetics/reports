@@ -138,7 +138,7 @@ def get_cnv_callers(tc_method):
 def get_json_for_merge_cnv_json(wildcards):
     callers = get_cnv_callers(wildcards.tc_method)
     return [
-        "reporting/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"
+        "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"
             .format(caller=c, **wildcards) for c in callers
     ]
 
