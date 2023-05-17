@@ -7,7 +7,9 @@ import itertools
 import numpy as np
 import pathlib
 import pandas as pd
+from typing import List, Union
 import yaml
+from snakemake.io import Wildcards
 from snakemake.utils import validate
 from snakemake.utils import min_version
 
@@ -105,7 +107,6 @@ def generate_copy_rules(output_spec):
                 f'@workflow.output("{output_file}")',
                 f'@workflow.log("logs/{rule_name}_{output_file.name}.log")',
                 f'@workflow.container("{copy_container}")',
-                '@workflow.conda("../envs/copy_results_files.yaml")',
                 f'@workflow.resources(time="{time}", threads={threads}, mem_mb="{mem_mb}", '
                 f'mem_per_cpu={mem_per_cpu}, partition="{partition}")',
                 f'@workflow.shellcmd("{copy_container}")',
@@ -161,3 +162,39 @@ def get_cnv_segments(wildcards):
             return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
         case c:
             raise NotImplementedError(f"not implemented for caller {c}")
+
+
+def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return []
+
+
+def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return []
+
+
+def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return []
+
+
+def get_tc(wildcards):
+    if wildcards.tc_method == "pathology":
+        try:
+            return get_sample(samples, wildcards)["tumor_content"]
+        except KeyError:
+            return -1
+
+    tc_file = get_tc_file(wildcards)
+
+    if not os.path.exists(tc_file):
+        return -1
+
+    with open(tc_file) as f:
+        return f.read().strip()
+
+
+def get_tc_file(wildcards):
+    tc_method = wildcards.tc_method
+    if tc_method == "pathology":
+        return config["samples"]
+    else:
+        return f"cnv_sv/{tc_method}_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"

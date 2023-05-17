@@ -7,10 +7,14 @@ __license__ = "GPL-3"
 rule cnv_html_report:
     input:
         json="reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
+        template_dir=directory(config.get("cnv_html_report", {}).get("template_dir", "")),
     output:
-        report=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
+        html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:
         extra=config.get("cnv_html_report", {}).get("extra", ""),
+        include_table=config.get("cnv_html_report", {}).get("include_table", False),
+        tc=get_tc,
+        tc_method=lambda wildcards: wildcards.tc_method,
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",
     benchmark:
@@ -68,10 +72,15 @@ rule merge_cnv_json:
     input:
         json=get_json_for_merge_cnv_json,
         fai=config.get("reference", {}).get("fai", ""),
+        annotation_bed=config.get("cnv_html_report", {}).get("annotation_bed", []),
+        germline_vcf=get_germline_vcf,
+        filtered_cnv_vcfs=get_filtered_cnv_vcf,
+        cnv_vcfs=get_unfiltered_cnv_vcf,
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:
         extra=config.get("merge_cnv_json", {}).get("extra", ""),
+        skip_chromosomes=config.get("reference", {}).get("skip_chrs", []),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
     benchmark:

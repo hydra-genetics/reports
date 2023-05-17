@@ -6,3 +6,10 @@ samples: "samples.tsv"
 units: "units.tsv"
 
 default_container: "docker://hydragenetics/common:0.3.0"
+
+reference:
+  skip_chrs:
+    - chrM
+
+cnv_html_report:
+  template_dir: config/cnv_report_template

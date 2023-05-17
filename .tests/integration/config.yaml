@@ -9,6 +9,9 @@ default_container: "docker://hydragenetics/common:0.1.1"
 reference:
   fai: reference/ref.fai
 
+cnv_html_report:
+  template_dir: ../../config/cnv_report_template
+
 svdb_merge:
   tc_method:
     - name: pathology
