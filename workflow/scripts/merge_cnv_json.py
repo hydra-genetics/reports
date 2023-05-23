@@ -114,13 +114,14 @@ def merge_cnv_dicts(dicts, vaf, annotations, chromosomes, filtered_cnvs, unfilte
                 )
             )
 
-    for v in vaf:
-        cnvs[v[0]]["vaf"].append(
-            dict(
-                pos=v[1],
-                vaf=v[2],
+    if vaf is not None:
+        for v in vaf:
+            cnvs[v[0]]["vaf"].append(
+                dict(
+                    pos=v[1],
+                    vaf=v[2],
+                )
             )
-        )
 
     # Iterate over the unfiltered CNVs and pair them according to overlap.
     for uf_cnvs, f_cnvs in zip(unfiltered_cnvs, filtered_cnvs):
@@ -213,7 +214,7 @@ def main():
             cnv_dicts.append(json.load(f))
 
     fai = parse_fai(fasta_index_file, skip_chromosomes)
-    vaf = []
+    vaf = None
     if germline_vcf is not None:
         vaf = get_vaf(germline_vcf)
     annotations = []
