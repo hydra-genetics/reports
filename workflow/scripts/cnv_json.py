@@ -155,12 +155,18 @@ def main():
 
     output_filename = snakemake.output["json"]
 
+    skip_chromosomes = snakemake.params["skip_chromosomes"]
+
     if caller not in PARSERS:
         print(f"error: no parser for {caller} implemented", file=sys.stderr)
         sys.exit(1)
 
     ratios = PARSERS[caller]["ratios"](ratio_filename)
     segments = PARSERS[caller]["segments"](segment_filename)
+
+    if skip_chromosomes is not None:
+        ratios = [r for r in ratios if r["chromosome"] not in skip_chromosomes]
+        segments = [s for s in segments if s["chromosome"] not in skip_chromosomes]
 
     with open(output_filename, "w") as f:
         print(to_json(caller, ratios, segments), file=f)

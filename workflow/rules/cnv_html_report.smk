@@ -45,6 +45,7 @@ rule cnv_json:
         json=temp("reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"),
     params:
         extra=config.get("cnv_json", {}).get("extra", ""),
+        skip_chromosomes=config.get("reference", {}).get("skip_chrs"),
     log:
         "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.log",
     benchmark:
