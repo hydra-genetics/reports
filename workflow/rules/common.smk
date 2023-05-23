@@ -181,12 +181,12 @@ def get_tc(wildcards):
         try:
             return get_sample(samples, wildcards)["tumor_content"]
         except KeyError:
-            return -1
+            return None
 
     tc_file = get_tc_file(wildcards)
 
     if not os.path.exists(tc_file):
-        return -1
+        return None
 
     with open(tc_file) as f:
         return f.read().strip()
