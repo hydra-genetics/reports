@@ -12,7 +12,7 @@ rule cnv_html_report:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:
         extra=config.get("cnv_html_report", {}).get("extra", ""),
-        include_table=config.get("cnv_html_report", {}).get("include_table", False),
+        include_table=config.get("cnv_html_report", {}).get("show_table", False),
         tc=get_tc,
         tc_method=lambda wildcards: wildcards.tc_method,
     log:

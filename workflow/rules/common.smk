@@ -169,11 +169,17 @@ def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
 
 
 def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return []
+	if not config.get("cnv_html_report", {}).get("show_table", True):
+		return []
+
+	return config.get("cnv_html_report", {}).get("filtered_cnv_vcfs", [])
 
 
 def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return []
+	if not config.get("cnv_html_report", {}).get("show_table", True):
+		return []
+
+	return config.get("cnv_html_report", {}).get("unfiltered_cnv_vcfs", [])
 
 
 def get_tc(wildcards):
