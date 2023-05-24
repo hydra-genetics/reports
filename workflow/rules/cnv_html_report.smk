@@ -7,7 +7,7 @@ __license__ = "GPL-3"
 rule cnv_html_report:
     input:
         json="reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
-        template_dir=directory(config.get("cnv_html_report", {}).get("template_dir", "")),
+        template_dir=config.get("cnv_html_report", {}).get("template_dir", ""),
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:
