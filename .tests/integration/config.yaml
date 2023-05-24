@@ -11,6 +11,9 @@ reference:
 
 cnv_html_report:
   template_dir: ../../config/cnv_report_template
+  annotations:
+    - config/genes.bed
+    - config/centromeres.bed
 
 svdb_merge:
   tc_method:

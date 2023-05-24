@@ -38,6 +38,30 @@ properties:
       extra:
         type: string
         description: parameters that should be forwarded
+      template_dir:
+        type: string
+        format: uri-reference
+        description: >
+          Path to the directory containing the template files for the CNV
+          HTML report. The only required file in this directory is `index.html`
+          which should be a jinja2 template for the report. Any JS (`*.js`) or
+          CSS files (`*.css`) will be integrated into the report. These files
+          are included according to the lexicographical order of the file names,
+          so if order is important, name the files accordingly, e.g.
+          `01-script.js`, `02-script.js`, etc.
+      annotations:
+        type: array
+        description: >
+          List of BED files with custom annotations.
+        items:
+          type: string
+          format: uri-reference
+          description: >
+            BED file with annotations that should be added to the chromosome
+            view of the report. Required columns are `chrom`, `chromStart`,
+            `chromEnd` and `name`.
+    required:
+      - template_dir
 
   cnv_json:
     type: object
