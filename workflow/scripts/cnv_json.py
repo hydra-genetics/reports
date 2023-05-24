@@ -2,6 +2,7 @@ import collections
 import csv
 import functools
 import json
+from pathlib import Path
 import sys
 
 
@@ -149,6 +150,11 @@ def to_json(caller, ratios, segments):
 
 
 def main():
+    log = Path(snakemake.log[0])
+
+    logfile = open(log, "w")
+    sys.stdout = sys.stderr = logfile
+
     caller = snakemake.wildcards["caller"]
     ratio_filename = snakemake.input["ratios"]
     segment_filename = snakemake.input["segments"]

@@ -1,5 +1,6 @@
 from jinja2 import Template
 from pathlib import Path
+import sys
 import time
 
 
@@ -41,6 +42,11 @@ def create_report(template_filename, json_filename, css_files, js_files, show_ta
 
 
 def main():
+    log = Path(snakemake.log[0])
+
+    logfile = open(log, "w")
+    sys.stdout = sys.stderr = logfile
+
     json_filename = snakemake.input.json
     template_dir = Path(snakemake.input.template_dir)
     html_filename = snakemake.output.html

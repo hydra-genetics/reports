@@ -1,10 +1,11 @@
 from collections import defaultdict
 from collections.abc import Generator
-from pathlib import Path
-from typing import Union
-import pysam
 from dataclasses import dataclass
 import json
+from pathlib import Path
+import pysam
+import sys
+from typing import Union
 
 @dataclass
 class CNV:
@@ -194,6 +195,11 @@ def merge_cnv_dicts(dicts, vaf, annotations, chromosomes, filtered_cnvs, unfilte
 
 
 def main():
+    log = Path(snakemake.log[0])
+
+    logfile = open(log, "w")
+    sys.stdout = sys.stderr = logfile
+
     annotation_beds = snakemake.input["annotation_bed"]
     fasta_index_file = snakemake.input["fai"]
     germline_vcf = snakemake.input["germline_vcf"]
