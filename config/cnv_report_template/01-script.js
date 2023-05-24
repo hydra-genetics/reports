@@ -190,7 +190,14 @@ const plotChromosomeView = function(plotData) {
     const plotAnnotations = function() {
         plotArea.selectAll(".annotation")
             .attr("clip-path", "url(#annotation-clip)")
-            .data(data.annotations, d => d.name)
+            .data(data.annotations, d => {
+				return {
+					chromosome: data.chromosome,
+					name: d.name,
+					start: d.start,
+					end: d.end,
+				};
+			})
             .join(
                 enter => {
                     let annotation_group = enter.append("g")
