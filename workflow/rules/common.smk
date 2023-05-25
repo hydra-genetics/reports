@@ -165,7 +165,7 @@ def get_cnv_segments(wildcards):
 
 
 def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return []
+    return config.get("cnv_html_report", {}).get("germline_vcf", [])
 
 
 def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:

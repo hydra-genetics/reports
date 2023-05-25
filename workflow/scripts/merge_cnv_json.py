@@ -56,9 +56,11 @@ def parse_annotation_bed(filename, skip=None):
             yield chrom, int(start), int(end), name
 
 
-def get_vaf(vcf_filename: Union[str, bytes, Path]) -> Generator[tuple, None, None]:
+def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
     vcf = pysam.VariantFile(str(vcf_filename))
     for variant in vcf.fetch():
+        if variant.chrom in skip:
+            continue
         yield variant.chrom, variant.pos, variant.info.get("AF", None)
 
 
@@ -222,7 +224,7 @@ def main():
     fai = parse_fai(fasta_index_file, skip_chromosomes)
     vaf = None
     if germline_vcf is not None:
-        vaf = get_vaf(germline_vcf)
+        vaf = get_vaf(germline_vcf, skip_chromosomes)
     annotations = []
     for filename in annotation_beds:
         annotations.append(parse_annotation_bed(filename, skip_chromosomes))

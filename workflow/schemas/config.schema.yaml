@@ -64,7 +64,13 @@ properties:
             field should have a `CALLER` attribute that lists the caller that
             called the variant in question. The path supports `sample`, `type`
             and `tc_method` wildcards.
-
+      germline_vcf:
+        type: string
+        format: uri-reference
+        description: >
+          Path to a germline VCF file that will be used to display VAFs in the
+          plots of the report. The path supports the wildcards `sample` and
+          `type` wildcards.
       show_table:
         type: boolean
         default: true
