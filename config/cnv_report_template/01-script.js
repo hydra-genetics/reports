@@ -190,14 +190,7 @@ const plotChromosomeView = function(plotData) {
     const plotAnnotations = function() {
         plotArea.selectAll(".annotation")
             .attr("clip-path", "url(#annotation-clip)")
-            .data(data.annotations, d => {
-				return {
-					chromosome: data.chromosome,
-					name: d.name,
-					start: d.start,
-					end: d.end,
-				};
-			})
+            .data(data.annotations, d => [data.chromosome, d.name, d.start, d.end])
             .join(
                 enter => {
                     let annotation_group = enter.append("g")
@@ -265,7 +258,7 @@ const plotChromosomeView = function(plotData) {
 
     const plotVAF = function() {
         vafArea.selectAll(".point")
-            .data(data.vaf, d => d.pos)
+            .data(data.vaf, d => [data.chromosome, d.pos, d.vaf])
             .join(
                 enter => enter.append("circle")
                     .attr("class", "point")
@@ -273,11 +266,16 @@ const plotChromosomeView = function(plotData) {
                     .attr("cy", d => yScaleVAF(d.vaf))
                     .attr("r", 2)
                     .attr("fill", "#333")
-                    .attr("fill-opacity", 0.3),
+                    .attr("fill-opacity", 0)
+                    .call(enter => enter.transition()
+                        .attr("fill-opacity", 0.3)
+                    ),
                 update => update
                     .call(update => update.transition()
                         .attr("cx", d => xScale(d.pos))),
-                exit => exit.remove(),
+                exit => exit.transition()
+                    .attr("fill-opacity", 0)
+                    .remove(),
             )
     };
 
