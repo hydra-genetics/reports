@@ -19,7 +19,7 @@ rule cnv_html_report:
     benchmark:
         repeat(
             "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.benchmark.tsv",
-            config.get("cnv_html_report", {}).get("benchmark_repeats", 1)
+            config.get("cnv_html_report", {}).get("benchmark_repeats", 1),
         )
     threads: config.get("cnv_html_report", {}).get("threads", config["default_resources"]["threads"])
     resources:
@@ -49,7 +49,7 @@ rule cnv_json:
     benchmark:
         repeat(
             "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.benchmark.tsv",
-            config.get("cnv_json", {}).get("benchmark_repeats", 1)
+            config.get("cnv_json", {}).get("benchmark_repeats", 1),
         )
     threads: config.get("cnv_json", {}).get("threads", config["default_resources"]["threads"])
     resources:
@@ -84,7 +84,7 @@ rule merge_cnv_json:
     benchmark:
         repeat(
             "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.benchmark.tsv",
-            config.get("merge_cnv_json", {}).get("benchmark_repeats", 1)
+            config.get("merge_cnv_json", {}).get("benchmark_repeats", 1),
         )
     threads: config.get("merge_cnv_json", {}).get("threads", config["default_resources"]["threads"])
     resources:
