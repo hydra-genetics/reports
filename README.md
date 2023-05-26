@@ -55,7 +55,12 @@ The workflow repository contains a small test dataset `.tests/integration` which
 
 ```bash
 $ cd .tests/integration
-$ snakemake -s ../../Snakefile -j1 --use-singularity
+$ snakemake \
+    -s ../../workflow/Snakefile \
+    --configfile config.yaml \
+    --use-singularity \
+    --singularity-args "--bind $(realpath ../..)" \
+    -j1
 ```
 
 ## :rocket: Usage
@@ -70,7 +75,7 @@ module reports:
         github(
             "reports",
             path="workflow/Snakefile",
-            tag="1.0.0",
+            tag="0.1.0",
         )
     config:
         config
