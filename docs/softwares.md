@@ -1,7 +1,8 @@
 # Softwares used in the reports module
 
-## [cnv_html_report](url_to_tool)
-Introduction to cnv_html_report
+## cnv_html_report
+
+Generate an HTML report for CNVs.
 
 ### :snake: Rule
 
@@ -21,16 +22,17 @@ Introduction to cnv_html_report
 
 #RESOURCESSCHEMA__cnv_html_report#
 
-## [cnv_json](url_to_tool)
-Introduction to cnv_json
+## cnv_json
+
+Convert CNV results from a particular CNV caller to JSON that is compatible with the final report.
 
 ### :snake: Rule
 
-#SNAKEMAKE_RULE_SOURCE__cnv_json__cnv_json#
+#SNAKEMAKE_RULE_SOURCE__cnv_html_report__cnv_json#
 
 #### :left_right_arrow: input / output files
 
-#SNAKEMAKE_RULE_TABLE__cnv_json__cnv_json#
+#SNAKEMAKE_RULE_TABLE__cnv_html_report__cnv_json#
 
 ### :wrench: Configuration
 
@@ -42,16 +44,17 @@ Introduction to cnv_json
 
 #RESOURCESSCHEMA__cnv_json#
 
-## [merge_cnv_json](url_to_tool)
-Introduction to merge_cnv_json
+## merge_cnv_json
+
+Merge JSON files from multiple CNV callers and add annotations and other sample specific data.
 
 ### :snake: Rule
 
-#SNAKEMAKE_RULE_SOURCE__merge_cnv_json__merge_cnv_json#
+#SNAKEMAKE_RULE_SOURCE__cnv_html_report__merge_cnv_json#
 
 #### :left_right_arrow: input / output files
 
-#SNAKEMAKE_RULE_TABLE__merge_cnv_json__merge_cnv_json#
+#SNAKEMAKE_RULE_TABLE__cnv_html_report__merge_cnv_json#
 
 ### :wrench: Configuration
 

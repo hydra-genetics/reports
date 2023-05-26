@@ -3,8 +3,6 @@ description: snakemake rule input and output files description file
 type: object
 properties:
 
-
-# Entry added using Hydra-Genetics CLI - please move it into alphabetically sorted order
   cnv_html_report:
     type: object
     description: input and output parameters for cnv_html_report
@@ -13,21 +11,24 @@ properties:
         type: object
         description: list of inputs
         properties:
-          input1:
+          json:
             type: string
-            description: description input1
-            #value: set to override value in table, else remove
+            description: >
+              Merged JSON file with CNV calls and other sample information.
+          template_dir:
+            type: string
+            description: >
+              Path to the template directory, defined in the config.
 
       output:
         type: object
         description: list of outputs
         properties:
-          output1:
+          html:
             type: string
-            description: description output1
-            #value: set to override value in table, else remove
+            description: >
+              Interactive HTML report for CNVs.
 
-# Entry added using Hydra-Genetics CLI - please move it into alphabetically sorted order
   cnv_json:
     type: object
     description: input and output parameters for cnv_json
@@ -36,21 +37,28 @@ properties:
         type: object
         description: list of inputs
         properties:
-          input1:
+          ratios:
             type: string
-            description: description input1
-            #value: set to override value in table, else remove
+            description: >
+              Path to a file with log<sub>2</sub> ratios for a specific caller.
+              Determined by an input function that returns a path to the correct
+              file based on which caller was used.
+          ratios:
+            type: string
+            description: >
+              Path to a file with CNV segments for a specific caller.
+              Determined by an input function that returns a path to the correct
+              file based on which caller was used.
 
       output:
         type: object
         description: list of outputs
         properties:
-          output1:
+          json:
             type: string
-            description: description output1
-            #value: set to override value in table, else remove
+            description: >
+              A JSON representation of the CNV results from a specific caller.
 
-# Entry added using Hydra-Genetics CLI - please move it into alphabetically sorted order
   merge_cnv_json:
     type: object
     description: input and output parameters for merge_cnv_json
@@ -59,16 +67,47 @@ properties:
         type: object
         description: list of inputs
         properties:
-          input1:
+          json:
             type: string
-            description: description input1
-            #value: set to override value in table, else remove
+            description: >
+              One or more JSON files containing CNV information, one file
+              per caller. Supplied by input function that determines the paths
+              based on the included callers, and the callers that should be
+              included is determined by the `svdb_merge` config. The paths to
+              the files are based on the [cnv_sv module](https://github.com/hydra-genetics/cnv_sv).
+          fai:
+            type: string
+            description: >
+              Reference genome FASTA index.
+          annotation_bed:
+            type: string
+            description: >
+              Zero or more BED files with regions that should be annotated in
+              the chromosome plot.
+          germline_vcf:
+            type: string
+            description: >
+              Optional VCF file with germline variants. Supplied by input
+              function that takes it from the config.
+          filtered_cnv_vcfs:
+            type: string
+            description: >
+              Zero or more VCF files containing filtered CNV calls that should
+              be displayed in the results table. Supplied by input function that
+              takes these from the config.
+          cnv_vcfs:
+            type: string
+            description: >
+              Zero or more VCF files containing unfiltered CNV calls that should
+              be displayed in the results table. Supplied by input function that
+              takes these from the config.
 
       output:
         type: object
         description: list of outputs
         properties:
-          output1:
+          json:
             type: string
-            description: description output1
-            #value: set to override value in table, else remove
+            description: >
+              Merged JSON file with CNV calls and other sample information that
+              is ready to be included in the final report.

@@ -1,4 +1,4 @@
-site_name: reports
+site_name: Hydra-Genetics Reports
 nav:
   - Introduction: intro.md
   - Softwares: softwares.md
