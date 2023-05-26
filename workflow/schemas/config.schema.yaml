@@ -35,9 +35,6 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
-      extra:
-        type: string
-        description: parameters that should be forwarded
       annotations:
         type: array
         description: >
@@ -127,9 +124,6 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
-      extra:
-        type: string
-        description: parameters that should be forwarded
 
   merge_cnv_json:
     type: object
@@ -141,9 +135,6 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
-      extra:
-        type: string
-        description: parameters that should be forwarded
 
 required:
   - samples

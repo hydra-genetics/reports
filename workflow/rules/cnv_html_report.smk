@@ -11,7 +11,6 @@ rule cnv_html_report:
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:
-        extra=config.get("cnv_html_report", {}).get("extra", ""),
         include_table=config.get("cnv_html_report", {}).get("show_table", False),
         tc=get_tc,
         tc_method=lambda wildcards: wildcards.tc_method,
@@ -44,7 +43,6 @@ rule cnv_json:
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"),
     params:
-        extra=config.get("cnv_json", {}).get("extra", ""),
         skip_chromosomes=config.get("reference", {}).get("skip_chrs"),
     log:
         "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.log",
@@ -80,7 +78,6 @@ rule merge_cnv_json:
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:
-        extra=config.get("merge_cnv_json", {}).get("extra", ""),
         skip_chromosomes=config.get("reference", {}).get("skip_chrs", []),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
