@@ -142,23 +142,23 @@ def get_json_for_merge_cnv_json(wildcards):
 
 
 def get_cnv_ratios(wildcards):
-    match wildcards.caller:
-        case "cnvkit":
-            return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cnr"
-        case "gatk":
-            return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
-        case c:
-            raise NotImplementedError(f"not implemented for caller {c}")
+    if wildcards.caller == "cnvkit":
+        return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cnr"
+
+    if wildcards.caller == "gatk":
+        return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+
+    raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
 def get_cnv_segments(wildcards):
-    match wildcards.caller:
-        case "cnvkit":
-            return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cns"
-        case "gatk":
-            return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
-        case c:
-            raise NotImplementedError(f"not implemented for caller {c}")
+    if wildcards.caller == "cnvkit":
+        return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cns"
+
+    if wildcards.caller == "gatk":
+        return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+
+    raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
 def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
