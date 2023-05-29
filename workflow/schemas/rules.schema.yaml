@@ -2,7 +2,6 @@ $schema: "http://json-schema.org/draft-04/schema#"
 description: snakemake rule input and output files description file
 type: object
 properties:
-
   cnv_html_report:
     type: object
     description: input and output parameters for cnv_html_report
@@ -43,7 +42,7 @@ properties:
               Path to a file with log<sub>2</sub> ratios for a specific caller.
               Determined by an input function that returns a path to the correct
               file based on which caller was used.
-          ratios:
+          segments:
             type: string
             description: >
               Path to a file with CNV segments for a specific caller.

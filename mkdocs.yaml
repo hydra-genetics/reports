@@ -29,6 +29,6 @@ plugins:
           tag: "RESOURCESSCHEMA"
   - snakemake-rule:
       rule_folders:
-        - 'workflow/rules'
+        - "workflow/rules"
       schemas:
-        - 'workflow/schemas/rules.schema.yaml'
+        - "workflow/schemas/rules.schema.yaml"

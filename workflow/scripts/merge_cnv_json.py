@@ -10,7 +10,6 @@ from typing import Union
 
 @dataclass
 class CNV:
-
     caller: str
     chromosome: str
     genes: list
