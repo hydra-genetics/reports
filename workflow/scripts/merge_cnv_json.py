@@ -7,6 +7,7 @@ import pysam
 import sys
 from typing import Union
 
+
 @dataclass
 class CNV:
 

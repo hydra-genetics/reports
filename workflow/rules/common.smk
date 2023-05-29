@@ -89,7 +89,7 @@ def generate_copy_rules(output_spec):
         if f["input"] is None:
             continue
 
-        rule_name = "_copy_{}".format("_".join(re.split(r"\W+", f["name"].strip().lower())))
+        rule_name = "_copy_{}".format("_".join(re.sub(r"[\"'-.,]", "", f["name"].strip().lower()).split()))
         input_file = pathlib.Path(f["input"])
         output_file = output_directory / pathlib.Path(f["output"])
 
@@ -138,30 +138,27 @@ def get_cnv_callers(tc_method):
 
 def get_json_for_merge_cnv_json(wildcards):
     callers = get_cnv_callers(wildcards.tc_method)
-    return [
-        "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"
-            .format(caller=c, **wildcards) for c in callers
-    ]
+    return ["reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json".format(caller=c, **wildcards) for c in callers]
 
 
 def get_cnv_ratios(wildcards):
-    match wildcards.caller:
-        case "cnvkit":
-            return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cnr"
-        case "gatk":
-            return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
-        case c:
-            raise NotImplementedError(f"not implemented for caller {c}")
+    if wildcards.caller == "cnvkit":
+        return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cnr"
+
+    if wildcards.caller == "gatk":
+        return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+
+    raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
 def get_cnv_segments(wildcards):
-    match wildcards.caller:
-        case "cnvkit":
-            return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cns"
-        case "gatk":
-            return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
-        case c:
-            raise NotImplementedError(f"not implemented for caller {c}")
+    if wildcards.caller == "cnvkit":
+        return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cns"
+
+    if wildcards.caller == "gatk":
+        return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+
+    raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
 def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
@@ -169,17 +166,17 @@ def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
 
 
 def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-	if not config.get("cnv_html_report", {}).get("show_table", True):
-		return []
+    if not config.get("cnv_html_report", {}).get("show_table", True):
+        return []
 
-	return config.get("cnv_html_report", {}).get("filtered_cnv_vcfs", [])
+    return config.get("cnv_html_report", {}).get("filtered_cnv_vcfs", [])
 
 
 def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-	if not config.get("cnv_html_report", {}).get("show_table", True):
-		return []
+    if not config.get("cnv_html_report", {}).get("show_table", True):
+        return []
 
-	return config.get("cnv_html_report", {}).get("unfiltered_cnv_vcfs", [])
+    return config.get("cnv_html_report", {}).get("unfiltered_cnv_vcfs", [])
 
 
 def get_tc(wildcards):
