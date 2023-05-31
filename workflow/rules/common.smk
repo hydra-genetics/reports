@@ -162,21 +162,21 @@ def get_cnv_segments(wildcards):
 
 
 def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return config.get("cnv_html_report", {}).get("germline_vcf", [])
+    return config.get("merge_cnv_json", {}).get("germline_vcf", [])
 
 
 def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
 
-    return config.get("cnv_html_report", {}).get("filtered_cnv_vcfs", [])
+    return config.get("merge_cnv_json", {}).get("filtered_cnv_vcfs", [])
 
 
 def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
 
-    return config.get("cnv_html_report", {}).get("unfiltered_cnv_vcfs", [])
+    return config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs", [])
 
 
 def get_tc(wildcards):

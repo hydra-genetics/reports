@@ -11,7 +11,7 @@ rule cnv_html_report:
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:
-        include_table=config.get("cnv_html_report", {}).get("show_table", False),
+        include_table=config.get("cnv_html_report", {}).get("show_table", True),
         tc=get_tc,
         tc_method=lambda wildcards: wildcards.tc_method,
     log:
@@ -71,7 +71,7 @@ rule merge_cnv_json:
     input:
         json=get_json_for_merge_cnv_json,
         fai=config.get("reference", {}).get("fai", ""),
-        annotation_bed=config.get("cnv_html_report", {}).get("annotations", []),
+        annotation_bed=config.get("merge_cnv_json", {}).get("annotations", []),
         germline_vcf=get_germline_vcf,
         filtered_cnv_vcfs=get_filtered_cnv_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,
