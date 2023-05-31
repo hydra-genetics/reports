@@ -166,14 +166,14 @@ def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
 
 
 def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    if not config.get("merge_cnv_json", {}).get("show_table", True):
+    if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
 
     return config.get("merge_cnv_json", {}).get("filtered_cnv_vcfs", [])
 
 
 def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    if not config.get("merge_cnv_json", {}).get("show_table", True):
+    if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
 
     return config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs", [])

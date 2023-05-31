@@ -35,6 +35,13 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
+      show_table:
+        type: boolean
+        default: true
+        description: >
+          Whether or not to display a table of called CNVs in the report. If
+          this is true, then the attributes `filtered_cnv_vcfs` and
+          `unfiltered_cnv_vcfs` are required.
       template_dir:
         type: string
         format: uri-reference
@@ -48,6 +55,7 @@ properties:
           `01-script.js`, `02-script.js`, etc.
     required:
       - template_dir
+      - show_table
 
   cnv_json:
     type: object
@@ -103,13 +111,6 @@ properties:
           Path to a germline VCF file that will be used to display VAFs in the
           plots of the report. The path supports the wildcards `sample` and
           `type` wildcards.
-      show_table:
-        type: boolean
-        default: true
-        description: >
-          Whether or not to display a table of called CNVs in the report. If
-          this is true, then the attributes `filtered_cnv_vcfs` and
-          `unfiltered_cnv_vcfs` are required.
       unfiltered_cnv_vcfs:
         type: array
         description: >
@@ -125,18 +126,20 @@ properties:
             field should have a `CALLER` attribute that lists the caller that
             called the variant in question. The path supports `sample`, `type`
             and `tc_method` wildcards.
-    allOf:
-      - if:
-          properties:
-            show_table:
-              const: true
-        then:
-          required:
-            - filtered_cnv_vcfs
-            - unfiltered_cnv_vcfs
-    required:
-      - show_table
-      
+
+if:
+  properties:
+    cnv_html_report:
+      properties:
+        show_table:
+          const: true
+then:
+  properties:
+    merge_cnv_json:
+      required:
+        - filtered_cnv_vcfs
+        - unfiltered_cnv_vcfs
+
 required:
   - samples
   - units

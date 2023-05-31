@@ -12,10 +12,10 @@ reference:
 
 cnv_html_report:
   template_dir: config/cnv_report_template
+  show_table: true
 
 merge_cnv_json:
   annotations:
   germline_vcf:
-  show_table:
   filtered_cnv_vcfs:
   unfiltered_cnv_vcfs:

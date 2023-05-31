@@ -13,9 +13,9 @@ reference:
 
 cnv_html_report:
   template_dir: ../../config/cnv_report_template
-  
-merge_cnv_json:
   show_table: true
+
+merge_cnv_json:
   annotations:
     - config/amp_genes.bed
     - config/loh_genes.bed
