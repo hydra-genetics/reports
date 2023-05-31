@@ -71,7 +71,7 @@ rule merge_cnv_json:
     input:
         json=get_json_for_merge_cnv_json,
         fai=config.get("reference", {}).get("fai", ""),
-        annotation_bed=config.get("cnv_html_report", {}).get("annotations", []),
+        annotation_bed=config.get("merge_cnv_json", {}).get("annotations", []),
         germline_vcf=get_germline_vcf,
         filtered_cnv_vcfs=get_filtered_cnv_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,

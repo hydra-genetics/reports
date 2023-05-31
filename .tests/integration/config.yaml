@@ -4,13 +4,17 @@ units: "units.tsv"
 
 output: output_files.yaml
 
-default_container: "docker://hydragenetics/common:0.1.1"
+default_container: "docker://hydragenetics/common:0.3.0"
 
 reference:
   fai: reference/ref.fai
+  skip_chrs:
+    - chrM
 
 cnv_html_report:
   template_dir: ../../config/cnv_report_template
+  
+merge_cnv_json:
   show_table: true
   annotations:
     - config/amp_genes.bed
