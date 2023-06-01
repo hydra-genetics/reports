@@ -76,10 +76,12 @@ def get_cnvs(vcf_filename, skip=None):
         genes = variant.info.get("Genes")
         if genes is None:
             continue
+        if isinstance(genes, str):
+            genes = [genes]
         cnv = CNV(
             caller,
             variant.chrom,
-            sorted(genes.split(",")),
+            sorted(genes),
             variant.pos,
             variant.info.get("SVLEN"),
             variant.info.get("SVTYPE"),
