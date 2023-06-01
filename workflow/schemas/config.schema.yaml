@@ -41,7 +41,7 @@ properties:
         description: >
           Whether or not to display a table of called CNVs in the report. If
           this is true, then the attributes `filtered_cnv_vcfs` and
-          `unfiltered_cnv_vcfs` are required.
+          `unfiltered_cnv_vcfs` under `merge_cnv_json` are required.
       template_dir:
         type: string
         format: uri-reference
@@ -93,7 +93,8 @@ properties:
         type: array
         description: >
           VCF files containing filtered CNV calls that should be displayed in
-          the results table. Will only have an effect if `show_table` is true.
+          the results table. Will only have an effect if `show_table` is true,
+          and if `show_table` is true, this attribute is required.
         items:
           type: string
           format: uri-reference
@@ -102,8 +103,9 @@ properties:
             results table of the report. The file should contain merged calls
             from all callers that are listed for `svdb_merge`, and the INFO
             field should have a `CALLER` attribute that lists the caller that
-            called the variant in question. The path supports `sample`, `type`
-            and `tc_method` wildcards.
+            called the variant in question. This file should be a subset of
+            `unfiltered_cnv_vcfs`. The path supports `sample`, `type` and
+            `tc_method` wildcards.
       germline_vcf:
         type: string
         format: uri-reference
@@ -115,17 +117,19 @@ properties:
         type: array
         description: >
           VCF files containing unfiltered CNV calls that should be displayed in
-          the results table. Will only have an effect if `show_table` is true.
+          the results table. Will only have an effect if `show_table` is true,
+          and if `show_table` is true, this attribute is required.
         items:
           type: string
           format: uri-reference
           description: >
-            Path to a filtered CNV VCF file that will be presented in the
+            Path to an unfiltered CNV VCF file that will be presented in the
             results table of the report. The file should contain merged calls
             from all callers that are listed for `svdb_merge`, and the INFO
             field should have a `CALLER` attribute that lists the caller that
-            called the variant in question. The path supports `sample`, `type`
-            and `tc_method` wildcards.
+            called the variant in question. This file should be a superset of
+            `filtered_cnv_vcfs`. The path supports `sample`, `type` and
+            `tc_method` wildcards.
 
 if:
   properties:
