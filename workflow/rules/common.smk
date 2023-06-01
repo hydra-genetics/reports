@@ -148,7 +148,7 @@ def get_cnv_ratios(wildcards):
         return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cnr"
 
     if wildcards.caller == "gatk":
-        return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+        return "cnv_sv/gatk_denoise_read_counts/{sample}_{type}.clean.denoisedCR.tsv"
 
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
