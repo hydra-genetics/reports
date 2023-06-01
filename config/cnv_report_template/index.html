@@ -91,13 +91,9 @@
     <script>
       let cnvData = {{ json | trim | indent(width=8) }};
     </script>
+    <!-- prettier-ignore -->
     <script>
-      {
-        {
-          js | indent((width = 8));
-        }
-      }
+      {{ js | indent(width = 8) }}
     </script>
   </body>
-  <html></html>
 </html>
