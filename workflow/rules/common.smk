@@ -7,7 +7,9 @@ import itertools
 import numpy as np
 import pathlib
 import pandas as pd
+from typing import List, Union
 import yaml
+from snakemake.io import Wildcards
 from snakemake.utils import validate
 from snakemake.utils import min_version
 
@@ -87,7 +89,7 @@ def generate_copy_rules(output_spec):
         if f["input"] is None:
             continue
 
-        rule_name = "_copy_{}".format("_".join(re.split(r"\W+", f["name"].strip().lower())))
+        rule_name = "_copy_{}".format("_".join(re.sub(r"[\"'-.,]", "", f["name"].strip().lower()).split()))
         input_file = pathlib.Path(f["input"])
         output_file = output_directory / pathlib.Path(f["output"])
 
@@ -105,7 +107,6 @@ def generate_copy_rules(output_spec):
                 f'@workflow.output("{output_file}")',
                 f'@workflow.log("logs/{rule_name}_{output_file.name}.log")',
                 f'@workflow.container("{copy_container}")',
-                '@workflow.conda("../envs/copy_results_files.yaml")',
                 f'@workflow.resources(time="{time}", threads={threads}, mem_mb="{mem_mb}", '
                 f'mem_per_cpu={mem_per_cpu}, partition="{partition}")',
                 f'@workflow.shellcmd("{copy_container}")',
@@ -125,4 +126,80 @@ def generate_copy_rules(output_spec):
     exec(compile("\n".join(rulestrings), "copy_result_files", "exec"), workflow.globals)
 
 
-generate_copy_rules(output_spec)
+if len(workflow.modules) == 0:
+    # Only generate copy-rules if the workflow is executed directly.
+    generate_copy_rules(output_spec)
+
+
+def get_cnv_callers(tc_method):
+    for tcm in config.get("svdb_merge", {}).get("tc_method", []):
+        if tcm["name"] == tc_method:
+            return tcm["cnv_caller"]
+    raise ValueError(f"no cnv caller config available for tc_method {tc_method}")
+
+
+def get_json_for_merge_cnv_json(wildcards):
+    callers = get_cnv_callers(wildcards.tc_method)
+    return ["reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json".format(caller=c, **wildcards) for c in callers]
+
+
+def get_cnv_ratios(wildcards):
+    if wildcards.caller == "cnvkit":
+        return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cnr"
+
+    if wildcards.caller == "gatk":
+        return "cnv_sv/gatk_denoise_read_counts/{sample}_{type}.clean.denoisedCR.tsv"
+
+    raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
+
+
+def get_cnv_segments(wildcards):
+    if wildcards.caller == "cnvkit":
+        return "cnv_sv/cnvkit_batch/{sample}/{sample}_{type}.cns"
+
+    if wildcards.caller == "gatk":
+        return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+
+    raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
+
+
+def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return config.get("merge_cnv_json", {}).get("germline_vcf", [])
+
+
+def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+    if not config.get("cnv_html_report", {}).get("show_table", True):
+        return []
+
+    return config.get("merge_cnv_json", {}).get("filtered_cnv_vcfs", [])
+
+
+def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+    if not config.get("cnv_html_report", {}).get("show_table", True):
+        return []
+
+    return config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs", [])
+
+
+def get_tc(wildcards):
+    if wildcards.tc_method == "pathology":
+        try:
+            return get_sample(samples, wildcards)["tumor_content"]
+        except KeyError:
+            return None
+
+    tc_file = get_tc_file(wildcards)
+
+    if not os.path.exists(tc_file):
+        return None
+
+    with open(tc_file) as f:
+        return f.read().strip()
+
+
+def get_tc_file(wildcards):
+    tc_method = wildcards.tc_method
+    if tc_method == "pathology":
+        return config["samples"]
+    else:
+        return f"cnv_sv/{tc_method}_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"

@@ -2,15 +2,15 @@ name: Snakefmt
 
 # Controls when the action will run.
 on:
-   # Triggers the workflow on push or pull request events but only for the master and develop branch
+  # Triggers the workflow on push or pull request events but only for the main and develop branch
   push:
     branches:
-     - develop
-     - master
+      - develop
+      - main
   pull_request:
     branches:
-     - develop
-     - master
+      - develop
+      - main
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -27,6 +27,7 @@ jobs:
       - name: Lint Code Base
         uses: github/super-linter@v4.9.0
         env:
+          DEFAULT_BRANCH: develop
           VALIDATE_ALL_CODEBASE: false
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_SNAKEMAKE_SNAKEFMT: true

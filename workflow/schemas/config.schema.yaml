@@ -1,4 +1,4 @@
-$schema: "http://json-schema.org/draft-04/schema#"
+$schema: "http://json-schema.org/draft-07/schema#"
 description: snakemake configuration file
 type: object
 properties:
@@ -16,10 +16,137 @@ properties:
     type: string
     description: name or path to a default docker/singularity container
 
+  reference:
+    type: object
+    properties:
+      fai:
+        type: string
+        format: uri-reference
+    required:
+      - fai
+
+  cnv_html_report:
+    type: object
+    description: parameters for cnv_html_report
+    properties:
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      show_table:
+        type: boolean
+        default: true
+        description: >
+          Whether or not to display a table of called CNVs in the report. If
+          this is true, then the attributes `filtered_cnv_vcfs` and
+          `unfiltered_cnv_vcfs` under `merge_cnv_json` are required.
+      template_dir:
+        type: string
+        format: uri-reference
+        description: >
+          Path to the directory containing the template files for the CNV
+          HTML report. The only required file in this directory is `index.html`
+          which should be a jinja2 template for the report. Any JS (`*.js`) or
+          CSS files (`*.css`) will be integrated into the report. These files
+          are included according to the lexicographical order of the file names,
+          so if order is important, name the files accordingly, e.g.
+          `01-script.js`, `02-script.js`, etc.
+    required:
+      - template_dir
+      - show_table
+
+  cnv_json:
+    type: object
+    description: parameters for cnv_json
+    properties:
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+
+  merge_cnv_json:
+    type: object
+    description: parameters for merge_cnv_json
+    properties:
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      annotations:
+        type: array
+        description: >
+          List of BED files with custom annotations.
+        items:
+          type: string
+          format: uri-reference
+          description: >
+            BED file with annotations that should be added to the chromosome
+            view of the report. Required columns are `chrom`, `chromStart`,
+            `chromEnd` and `name`.
+      filtered_cnv_vcfs:
+        type: array
+        description: >
+          VCF files containing filtered CNV calls that should be displayed in
+          the results table. Will only have an effect if `show_table` is true,
+          and if `show_table` is true, this attribute is required.
+        items:
+          type: string
+          format: uri-reference
+          description: >
+            Path to a filtered CNV VCF file that will be presented in the
+            results table of the report. The file should contain merged calls
+            from all callers that are listed for `svdb_merge`, and the INFO
+            field should have a `CALLER` attribute that lists the caller that
+            called the variant in question. This file should be a subset of
+            `unfiltered_cnv_vcfs`. The path supports `sample`, `type` and
+            `tc_method` wildcards.
+      germline_vcf:
+        type: string
+        format: uri-reference
+        description: >
+          Path to a germline VCF file that will be used to display VAFs in the
+          plots of the report. The path supports the wildcards `sample` and
+          `type` wildcards.
+      unfiltered_cnv_vcfs:
+        type: array
+        description: >
+          VCF files containing unfiltered CNV calls that should be displayed in
+          the results table. Will only have an effect if `show_table` is true,
+          and if `show_table` is true, this attribute is required.
+        items:
+          type: string
+          format: uri-reference
+          description: >
+            Path to an unfiltered CNV VCF file that will be presented in the
+            results table of the report. The file should contain merged calls
+            from all callers that are listed for `svdb_merge`, and the INFO
+            field should have a `CALLER` attribute that lists the caller that
+            called the variant in question. This file should be a superset of
+            `filtered_cnv_vcfs`. The path supports `sample`, `type` and
+            `tc_method` wildcards.
+
+if:
+  properties:
+    cnv_html_report:
+      properties:
+        show_table:
+          const: true
+then:
+  properties:
+    merge_cnv_json:
+      required:
+        - filtered_cnv_vcfs
+        - unfiltered_cnv_vcfs
+
 required:
   - samples
   - units
   - output
   - resources
   - default_container
-

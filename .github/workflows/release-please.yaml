@@ -2,15 +2,15 @@ name: release-please
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: GoogleCloudPlatform/release-please-action@v2
+      - uses: GoogleCloudPlatform/release-please-action@v3
         id: release
         with:
-          release-type: python
-          package-name: hydra-genetics
-          default-branch: master
+          release-type: simple
+          package-name: reporting
+          default-branch: main
