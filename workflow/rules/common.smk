@@ -51,8 +51,6 @@ with open(config["output"]) as output:
     elif config["output"].endswith("yaml") or config["output"].endswith("yml"):
         output_spec = yaml.safe_load(output.read())
 
-validate(output_spec, schema="../schemas/output_files.schema.yaml")
-
 
 ### Set wildcard constraints
 wildcard_constraints:
