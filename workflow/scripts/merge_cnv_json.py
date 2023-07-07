@@ -6,6 +6,7 @@ from pathlib import Path
 import pysam
 import sys
 from typing import Union
+import cyvcf2
 
 
 @dataclass
@@ -56,12 +57,12 @@ def parse_annotation_bed(filename, skip=None):
             yield chrom, int(start), int(end), name
 
 
-def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
-    vcf = pysam.VariantFile(str(vcf_filename))
-    for variant in vcf.fetch():
-        if variant.chrom in skip:
+def get_vaf(vcf_filename, skip=None):
+    vcf = cyvcf2.VCF(vcf_filename)
+    for variant in vcf:
+        if skip is not None and variant.CHROM in skip:
             continue
-        yield variant.chrom, variant.pos, variant.info.get("AF", None)
+        yield variant.CHROM, variant.POS, variant.INFO.get("AF", None)
 
 
 def get_cnvs(vcf_filename, skip=None):
