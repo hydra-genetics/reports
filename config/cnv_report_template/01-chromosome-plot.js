@@ -1,4 +1,4 @@
-class ChromosomePlot {
+class ChromosomePlot extends EventTarget {
   #data;
   #activeCaller;
   #fitToData;
@@ -11,6 +11,8 @@ class ChromosomePlot {
   #segments;
 
   constructor(config) {
+    super();
+
     this.element = config?.element ? config.element : document.body;
     this.name = config?.name ? config.name : "";
     this.#data = config?.data;
@@ -516,9 +518,11 @@ class ChromosomePlot {
   }
 
   #updateAxes() {
-    this.xScale.domain([0, this.length]);
     const [xMin, xMax] = this.zoomRange;
     let yMin, yMax;
+
+    this.xScale.domain([0, this.length]);
+
     if (xMin > 0 || xMax < this.length) {
       this.xScale.domain([Math.max(xMin, 0), Math.min(xMax, this.length)]);
       yMin = this.#data.callers[this.#activeCaller].ratios
@@ -537,13 +541,18 @@ class ChromosomePlot {
     }
 
     if (this.fitToData) {
-      d3.selectAll(".data-range-warning").classed("hidden", true);
+      this.dispatchEvent(
+        new CustomEvent("zoom", {
+          detail: { dataOutsideRange: false },
+        })
+      );
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
     } else {
-      d3.selectAll(".data-range-warning").classed(
-        "hidden",
-        !(yMin < -2 || yMax > 2)
+      this.dispatchEvent(
+        new CustomEvent("zoom", {
+          detail: { dataOutsideRange: yMin < -2 || yMax > 2 },
+        })
       );
       this.ratioYScale.domain([-2, 2]);
     }

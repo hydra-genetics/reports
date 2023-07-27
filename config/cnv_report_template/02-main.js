@@ -648,6 +648,13 @@ const chromosomeView = new ChromosomePlot({
   element: document.querySelector("#chromosome-view"),
   data: cnvData[0],
 });
+chromosomeView.addEventListener("zoom", (e) => {
+  d3.selectAll(".data-range-warning").classed(
+    "hidden",
+    !e.detail.dataOutsideRange
+  );
+});
+
 const genomeView = plotGenomeView();
 const resultsTable = populateTable();
 
