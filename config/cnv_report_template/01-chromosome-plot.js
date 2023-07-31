@@ -565,6 +565,7 @@ class ChromosomePlot extends EventTarget {
       .select(".y-axis")
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+    this.svg.select(".x-label").text(this.#data.label);
   }
 
   getZoomRange() {
