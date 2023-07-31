@@ -60,6 +60,7 @@ chromosomePlot.addEventListener("zoom", (e) => {
 
 genomePlot.addEventListener("chromosome-change", (e) => {
   chromosomePlot.data = cnvData[e.detail.chromosome];
+  chromosomePlot.resetZoom();
 });
 
 resultsTable.addEventListener("zoom-to-region", (e) => {
