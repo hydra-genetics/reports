@@ -71,7 +71,6 @@ class ChromosomePlot extends EventTarget {
         "max-width: 100%; height: auto; max-height: 500px; height: intrinsic;"
       );
 
-    // Clip path for log ratios and VAFs
     this.svg
       .append("clipPath")
       .attr("id", "lr-area-clip")
@@ -79,7 +78,6 @@ class ChromosomePlot extends EventTarget {
       .attr("width", this.width - this.margin.left - this.margin.right)
       .attr("height", this.plotHeight);
 
-    // Clip path for annotations
     this.svg
       .append("clipPath")
       .attr("id", "annotation-clip")

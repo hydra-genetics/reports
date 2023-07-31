@@ -16,7 +16,6 @@ const getTextDimensions = function (text, fontSize) {
   return [width, height];
 };
 
-// Populate dataset picker
 d3.select("#dataset-picker")
   .selectAll("div")
   .data(cnvData[0].callers)
@@ -37,39 +36,35 @@ d3.select("#dataset-picker")
     return e;
   });
 
-// Chromosome plot
-const chromosomeView = new ChromosomePlot({
+const chromosomePlot = new ChromosomePlot({
   element: document.querySelector("#chromosome-view"),
   data: cnvData[0],
 });
 
-// Genome plot
-const genomeView = new GenomePlot({
+const genomePlot = new GenomePlot({
   element: document.querySelector("#genome-view"),
   data: cnvData,
 });
 
-// CNV table
 const resultsTable = new ResultsTable(d3.select("#cnv-table"), {
   data: cnvData,
   filter: d3.select("#table-filter-toggle").node().checked,
 });
 
-// Event listeners
-chromosomeView.addEventListener("zoom", (e) => {
+chromosomePlot.addEventListener("zoom", (e) => {
   d3.selectAll(".data-range-warning").classed(
     "hidden",
     !e.detail.dataOutsideRange
   );
 });
 
-genomeView.addEventListener("chromosome-change", (e) => {
-  chromosomeView.data = cnvData[e.detail.chromosome];
+genomePlot.addEventListener("chromosome-change", (e) => {
+  chromosomePlot.data = cnvData[e.detail.chromosome];
 });
 
 resultsTable.addEventListener("zoom-to-region", (e) => {
-  genomeView.selectChromosome(e.detail.chromosome);
-  chromosomeView.zoomTo(e.detail.start, e.detail.start + e.detail.length);
+  genomePlot.selectChromosome(e.detail.chromosome);
+  chromosomePlot.zoomTo(e.detail.start, e.detail.start + e.detail.length);
 });
 
 d3.select("#table-filter-toggle").on("change", (event) => {
@@ -77,11 +72,11 @@ d3.select("#table-filter-toggle").on("change", (event) => {
 });
 
 d3.select("#chromosome-fit-to-data").on("change", (e) => {
-  chromosomeView.fitToData = e.target.checked;
+  chromosomePlot.fitToData = e.target.checked;
 });
 
 d3.selectAll("input[name=dataset]").on("change", (e) => {
-  chromosomeView.activeCaller = parseInt(e.target.value);
-  genomeView.activeCaller = parseInt(e.target.value);
+  chromosomePlot.activeCaller = parseInt(e.target.value);
+  genomePlot.activeCaller = parseInt(e.target.value);
   resultsTable.activeCaller = parseInt(e.target.value);
 });
