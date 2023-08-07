@@ -516,6 +516,8 @@ class ChromosomePlot extends EventTarget {
   }
 
   #updateAxes() {
+    const [staticYMin, staticYMax] = [-2, 2];
+
     const [xMin, xMax] = this.zoomRange;
     let yMin, yMax;
 
@@ -523,20 +525,30 @@ class ChromosomePlot extends EventTarget {
 
     if (xMin > 0 || xMax < this.length) {
       this.xScale.domain([Math.max(xMin, 0), Math.min(xMax, this.length)]);
-      yMin = this.#data.callers[this.#activeCaller].ratios
-        .filter((d) => d.start > xMin && d.start < xMax)
-        .map((d) => d.log2)
-        .reduce((a, d) => (d < a ? d : a));
-      yMax = this.#data.callers[this.#activeCaller].ratios
-        .filter((d) => d.start > xMin && d.start < xMax)
-        .map((d) => d.log2)
-        .reduce((a, d) => (d > a ? d : a));
+
+      const yValues = this.#data.callers[this.#activeCaller].ratios.filter(
+        (d) => d.start > xMin && d.start < xMax
+      );
+
+      if (yValues.length === 0) {
+        yMin = staticYMin;
+        yMax = staticYMax;
+      } else {
+        yMin = yValues.map((d) => d.log2).reduce((a, d) => (d < a ? d : a));
+        yMax = yValues.map((d) => d.log2).reduce((a, d) => (d > a ? d : a));
+      }
     } else {
       [yMin, yMax] = d3.extent(
         this.#data.callers[this.#activeCaller].ratios,
         (d) => d.log2
       );
+      if (!yMin && !yMax) {
+        yMin = staticYMin;
+        yMax = staticYMax;
+      }
     }
+
+    const padding = (yMax - yMin) * 0.05;
 
     if (this.fitToData) {
       this.dispatchEvent(
@@ -544,15 +556,14 @@ class ChromosomePlot extends EventTarget {
           detail: { dataOutsideRange: false },
         })
       );
-      const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
     } else {
       this.dispatchEvent(
         new CustomEvent("zoom", {
-          detail: { dataOutsideRange: yMin < -2 || yMax > 2 },
+          detail: { dataOutsideRange: yMin < staticYMin || yMax > staticYMax },
         })
       );
-      this.ratioYScale.domain([-2, 2]);
+      this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
     }
 
     this.svg
