@@ -11,11 +11,13 @@ reference:
     - chrM
 
 cnv_html_report:
+  cytobands: false
   template_dir: config/cnv_report_template
   show_table: true
 
 merge_cnv_json:
   annotations:
+  cytobands:
   germline_vcf:
   filtered_cnv_vcfs:
   unfiltered_cnv_vcfs:

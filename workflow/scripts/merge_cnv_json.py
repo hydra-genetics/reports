@@ -56,6 +56,15 @@ def parse_annotation_bed(filename, skip=None):
             yield chrom, int(start), int(end), name
 
 
+def parse_cytobands(filename, skip=None):
+    with open(filename) as f:
+        for line in f:
+            chrom, start, end, name, giemsa = line.strip().split()
+            if skip is not None and chrom in skip:
+                continue
+            yield chrom, int(start), int(end), name, giemsa
+
+
 def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
     vcf = pysam.VariantFile(str(vcf_filename))
     for variant in vcf.fetch():
@@ -92,7 +101,7 @@ def get_cnvs(vcf_filename, skip=None):
     return cnvs
 
 
-def merge_cnv_dicts(dicts, vaf, annotations, chromosomes, filtered_cnvs, unfiltered_cnvs):
+def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
         cnvkit="cnvkit",
@@ -118,6 +127,11 @@ def merge_cnv_dicts(dicts, vaf, annotations, chromosomes, filtered_cnvs, unfilte
                     name=item[3],
                 )
             )
+
+    for cb in cytobands:
+        if "cytobands" not in cnvs[cb[0]]:
+            cnvs[cb[0]]["cytobands"] = []
+        cnvs[cb[0]]["cytobands"].append({"start": cb[1], "end": cb[2], "name": cb[3], "giemsa": cb[4]})
 
     if vaf is not None:
         for v in vaf:
@@ -210,6 +224,7 @@ def main():
     json_files = snakemake.input["json"]
     filtered_cnv_vcf_files = snakemake.input["filtered_cnv_vcfs"]
     cnv_vcf_files = snakemake.input["cnv_vcfs"]
+    cytoband_file = snakemake.input["cytobands"]
 
     if len(germline_vcf) == 0:
         germline_vcf = None
@@ -217,6 +232,7 @@ def main():
     output_file = snakemake.output["json"]
 
     skip_chromosomes = snakemake.params["skip_chromosomes"]
+    show_cytobands = snakemake.params["cytobands"]
 
     cnv_dicts = []
     for fname in json_files:
@@ -231,13 +247,17 @@ def main():
     for filename in annotation_beds:
         annotations.append(parse_annotation_bed(filename, skip_chromosomes))
 
+    cytobands = []
+    if cytoband_file and show_cytobands:
+        cytobands = parse_cytobands(cytoband_file, skip_chromosomes)
+
     filtered_cnv_vcfs = []
     unfiltered_cnv_vcfs = []
     for f_vcf, uf_vcf in zip(filtered_cnv_vcf_files, cnv_vcf_files):
         filtered_cnv_vcfs.append(get_cnvs(f_vcf, skip_chromosomes))
         unfiltered_cnv_vcfs.append(get_cnvs(uf_vcf, skip_chromosomes))
 
-    cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs)
+    cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs)
 
     with open(output_file, "w") as f:
         print(json.dumps(cnvs), file=f)
