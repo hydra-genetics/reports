@@ -19,6 +19,7 @@ class ChromosomePlot extends EventTarget {
     this.#activeCaller = config?.caller ? config.caller : 0;
     this.length = this.#data?.length ? this.#data.length : 0;
     this.zoomRange = [0, this.length];
+    this.minZoomRange = config?.minZoomRange ? config.minZoomRange : 20;
     this.#fitToData = config?.fitToData ? config.fitToData : false;
     this.animationDuration = config?.animationDuration
       ? config.animationDuration
@@ -403,18 +404,30 @@ class ChromosomePlot extends EventTarget {
                 this.height - this.margin.bottom - this.margin.top
               )
               .attr("stroke-width", 0)
-              .attr("fill", "#333")
               .attr("fill-opacity", 0.1);
           })
           .on("drag", (e) => {
             let leftBound = Math.min(e.x, e.subject.x);
             let width = Math.abs(Math.max(0, e.x) - e.subject.x);
+
             if (leftBound + width > this.xScale.range()[1]) {
               width = this.xScale.range()[1] - leftBound;
             }
-            d3.select(".zoom-region")
+
+            const genomeWidth =
+              this.xScale.invert(Math.max(e.x, e.subject.x)) -
+              this.xScale.invert(leftBound);
+
+            const zoomRegion = d3
+              .select(".zoom-region")
               .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
               .attr("width", width);
+
+            if (genomeWidth < this.minZoomRange) {
+              zoomRegion.attr("fill", "red");
+            } else {
+              zoomRegion.attr("fill", "#333");
+            }
           })
           .on("end", (e) => {
             d3.select(".zoom-region").remove();
@@ -584,6 +597,10 @@ class ChromosomePlot extends EventTarget {
   }
 
   zoomTo(start, end) {
+    if (end - start < this.minZoomRange) {
+      this.dispatchEvent(new CustomEvent("max-zoom-reached", {}));
+      return this;
+    }
     this.zoomRange = [start, end];
     return this.update();
   }

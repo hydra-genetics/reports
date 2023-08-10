@@ -51,11 +51,59 @@ const resultsTable = new ResultsTable(d3.select("#cnv-table"), {
   filter: d3.select("#table-filter-toggle").node().checked,
 });
 
+const messageModal = document.querySelector("dialog");
+messageModal.addEventListener("click", (e) => {
+  const modalDimensions = messageModal.getBoundingClientRect();
+  if (
+    e.clientX < modalDimensions.left ||
+    e.clientX > modalDimensions.right ||
+    e.clientY < modalDimensions.top ||
+    e.clientY > modalDimensions.bottom
+  ) {
+    messageModal.close();
+  }
+});
+
+document.querySelector("dialog button.close").addEventListener("click", (e) => {
+  e.currentTarget.parentNode.close();
+});
+
+function setModalMessage(msg, className) {
+  let message = document.createElement("p");
+  const messageText = document.createTextNode(msg);
+
+  let icon = document.createElement("i");
+
+  if (className === "error") {
+    icon.className = "fa-solid fa-circle-exclamation";
+  } else if (className === "warning") {
+    icon.className = "fa-solid fa-triangle-exclamation";
+  } else if (className === "info") {
+    icon.className = "fa-solid fa-circle-info";
+  }
+
+  message.appendChild(icon);
+  message.appendChild(messageText);
+
+  messageModal.className = className ? className : "";
+  messageModal.firstChild?.remove();
+  messageModal.prepend(message);
+}
+
 chromosomePlot.addEventListener("zoom", (e) => {
   d3.selectAll(".data-range-warning").classed(
     "hidden",
     !e.detail.dataOutsideRange
   );
+});
+
+chromosomePlot.addEventListener("max-zoom-reached", () => {
+  setModalMessage(
+    "Trying to zoom in too far. " +
+      `Current lower limit is ${chromosomePlot.minZoomRange} bp.`,
+    "error"
+  );
+  messageModal.showModal();
 });
 
 genomePlot.addEventListener("chromosome-change", (e) => {
