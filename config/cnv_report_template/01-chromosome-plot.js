@@ -17,7 +17,6 @@ class ChromosomePlot extends EventTarget {
     this.name = config?.name ? config.name : "";
     this.#data = config?.data;
     this.#activeCaller = config?.caller ? config.caller : 0;
-    this.length = this.#data?.length ? this.#data.length : 0;
     this.zoomRange = [0, this.length];
     this.#fitToData = config?.fitToData ? config.fitToData : false;
     this.animationDuration = config?.animationDuration
@@ -141,6 +140,10 @@ class ChromosomePlot extends EventTarget {
   set data(data) {
     this.#data = data;
     return this.update();
+  }
+
+  get length() {
+    return this.#data.length;
   }
 
   #plotRatios() {
@@ -431,7 +434,7 @@ class ChromosomePlot extends EventTarget {
       )
       .on("click", () => {
         let [xMin, xMax] = this.xScale.domain();
-        if (xMax - xMin !== this.#data.length) {
+        if (xMax - xMin !== this.length) {
           // Only reset if something actually changed
           this.resetZoom();
         }
@@ -448,7 +451,7 @@ class ChromosomePlot extends EventTarget {
             .append("line")
             .attr("class", "gridline")
             .attr("x1", 0)
-            .attr("x2", this.xScale(this.#data.length))
+            .attr("x2", this.xScale(this.length))
             .attr("y1", (d) => this.ratioYScale(d))
             .attr("y2", (d) => this.ratioYScale(d)),
         (update) =>
@@ -469,7 +472,7 @@ class ChromosomePlot extends EventTarget {
             .append("line")
             .attr("class", "gridline")
             .attr("x1", 0)
-            .attr("x2", this.xScale(this.#data.length))
+            .attr("x2", this.xScale(this.length))
             .attr("y1", (d) => this.vafYScale(d))
             .attr("y2", (d) => this.vafYScale(d)),
         (update) =>
