@@ -2,6 +2,7 @@ class ChromosomePlot extends EventTarget {
   #data;
   #activeCaller;
   #fitToData;
+  #cytobands;
   #plotArea;
   #lrArea;
   #lrGrid;
@@ -34,6 +35,11 @@ class ChromosomePlot extends EventTarget {
           left: 60,
           between: 40,
         };
+
+    this.cytobandHeight = this.#data.cytobands ? 10 : 0;
+    if (this.cytobandHeight > 0) {
+      this.margin.top += this.cytobandHeight + this.margin.top;
+    }
 
     this.plotHeight =
       (this.height -
@@ -90,6 +96,14 @@ class ChromosomePlot extends EventTarget {
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
       .attr("class", "plot-area");
 
+    if (this.#data.cytobands) {
+      this.#cytobands = this.svg
+        .append("g")
+        .attr("clip-path", "url(#lr-area-clip)")
+        .attr("transform", `translate(${this.margin.left},10)`)
+        .attr("class", "cytobands-area");
+    }
+
     this.#lrArea = this.#plotArea
       .append("g")
       .attr("id", "lr-plot")
@@ -145,6 +159,35 @@ class ChromosomePlot extends EventTarget {
 
   get length() {
     return this.#data.length;
+  }
+
+  #plotCytobands() {
+    if (!this.#cytobands) {
+      return;
+    }
+
+    this.#cytobands
+      .selectAll(".cytoband")
+      .data(this.#data.cytobands, (d) => [d.start, d.end])
+      .join(
+        (enter) =>
+          enter
+            .append("rect")
+            .attr("x", (d) => this.xScale(d.start))
+            .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+            .attr("height", this.cytobandHeight)
+            .attr("fill", (d) => d.color)
+            .attr("class", "cytoband"),
+        (update) =>
+          update.call((update) =>
+            update
+              .transition()
+              .duration(this.animationDuration)
+              .attr("x", (d) => this.xScale(d.start))
+              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+          ),
+        (exit) => exit.remove()
+      );
   }
 
   #plotRatios() {
@@ -620,6 +663,7 @@ class ChromosomePlot extends EventTarget {
     this.#plotSegments();
     this.#plotVAF();
     this.#plotAnnotations();
+    this.#plotCytobands();
     return this;
   }
 }
