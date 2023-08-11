@@ -38,6 +38,19 @@ class CNV:
         return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.copy_number}")
 
 
+cytoband_config = snakemake.config.get("merge_cnv_json", {}).get("cytoband_config", {}).get("colors", {})
+cytoband_colors = {
+    "gneg": cytoband_config.get("gneg", "#e3e3e3"),
+    "gpos25": cytoband_config.get("gpos25", "#555555"),
+    "gpos50": cytoband_config.get("gpos50", "#393939"),
+    "gpos75": cytoband_config.get("gpos75", "#8e8e8e"),
+    "gpos100": cytoband_config.get("gpos100", "#000000"),
+    "acen": cytoband_config.get("acen", "#963232"),
+    "gvar": cytoband_config.get("gvar", "#000000"),
+    "stalk": cytoband_config.get("stalk", "#7f7f7f"),
+}
+
+
 def parse_fai(filename, skip=None):
     with open(filename) as f:
         for line in f:
@@ -56,13 +69,17 @@ def parse_annotation_bed(filename, skip=None):
             yield chrom, int(start), int(end), name
 
 
+def cytoband_color(giemsa):
+    return cytoband_colors.get(giemsa, "#ff0000")
+
+
 def parse_cytobands(filename, skip=None):
     with open(filename) as f:
         for line in f:
             chrom, start, end, name, giemsa = line.strip().split()
             if skip is not None and chrom in skip:
                 continue
-            yield chrom, int(start), int(end), name, giemsa
+            yield chrom, int(start), int(end), name, giemsa, cytoband_color(giemsa)
 
 
 def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
@@ -131,7 +148,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
     for cb in cytobands:
         if "cytobands" not in cnvs[cb[0]]:
             cnvs[cb[0]]["cytobands"] = []
-        cnvs[cb[0]]["cytobands"].append({"start": cb[1], "end": cb[2], "name": cb[3], "giemsa": cb[4]})
+        cnvs[cb[0]]["cytobands"].append({"start": cb[1], "end": cb[2], "name": cb[3], "giemsa": cb[4], "color": cb[5]})
 
     if vaf is not None:
         for v in vaf:
