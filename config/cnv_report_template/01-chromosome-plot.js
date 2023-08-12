@@ -166,9 +166,13 @@ class ChromosomePlot extends EventTarget {
       return;
     }
 
+    // regular bands
     this.#cytobands
       .selectAll(".cytoband")
-      .data(this.#data.cytobands, (d) => [d.start, d.end])
+      .data(
+        this.#data.cytobands.filter((d) => d.giemsa !== "acen"),
+        (d) => [d.start, d.end]
+      )
       .join(
         (enter) =>
           enter
@@ -185,6 +189,64 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("x", (d) => this.xScale(d.start))
               .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+          ),
+        (exit) => exit.remove()
+      );
+
+    const centromerePoints = (start, end, height, direction) => {
+      let left, right, points;
+      if (direction === "right") {
+        left = this.xScale(start);
+        right = this.xScale(end);
+      } else if (direction === "left") {
+        left = this.xScale(end);
+        right = this.xScale(start);
+      } else {
+        throw new Error(`invalid centromere direction: ${direction}`);
+      }
+      points = [
+        [left, 0],
+        [right, height / 2],
+        [left, height],
+      ];
+      let stringPoints = points.join(" ");
+      return stringPoints;
+    };
+
+    let centromeres = this.#data.cytobands
+      .filter((d) => d.giemsa === "acen")
+      .sort((a, b) => a.start - b.start);
+
+    if (centromeres && centromeres.length !== 2) {
+      throw new Error(
+        `chromosome ${this.#data.chromosome} does not have 0 or 2 centromeres`
+      );
+    } else {
+      centromeres[0].direction = "right";
+      centromeres[1].direction = "left";
+    }
+
+    // centromeric bands
+    this.#cytobands
+      .selectAll(".centromere")
+      .data(centromeres, (d) => [d.start, d.end])
+      .join(
+        (enter) =>
+          enter
+            .append("polygon")
+            .attr("points", (d) =>
+              centromerePoints(d.start, d.end, 10, d.direction)
+            )
+            .attr("fill", (d) => d.color)
+            .classed("centromere", true),
+        (update) =>
+          update.call((update) =>
+            update
+              .transition()
+              .duration(this.animationDuration)
+              .attr("points", (d) =>
+                centromerePoints(d.start, d.end, 10, d.direction)
+              )
           ),
         (exit) => exit.remove()
       );
