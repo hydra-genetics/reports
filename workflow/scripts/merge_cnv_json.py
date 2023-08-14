@@ -39,6 +39,7 @@ class CNV:
 
 
 cytoband_config = snakemake.config.get("merge_cnv_json", {}).get("cytoband_config", {}).get("colors", {})
+cytoband_centromere = "acen"
 cytoband_colors = {
     "gneg": cytoband_config.get("gneg", "#e3e3e3"),
     "gpos25": cytoband_config.get("gpos25", "#555555"),
@@ -74,12 +75,39 @@ def cytoband_color(giemsa):
 
 
 def parse_cytobands(filename, skip=None):
+    cytobands = defaultdict(list)
     with open(filename) as f:
         for line in f:
             chrom, start, end, name, giemsa = line.strip().split()
             if skip is not None and chrom in skip:
                 continue
-            yield chrom, int(start), int(end), name, giemsa, cytoband_color(giemsa)
+            cytobands[chrom].append(
+                {
+                    "name": name,
+                    "start": int(start),
+                    "end": int(end),
+                    "direction": "none",
+                    "giemsa": giemsa,
+                    "color": cytoband_color(giemsa),
+                }
+            )
+
+    for k, v in cytobands.items():
+        cytobands[k] = sorted(v, key=lambda x: x["start"])
+        centromere_index = [i for i, x in enumerate(cytobands[k]) if x["giemsa"] == cytoband_centromere]
+
+        if len(centromere_index) > 0 and len(centromere_index) != 2:
+            print(
+                f"error: chromosome {k} does not have 0 or 2 centromere bands, " f"found {len(centromere_index)}", file=sys.stderr
+            )
+            sys.exit(1)
+        elif len(centromere_index) == 0:
+            continue
+
+        cytobands[k][centromere_index[0]]["direction"] = "right"
+        cytobands[k][centromere_index[1]]["direction"] = "left"
+
+    return cytobands
 
 
 def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
@@ -145,10 +173,8 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                 )
             )
 
-    for cb in cytobands:
-        if "cytobands" not in cnvs[cb[0]]:
-            cnvs[cb[0]]["cytobands"] = []
-        cnvs[cb[0]]["cytobands"].append({"start": cb[1], "end": cb[2], "name": cb[3], "giemsa": cb[4], "color": cb[5]})
+    for c in cytobands:
+        cnvs[c]["cytobands"] = cytobands[c]
 
     if vaf is not None:
         for v in vaf:
