@@ -213,6 +213,7 @@ table {
 th,
 td {
   padding: 0.6rem 0.5rem 0.1rem 0.5rem;
+  word-break: break-word;
 }
 
 th {
