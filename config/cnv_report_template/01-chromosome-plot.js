@@ -207,7 +207,13 @@ class ChromosomePlot extends EventTarget {
             .attr("points", cytobandPolygon)
             .attr("fill", (d) => d.color)
             .classed("cytoband", true)
-            .classed("centromere", (d) => d.giemsa === "acen"),
+            .classed("centromere", (d) => d.giemsa === "acen")
+            .on("mouseenter mousemove", (e, d) => {
+              this.showCytobandName(d.name, e);
+            })
+            .on("mouseout", () => {
+              this.showCytobandName(null);
+            }),
         (update) =>
           update.call((update) =>
             update
@@ -215,6 +221,35 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("points", cytobandPolygon)
           ),
+        (exit) => exit.remove()
+      );
+  }
+
+  showCytobandName(name, event) {
+    event?.preventDefault();
+    d3.select("body")
+      .selectAll(".cytoband-name")
+      .data(name ? [name] : [], (d) => d)
+      .join(
+        (enter) => {
+          let div = enter
+            .append("div")
+            .classed("cytoband-name", true)
+            .style("position", "fixed")
+            .attr("pointer-events", "none");
+          div.append("p").text((d) => d);
+          if (event?.clientX && event?.clientY) {
+            div = div
+              .style("top", `${event.clientY + 30}px`)
+              .style("left", `${event.clientX}px`);
+          }
+          return div;
+        },
+        (update) =>
+          update
+            .style("top", `${event?.clientY + 20}px`)
+            .style("left", `${event?.clientX}px`)
+            .text((d) => d),
         (exit) => exit.remove()
       );
   }
