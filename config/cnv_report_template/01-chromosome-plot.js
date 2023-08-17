@@ -318,7 +318,7 @@ class ChromosomePlot extends EventTarget {
                 .attr("x", (d) => this.xScale(cytobandLabel(d).x))
                 .attr("y", this.cytobandHeight - 2)
                 .attr("fill", (d) =>
-                  colorBrightness(d.color) < 100 ? "#ffffff" : "#000000"
+                  colorBrightness(d.color) < 128 ? "#ffffff" : "#000000"
                 )
                 .attr("text-anchor", "middle")
                 .classed("label", true)
