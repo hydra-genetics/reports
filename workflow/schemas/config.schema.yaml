@@ -99,32 +99,42 @@ properties:
         type: object
         properties:
           colors:
+            description: >
+              Cytoband colors in hexadecimal format.
             type: object
             properties:
               gneg:
                 type: string
                 description: Color for Giemsa stain result `gneg`.
+                pattern: '^#[\da-fA-F]{6}$'
               gpos25:
                 type: string
                 description: Color for Giemsa stain result `gpos25`.
+                pattern: '^#[\da-fA-F]{6}$'
               gpos50:
                 type: string
                 description: Color for Giemsa stain result `gpos50`.
+                pattern: '^#[\da-fA-F]{6}$'
               gpos75:
                 type: string
                 description: Color for Giemsa stain result `gpos75`.
+                pattern: '^#[\da-fA-F]{6}$'
               gpos100:
                 type: string
                 description: Color for Giemsa stain result `gpos100`.
+                pattern: '^#[\da-fA-F]{6}$'
               acen:
                 type: string
                 description: Color for Giemsa stain result `acen`.
+                pattern: '^#[\da-fA-F]{6}$'
               gvar:
                 type: string
                 description: Color for Giemsa stain result `gvar`.
+                pattern: '^#[\da-fA-F]{6}$'
               stalk:
                 type: string
                 description: Color for Giemsa stain result `stalk`.
+                pattern: '^#[\da-fA-F]{6}$'
       cytobands:
         type: string
         format: uri-reference
