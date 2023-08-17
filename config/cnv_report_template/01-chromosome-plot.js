@@ -233,7 +233,9 @@ class ChromosomePlot extends EventTarget {
         xPos = d.start + visibleWidth / 2;
       }
 
-      if (this.xScale(xDomain[0] + visibleWidth) < 20) {
+      const labelWidth = getTextDimensions(d.name, this.cytobandHeight)[0];
+
+      if (this.xScale(xDomain[0] + visibleWidth) < labelWidth + 4) {
         return {
           label: "",
           x: xPos,
