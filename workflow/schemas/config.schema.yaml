@@ -97,6 +97,8 @@ properties:
             `chromEnd` and `name`.
       cytoband_config:
         type: object
+        description: >
+          Cytoband visualisation configuration.
         properties:
           colors:
             description: >

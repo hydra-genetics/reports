@@ -1,6 +1,7 @@
 site_name: Hydra-Genetics Reports
 nav:
   - Introduction: intro.md
+  - Reports: reports.md
   - Softwares: softwares.md
 
 theme: readthedocs

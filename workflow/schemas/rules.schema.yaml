@@ -100,6 +100,11 @@ properties:
               Zero or more VCF files containing unfiltered CNV calls that should
               be displayed in the results table. Supplied by input function that
               takes these from the config.
+          cytobands:
+            type: string
+            description: >
+              Optional path to a file with cytoband definitions. This file should
+              conform to the UCSC schema for cytobands. See <https://www.genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=map&hgta_track=cytoBand&hgta_table=cytoBand&hgta_doSchema=describe+table+schema>
 
       output:
         type: object
