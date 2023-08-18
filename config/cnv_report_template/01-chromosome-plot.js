@@ -796,14 +796,13 @@ class ChromosomePlot extends EventTarget {
       }
     }
 
-    const padding = (yMax - yMin) * 0.05;
-
     if (this.fitToData) {
       this.dispatchEvent(
         new CustomEvent("zoom", {
           detail: { dataOutsideRange: false },
         })
       );
+      const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
     } else {
       this.dispatchEvent(
@@ -811,6 +810,7 @@ class ChromosomePlot extends EventTarget {
           detail: { dataOutsideRange: yMin < staticYMin || yMax > staticYMax },
         })
       );
+      const padding = (staticYMax - staticYMin) * 0.05;
       this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
     }
 
