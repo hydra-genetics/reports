@@ -155,6 +155,7 @@ class ChromosomePlot extends EventTarget {
   set data(data) {
     this.#data = data;
     this.resetZoom();
+    this.#drawAxes();
     this.update();
   }
 
@@ -590,6 +591,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   #drawAxes() {
+    this.svg.select(".x-axis").remove();
     this.svg
       .append("g")
       .attr(
@@ -597,11 +599,17 @@ class ChromosomePlot extends EventTarget {
         `translate(${this.margin.left},${this.height - this.margin.bottom})`
       )
       .attr("class", "x-axis")
+      .transition()
+      .duration(this.animationDuration)
       .call(this.xAxis);
+
+    this.svg.selectAll(".y-axis").remove();
     this.svg
       .append("g")
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
       .attr("class", "y-axis")
+      .transition()
+      .duration(this.animationDuration)
       .call(this.ratioYAxis);
     this.svg
       .append("g")
@@ -612,6 +620,8 @@ class ChromosomePlot extends EventTarget {
         })`
       )
       .attr("class", "y-axis")
+      .transition()
+      .duration(this.animationDuration)
       .call(this.vafYAxis);
   }
 
