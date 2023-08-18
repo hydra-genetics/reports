@@ -72,6 +72,12 @@ dialog.info p i {
   order: -1;
 }
 
+.cytoband-name {
+  background-color: #dddddd;
+  padding: 5px;
+  border: 1px solid #999999;
+}
+
 .table-container {
   min-width: 35em;
   max-width: 60em;

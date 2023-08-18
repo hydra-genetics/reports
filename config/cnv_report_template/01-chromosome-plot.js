@@ -2,6 +2,7 @@ class ChromosomePlot extends EventTarget {
   #data;
   #activeCaller;
   #fitToData;
+  #cytobands;
   #plotArea;
   #lrArea;
   #lrGrid;
@@ -34,6 +35,11 @@ class ChromosomePlot extends EventTarget {
           left: 60,
           between: 40,
         };
+
+    this.cytobandHeight = this.#data.cytobands ? 10 : 0;
+    if (this.cytobandHeight > 0) {
+      this.margin.top += this.cytobandHeight + this.margin.top;
+    }
 
     this.plotHeight =
       (this.height -
@@ -90,6 +96,14 @@ class ChromosomePlot extends EventTarget {
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
       .attr("class", "plot-area");
 
+    if (this.#data.cytobands) {
+      this.#cytobands = this.svg
+        .append("g")
+        .attr("clip-path", "url(#lr-area-clip)")
+        .attr("transform", `translate(${this.margin.left},10)`)
+        .attr("class", "cytobands-area");
+    }
+
     this.#lrArea = this.#plotArea
       .append("g")
       .attr("id", "lr-plot")
@@ -145,6 +159,223 @@ class ChromosomePlot extends EventTarget {
 
   get length() {
     return this.#data.length;
+  }
+
+  #plotCytobands() {
+    if (!this.#cytobands) {
+      return;
+    }
+
+    const cytobandPolygon = ({ start, end, direction }) => {
+      const bandWidthPx = this.xScale(end) - this.xScale(start);
+      const arrowSize = Math.min(5, bandWidthPx);
+      let points;
+      switch (direction) {
+        case "right":
+          points = [
+            [this.xScale(start), 0],
+            [this.xScale(end) - arrowSize, 0],
+            [this.xScale(end), this.cytobandHeight / 2],
+            [this.xScale(end) - arrowSize, this.cytobandHeight],
+            [this.xScale(start), this.cytobandHeight],
+          ];
+          break;
+        case "left":
+          points = [
+            [this.xScale(end), 0],
+            [this.xScale(start) + arrowSize, 0],
+            [this.xScale(start), this.cytobandHeight / 2],
+            [this.xScale(start) + arrowSize, this.cytobandHeight],
+            [this.xScale(end), this.cytobandHeight],
+          ];
+          break;
+        case "none":
+          points = [
+            [this.xScale(start), 0],
+            [this.xScale(end), 0],
+            [this.xScale(end), this.cytobandHeight],
+            [this.xScale(start), this.cytobandHeight],
+          ];
+          break;
+        default:
+          throw new Error(`invalid cytoband direction: ${direction}`);
+      }
+      return points.join(" ");
+    };
+
+    const cytobandLabel = (d) => {
+      const xDomain = this.xScale.domain();
+      let visibleWidth, xPos;
+      if (
+        xDomain[0] > d.start &&
+        xDomain[0] < d.end &&
+        xDomain[1] > d.start &&
+        xDomain[1] < d.end
+      ) {
+        // both ends outside
+        visibleWidth = xDomain[1] - xDomain[0];
+        xPos = xDomain[0] + visibleWidth / 2;
+      } else if (xDomain[0] > d.start && xDomain[0] < d.end) {
+        // hanging out on the left side
+        visibleWidth = d.end - xDomain[0];
+        xPos = xDomain[0] + visibleWidth / 2;
+      } else if (xDomain[1] > d.start && xDomain[1] < d.end) {
+        // hanging out on the right side
+        visibleWidth = xDomain[1] - d.start;
+        xPos = d.start + visibleWidth / 2;
+      } else if (xDomain[0] > d.end || xDomain[1] < d.start) {
+        // the band is out of view
+        visibleWidth = 0;
+        xPos = d.start;
+      } else {
+        // the whole band is visible
+        visibleWidth = d.end - d.start;
+        xPos = d.start + visibleWidth / 2;
+      }
+
+      const labelWidth = getTextDimensions(d.name, this.cytobandHeight)[0];
+
+      if (this.xScale(xDomain[0] + visibleWidth) < labelWidth + 4) {
+        return {
+          label: "",
+          x: xPos,
+        };
+      }
+
+      return {
+        label: d.name,
+        x: xPos,
+      };
+    };
+
+    const colorBrightness = (color) => {
+      let colorType;
+      if (color.indexOf("#") === 0) {
+        colorType = "hex";
+      } else if (color.indexOf("rgb") === 0) {
+        colorType = "rgb";
+      } else {
+        throw new Error(`unknown color type, should be hex or rgb: ${color}`);
+      }
+
+      let m, r, g, b;
+
+      if (colorType === "hex") {
+        if (color.length === 7) {
+          m = color.substr(1).match(/(\S{2})/g);
+        } else if (color.length === 4) {
+          m = color.substr(1).match(/(\S{1})/g);
+        } else {
+          throw new Error(`invalid hex color value: ${color}`);
+        }
+
+        if (m) {
+          r = parseInt(m[0], 16);
+          g = parseInt(m[1], 16);
+          b = parseInt(m[2], 16);
+        }
+      }
+
+      if (colorType === "rgb") {
+        m = color.match(/(\d+){3}/g);
+        if (m) {
+          r = parseInt(m[0]);
+          g = parseInt(m[1]);
+          b = parseInt(m[2]);
+        }
+      }
+
+      if (r !== undefined) {
+        return (r * 299 + g * 587 + b * 114) / 1000;
+      }
+    };
+
+    this.#cytobands
+      .selectAll(".cytoband-group")
+      .data(this.data.cytobands, (d) => [d.name, d.start, d.end, d.giemsa])
+      .join(
+        (enter) => {
+          return enter
+            .append("g")
+            .classed("cytoband-group", true)
+            .call((g) =>
+              g
+                .append("polygon")
+                .attr("points", cytobandPolygon)
+                .attr("fill", (d) => d.color)
+                .classed("cytoband", true)
+                .classed("centromere", (d) => d.giemsa === "acen")
+                .on("mouseenter mousemove", (e, d) => {
+                  this.showCytobandName(d.name, e);
+                })
+                .on("mouseout", () => {
+                  this.showCytobandName(null);
+                })
+            )
+            .call((g) =>
+              g
+                .append("text")
+                .attr("x", (d) => this.xScale(cytobandLabel(d).x))
+                .attr("y", this.cytobandHeight - 2)
+                .attr("fill", (d) =>
+                  colorBrightness(d.color) < 128 ? "#ffffff" : "#000000"
+                )
+                .attr("text-anchor", "middle")
+                .classed("label", true)
+                .style("font-size", `${this.cytobandHeight}px`)
+                .style("pointer-events", "none")
+                .text((d) => cytobandLabel(d).label)
+            );
+        },
+        (update) => {
+          update
+            .call((g) =>
+              g
+                .select(".label")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => this.xScale(cytobandLabel(d).x))
+                .text((d) => cytobandLabel(d).label)
+            )
+            .call((g) =>
+              g
+                .select(".cytoband")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("points", cytobandPolygon)
+            );
+        },
+        (exit) => exit.remove()
+      );
+  }
+
+  showCytobandName(name, event) {
+    event?.preventDefault();
+    d3.select("body")
+      .selectAll(".cytoband-name")
+      .data(name ? [name] : [], (d) => d)
+      .join(
+        (enter) => {
+          let div = enter
+            .append("div")
+            .classed("cytoband-name", true)
+            .style("position", "fixed")
+            .attr("pointer-events", "none");
+          div.append("p").text((d) => d);
+          if (event?.clientX && event?.clientY) {
+            div = div
+              .style("top", `${event.clientY + 30}px`)
+              .style("left", `${event.clientX}px`);
+          }
+          return div;
+        },
+        (update) =>
+          update
+            .style("top", `${event?.clientY + 20}px`)
+            .style("left", `${event?.clientX}px`)
+            .text((d) => d),
+        (exit) => exit.remove()
+      );
   }
 
   #plotRatios() {
@@ -620,6 +851,7 @@ class ChromosomePlot extends EventTarget {
     this.#plotSegments();
     this.#plotVAF();
     this.#plotAnnotations();
+    this.#plotCytobands();
     return this;
   }
 }

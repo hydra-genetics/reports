@@ -12,19 +12,21 @@ reference:
     - chrM
 
 cnv_html_report:
-  template_dir: ../../config/cnv_report_template
+  cytobands: true
   show_table: true
+  template_dir: ../../config/cnv_report_template
 
 merge_cnv_json:
   annotations:
     - config/amp_genes.bed
     - config/loh_genes.bed
     - config/centromeres.bed
+  cytobands: config/cytobands.txt
   filtered_cnv_vcfs:
     - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_amp_genes.filter.cnv_hard_filter_amp.vcf
+  germline_vcf: snv_indels/bcbio_variation_recall_ensemble/{sample}_{type}.ensembled.vep_annotated.filter.germline.exclude.blacklist.vcf
   unfiltered_cnv_vcfs:
     - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_amp_genes.vcf
-  germline_vcf: snv_indels/bcbio_variation_recall_ensemble/{sample}_{type}.ensembled.vep_annotated.filter.germline.exclude.blacklist.vcf
 
 svdb_merge:
   tc_method:
