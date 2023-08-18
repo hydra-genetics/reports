@@ -154,7 +154,8 @@ class ChromosomePlot extends EventTarget {
 
   set data(data) {
     this.#data = data;
-    return this.update();
+    this.resetZoom();
+    this.update();
   }
 
   get length() {

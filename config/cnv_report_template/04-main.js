@@ -108,7 +108,6 @@ chromosomePlot.addEventListener("max-zoom-reached", () => {
 
 genomePlot.addEventListener("chromosome-change", (e) => {
   chromosomePlot.data = cnvData[e.detail.chromosome];
-  chromosomePlot.resetZoom();
 });
 
 resultsTable.addEventListener("zoom-to-region", (e) => {
