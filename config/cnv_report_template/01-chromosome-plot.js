@@ -152,10 +152,21 @@ class ChromosomePlot extends EventTarget {
     return this.#data;
   }
 
-  set data(data) {
-    this.#data = data;
-    this.resetZoom();
-    this.#drawAxes();
+  setData(data, start, end) {
+    const prevChromosome = this.#data.chromosome;
+
+    if (data && data.chromosome !== prevChromosome) {
+      this.#data = data;
+      if (!start && !end) {
+        this.resetZoom();
+      }
+      this.#drawAxes();
+    }
+
+    if (start || end) {
+      this.zoomTo(start, end);
+    }
+
     this.update();
   }
 
@@ -685,6 +696,7 @@ class ChromosomePlot extends EventTarget {
               return;
             }
             this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
+            this.update();
           })
       )
       .on("click", () => {
@@ -692,6 +704,7 @@ class ChromosomePlot extends EventTarget {
         if (xMax - xMin !== this.length) {
           // Only reset if something actually changed
           this.resetZoom();
+          this.update();
         }
       });
   }
@@ -854,12 +867,12 @@ class ChromosomePlot extends EventTarget {
       return this;
     }
     this.zoomRange = [start, end];
-    return this.update();
+    this.xScale.domain(this.zoomRange);
   }
 
   resetZoom() {
     this.zoomRange = [0, this.length];
-    return this.update();
+    this.xScale.domain(this.zoomRange);
   }
 
   update() {
