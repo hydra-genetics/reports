@@ -699,44 +699,51 @@ class ChromosomePlot extends EventTarget {
   #drawGridLines() {
     this.#lrGrid
       .selectAll(".gridline")
-      .data(this.ratioYScale.ticks(), (d) => d)
+      .data(this.ratioYScale.ticks(5), (d) => d)
       .join(
-        (enter) =>
+        (enter) => {
           enter
             .append("line")
             .attr("class", "gridline")
             .attr("x1", 0)
-            .attr("x2", this.xScale(this.length))
+            .attr("x2", 0)
             .attr("y1", (d) => this.ratioYScale(d))
-            .attr("y2", (d) => this.ratioYScale(d)),
-        (update) =>
+            .attr("y2", (d) => this.ratioYScale(d))
+            .call((line) =>
+              line.transition().duration(800).attr("x2", this.xScale.range()[1])
+            );
+        },
+        (update) => {
           update
             .transition()
             .duration(this.animationDuration)
             .attr("y1", (d) => this.ratioYScale(d))
-            .attr("y2", (d) => this.ratioYScale(d)),
-        (exit) => exit.remove()
+            .attr("y2", (d) => this.ratioYScale(d))
+            .transition()
+            .duration(800)
+            .attr("x1", this.xScale.range()[0])
+            .attr("x2", this.xScale.range()[1]);
+        },
+        (exit) => {
+          exit
+            .transition()
+            .duration(800)
+            .attr("x1", this.xScale.range()[1])
+            .remove();
+        }
       );
 
     this.#vafGrid
       .selectAll(".gridline")
-      .data(this.vafYScale.ticks(), (d) => d)
-      .join(
-        (enter) =>
-          enter
-            .append("line")
-            .attr("class", "gridline")
-            .attr("x1", 0)
-            .attr("x2", this.xScale(this.length))
-            .attr("y1", (d) => this.vafYScale(d))
-            .attr("y2", (d) => this.vafYScale(d)),
-        (update) =>
-          update
-            .transition()
-            .duration(this.animationDuration)
-            .attr("y1", (d) => this.vafYScale(d))
-            .attr("y2", (d) => this.vafYScale(d)),
-        (exit) => exit.remove()
+      .data(this.vafYScale.ticks(5), (d) => d)
+      .join((enter) =>
+        enter
+          .append("line")
+          .attr("class", "gridline")
+          .attr("x1", 0)
+          .attr("x2", this.xScale(this.length))
+          .attr("y1", (d) => this.vafYScale(d))
+          .attr("y2", (d) => this.vafYScale(d))
       );
   }
 
