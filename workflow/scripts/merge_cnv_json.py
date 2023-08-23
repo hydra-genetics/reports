@@ -218,10 +218,9 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                 for c in cnv_group:
                     if c in added_cnvs:
                         continue
-                    genes_line_break=[',\n'.join(c.genes)]
                     cnvs[c.chromosome]["callers"][c.caller]["cnvs"].append(
                         dict(
-                            genes=genes_line_break,
+                            genes=c.genes,
                             start=c.start,
                             length=c.length,
                             type=c.type,

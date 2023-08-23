@@ -80,10 +80,15 @@ class ResultsTable extends EventTarget {
           format: (x) => x,
         };
 
+      case "genes":
+        return {
+          class: "left",
+          format: (x) => x.join(", "),
+        };
+
       // Strings
       case "caller":
       case "chromosome":
-      case "gene":
       default:
         return {
           class: "left",
