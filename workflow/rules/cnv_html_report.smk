@@ -8,6 +8,7 @@ rule cnv_html_report:
     input:
         json="reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
         template_dir=config.get("cnv_html_report", {}).get("template_dir", ""),
+        tc_file=get_tc_file,
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:
