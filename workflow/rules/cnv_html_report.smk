@@ -8,12 +8,14 @@ rule cnv_html_report:
     input:
         json="reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
         template_dir=config.get("cnv_html_report", {}).get("template_dir", ""),
+        tc_file=get_tc_file,
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:
         include_table=config.get("cnv_html_report", {}).get("show_table", True),
         tc=get_tc,
         tc_method=lambda wildcards: wildcards.tc_method,
+        include_cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",
     benchmark:
@@ -75,10 +77,12 @@ rule merge_cnv_json:
         germline_vcf=get_germline_vcf,
         filtered_cnv_vcfs=get_filtered_cnv_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,
+        cytobands=config.get("merge_cnv_json", {}).get("cytobands", []),
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:
         skip_chromosomes=config.get("reference", {}).get("skip_chrs", []),
+        cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
     benchmark:

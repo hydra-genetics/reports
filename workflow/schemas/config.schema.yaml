@@ -35,6 +35,12 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
+      cytobands:
+        type: boolean
+        default: false
+        description: >
+          Whether or not to add cytoband information to the plots and the
+          CNV table.
       show_table:
         type: boolean
         default: true
@@ -89,6 +95,57 @@ properties:
             BED file with annotations that should be added to the chromosome
             view of the report. Required columns are `chrom`, `chromStart`,
             `chromEnd` and `name`.
+      cytoband_config:
+        type: object
+        description: >
+          Cytoband visualisation configuration.
+        properties:
+          colors:
+            description: >
+              Cytoband colors in hexadecimal format.
+            type: object
+            properties:
+              gneg:
+                type: string
+                description: Color for Giemsa stain result `gneg`.
+                pattern: '^#[\da-fA-F]{6}$'
+              gpos25:
+                type: string
+                description: Color for Giemsa stain result `gpos25`.
+                pattern: '^#[\da-fA-F]{6}$'
+              gpos50:
+                type: string
+                description: Color for Giemsa stain result `gpos50`.
+                pattern: '^#[\da-fA-F]{6}$'
+              gpos75:
+                type: string
+                description: Color for Giemsa stain result `gpos75`.
+                pattern: '^#[\da-fA-F]{6}$'
+              gpos100:
+                type: string
+                description: Color for Giemsa stain result `gpos100`.
+                pattern: '^#[\da-fA-F]{6}$'
+              acen:
+                type: string
+                description: Color for Giemsa stain result `acen`.
+                pattern: '^#[\da-fA-F]{6}$'
+              gvar:
+                type: string
+                description: Color for Giemsa stain result `gvar`.
+                pattern: '^#[\da-fA-F]{6}$'
+              stalk:
+                type: string
+                description: Color for Giemsa stain result `stalk`.
+                pattern: '^#[\da-fA-F]{6}$'
+      cytobands:
+        type: string
+        format: uri-reference
+        description: >
+          Tab-separated file containing cytoband information. The file should
+          have five columns: chromosome name, start position (0-based), end
+          position (exclusive), name, and Giemsa stain result. The Giemsa stain
+          results should match with the config under
+          `cnv_html_report.cytoband_config`
       filtered_cnv_vcfs:
         type: array
         description: >
@@ -131,18 +188,31 @@ properties:
             `filtered_cnv_vcfs`. The path supports `sample`, `type` and
             `tc_method` wildcards.
 
-if:
-  properties:
-    cnv_html_report:
+allOf:
+  - if:
       properties:
-        show_table:
-          const: true
-then:
-  properties:
-    merge_cnv_json:
-      required:
-        - filtered_cnv_vcfs
-        - unfiltered_cnv_vcfs
+        cnv_html_report:
+          properties:
+            show_table:
+              const: true
+    then:
+      properties:
+        merge_cnv_json:
+          required:
+            - filtered_cnv_vcfs
+            - unfiltered_cnv_vcfs
+
+  - if:
+      properties:
+        cnv_html_report:
+          properties:
+            cytobands:
+              const: true
+    then:
+      properties:
+        merge_cnv_json:
+          required:
+            - cytobands
 
 required:
   - samples
