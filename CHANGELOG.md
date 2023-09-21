@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.0](https://github.com/hydra-genetics/reports/compare/v0.1.0...v0.2.0) (2023-09-21)
+
+
+### Features
+
+* add cytoband information to chromosome plot ([#35](https://github.com/hydra-genetics/reports/issues/35)) ([620cae5](https://github.com/hydra-genetics/reports/commit/620cae58ac35abcb102487039cebe3bb2ff170ee))
+* limit maximum zoom in chromosome plot ([#31](https://github.com/hydra-genetics/reports/issues/31)) ([9aed5a1](https://github.com/hydra-genetics/reports/commit/9aed5a1a4a99e62428872a710828c5d3e87f2aab))
+
+
+### Bug Fixes
+
+* add tc-file to cnv_html_report input to avoid that it is removed ([#39](https://github.com/hydra-genetics/reports/issues/39)) ([b891111](https://github.com/hydra-genetics/reports/commit/b891111a835ffdd201ce405151014f11ff545ede))
+* issue with zooming into region with no data ([#30](https://github.com/hydra-genetics/reports/issues/30)) ([1107449](https://github.com/hydra-genetics/reports/commit/11074497e57652c3d2116260ae0642f3989fb88b))
+* update chromosome lengths properly ([#32](https://github.com/hydra-genetics/reports/issues/32)) ([d8b41c8](https://github.com/hydra-genetics/reports/commit/d8b41c80dddf9817f73849908c66bf005d0cc600))
+* wrap gene names in table ([#37](https://github.com/hydra-genetics/reports/issues/37)) ([11d6c3a](https://github.com/hydra-genetics/reports/commit/11d6c3a9dd1e22352f0c7021b352e8049ed2c175))
+
 ## 0.1.0 (2023-06-02)
 
 
