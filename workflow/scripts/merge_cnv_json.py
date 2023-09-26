@@ -177,7 +177,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
         cnvs[c]["cytobands"] = cytobands[c]
 
     if vaf is not None:
-        for v in vaf:
+        for v in sorted(vaf, key=lambda x: x[1]):
             cnvs[v[0]]["vaf"].append(
                 dict(
                     pos=v[1],
@@ -232,7 +232,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                     added_cnvs.add(c)
 
     for d in dicts:
-        for r in d["ratios"]:
+        for r in sorted(d["ratios"], key=lambda x: x["start"]):
             cnvs[r["chromosome"]]["callers"][d["caller"]]["ratios"].append(
                 dict(
                     start=r["start"],
@@ -240,7 +240,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                     log2=r["log2"],
                 )
             )
-        for s in d["segments"]:
+        for s in sorted(d["segments"], key=lambda x: x["start"]):
             cnvs[s["chromosome"]]["callers"][d["caller"]]["segments"].append(
                 dict(
                     start=s["start"],
