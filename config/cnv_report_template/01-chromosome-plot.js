@@ -389,11 +389,15 @@ class ChromosomePlot extends EventTarget {
   #plotRatios() {
     this.#ratios
       .selectAll(".point")
-      .data(this.#data.callers[this.#activeCaller].ratios, (d) => [
-        d.start,
-        d.end,
-        d.log2,
-      ])
+      .data(
+        slidingPixelWindow(
+          this.#data.callers[this.#activeCaller].ratios,
+          this.xScale,
+          "start",
+          "log2"
+        ),
+        (d) => [d.start, d.end, d.log2]
+      )
       .join(
         (enter) =>
           enter
@@ -467,7 +471,10 @@ class ChromosomePlot extends EventTarget {
   #plotVAF() {
     this.#vafArea
       .selectAll(".point")
-      .data(this.#data.vaf, (d) => [this.#data.chromosome, d.pos, d.vaf])
+      .data(
+        slidingPixelWindow(this.#data.vaf, this.xScale, "pos", "vaf"),
+        (d) => [this.#data.chromosome, d.pos, d.vaf]
+      )
       .join(
         (enter) =>
           enter

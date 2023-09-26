@@ -48,6 +48,38 @@ d3.select("#dataset-picker")
     return e;
   });
 
+function slidingPixelWindow(points, scale, posAttr, valAttr) {
+  let windowSize = scale.invert(5) - scale.domain()[0];
+  if (windowSize < 20) {
+    return points;
+  }
+  let offset = 0;
+  let reducedPoints = [];
+  let windowMin = null;
+  let windowMax = null;
+  for (let p of points) {
+    if (p[posAttr] >= offset && p[posAttr] < offset + windowSize) {
+      if (!windowMin || p[valAttr] < windowMin[valAttr]) {
+        windowMin = p;
+      }
+      if (!windowMax || p[valAttr] > windowMax[valAttr]) {
+        windowMax = p;
+      }
+    } else {
+      if (windowMax) {
+        reducedPoints.push(windowMax);
+      }
+      if (windowMin && windowMin[valAttr] != windowMax[valAttr]) {
+        reducedPoints.push(windowMin);
+      }
+      offset += windowSize;
+      windowMin = null;
+      windowMax = null;
+    }
+  }
+  return reducedPoints;
+}
+
 const chromosomePlot = new ChromosomePlot({
   element: document.querySelector("#chromosome-view"),
   data: cnvData[0],
