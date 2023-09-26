@@ -53,7 +53,7 @@ function slidingPixelWindow(points, scale, posAttr, valAttr) {
   if (windowSize < 20) {
     return points;
   }
-  let offset = 0;
+  let offset = scale.domain()[0];
   let reducedPoints = [];
   let windowMin = null;
   let windowMax = null;
@@ -65,6 +65,8 @@ function slidingPixelWindow(points, scale, posAttr, valAttr) {
       if (!windowMax || p[valAttr] > windowMax[valAttr]) {
         windowMax = p;
       }
+    } else if (p[posAttr] > scale.domain()[1]) {
+      break;
     } else {
       if (windowMax) {
         reducedPoints.push(windowMax);
