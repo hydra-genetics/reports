@@ -23,7 +23,7 @@ import sys
 
 
 PARSERS = collections.defaultdict(dict)
-csv.field_size_limit(100000000)
+
 
 def cnv_parser(file_format, header=True, skip=0, comment="#"):
     """
@@ -163,6 +163,8 @@ def main():
 
     skip_chromosomes = snakemake.params["skip_chromosomes"]
 
+    csv.field_size_limit(snakemake.params.get('csv_field_size_limt', 100000000))
+    
     if caller not in PARSERS:
         print(f"error: no parser for {caller} implemented", file=sys.stderr)
         sys.exit(1)
