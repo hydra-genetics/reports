@@ -164,7 +164,7 @@ def main():
     skip_chromosomes = snakemake.params["skip_chromosomes"]
 
     csv.field_size_limit(snakemake.params.get('csv_field_size_limt', 100000000))
-    
+
     if caller not in PARSERS:
         print(f"error: no parser for {caller} implemented", file=sys.stderr)
         sys.exit(1)
