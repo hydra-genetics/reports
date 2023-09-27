@@ -109,7 +109,8 @@ class GenomePlot extends EventTarget {
           d.vaf,
           this.xScales[g[i].parentNode.dataset.index],
           "pos",
-          "vaf"
+          "vaf",
+          3
         )
       )
       .join("circle")
@@ -334,7 +335,8 @@ class GenomePlot extends EventTarget {
             d.callers[this.#activeCaller].ratios,
             this.xScales[g[i].parentNode.dataset.index],
             "start",
-            "log2"
+            "log2",
+            3
           ),
         (d) => d.start
       )

@@ -48,8 +48,14 @@ d3.select("#dataset-picker")
     return e;
   });
 
-function slidingPixelWindow(points, scale, posAttr, valAttr) {
-  let windowSize = Math.ceil(scale.invert(5) - scale.domain()[0]);
+function slidingPixelWindow(
+  points,
+  scale,
+  posAttr,
+  valAttr,
+  pixelWindowSize = 5
+) {
+  let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
   if (windowSize < 4) {
     let reducedPoints = points.filter(
       (p) => p[posAttr] >= scale.domain()[0] && p[posAttr] < scale.domain()[1]
