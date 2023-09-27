@@ -23,7 +23,7 @@ import sys
 
 
 PARSERS = collections.defaultdict(dict)
-
+csv.field_size_limit(100000000)
 
 def cnv_parser(file_format, header=True, skip=0, comment="#"):
     """
