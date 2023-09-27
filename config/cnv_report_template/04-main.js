@@ -55,6 +55,7 @@ function slidingPixelWindow(
   valAttr,
   pixelWindowSize = 5
 ) {
+  // TODO: Remove the commented parts once we decided on what approach to use
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
   if (windowSize < 4) {
     let reducedPoints = points.filter(
@@ -64,8 +65,9 @@ function slidingPixelWindow(
   }
   let offset = scale.domain()[0];
   let reducedPoints = [];
-  let windowMin = null;
-  let windowMax = null;
+  // let windowMin = null;
+  // let windowMax = null;
+  let windowPoints = [];
   for (let p of points) {
     // This assumes that the points are sorted according to genomic position
     if (p[posAttr] < offset) {
@@ -77,22 +79,29 @@ function slidingPixelWindow(
     }
 
     if (p[posAttr] < offset + windowSize) {
-      if (!windowMin || p[valAttr] < windowMin[valAttr]) {
-        windowMin = p;
-      }
-      if (!windowMax || p[valAttr] > windowMax[valAttr]) {
-        windowMax = p;
-      }
+      // if (!windowMin || p[valAttr] < windowMin[valAttr]) {
+      //   windowMin = p;
+      // }
+      // if (!windowMax || p[valAttr] > windowMax[valAttr]) {
+      //   windowMax = p;
+      // }
+      windowPoints.push(p);
     } else {
-      if (windowMax) {
-        reducedPoints.push(windowMax);
-      }
-      if (windowMin && windowMin[valAttr] != windowMax[valAttr]) {
-        reducedPoints.push(windowMin);
+      // if (windowMax) {
+      //   reducedPoints.push(windowMax);
+      // }
+      // if (windowMin && windowMin[valAttr] != windowMax[valAttr]) {
+      //   reducedPoints.push(windowMin);
+      // }
+      if (windowPoints.length > 0) {
+        reducedPoints.push(
+          windowPoints[Math.floor(Math.random() * windowPoints.length)]
+        );
       }
       offset += windowSize;
-      windowMin = null;
-      windowMax = null;
+      // windowMin = null;
+      // windowMax = null;
+      windowPoints = [];
     }
   }
   return reducedPoints;
