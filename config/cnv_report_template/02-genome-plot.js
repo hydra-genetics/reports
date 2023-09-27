@@ -104,7 +104,14 @@ class GenomePlot extends EventTarget {
       .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
       .attr("data-index", (_, i) => i)
       .selectAll(".point")
-      .data((d) => d.vaf)
+      .data((d, i, g) =>
+        slidingPixelWindow(
+          d.vaf,
+          this.xScales[g[i].parentNode.dataset.index],
+          "pos",
+          "vaf"
+        )
+      )
       .join("circle")
       .attr("cx", (d, i, g) =>
         this.xScales[g[i].parentNode.dataset.index](d.pos)
@@ -321,11 +328,14 @@ class GenomePlot extends EventTarget {
   plotRatios() {
     this.ratioPanels
       .selectAll(".point")
-      // Only plot every fifth point for performance
-      // TODO: do something smarter here
       .data(
-        (d) =>
-          d.callers[this.#activeCaller].ratios.filter((_, i) => i % 5 === 0),
+        (d, i, g) =>
+          slidingPixelWindow(
+            d.callers[this.#activeCaller].ratios,
+            this.xScales[g[i].parentNode.dataset.index],
+            "start",
+            "log2"
+          ),
         (d) => d.start
       )
       .join(
