@@ -49,24 +49,34 @@ d3.select("#dataset-picker")
   });
 
 function slidingPixelWindow(points, scale, posAttr, valAttr) {
-  let windowSize = scale.invert(5) - scale.domain()[0];
-  if (windowSize < 20) {
-    return points;
+  let windowSize = Math.ceil(scale.invert(5) - scale.domain()[0]);
+  if (windowSize < 4) {
+    let reducedPoints = points.filter(
+      (p) => p[posAttr] >= scale.domain()[0] && p[posAttr] < scale.domain()[1]
+    );
+    return reducedPoints;
   }
   let offset = scale.domain()[0];
   let reducedPoints = [];
   let windowMin = null;
   let windowMax = null;
   for (let p of points) {
-    if (p[posAttr] >= offset && p[posAttr] < offset + windowSize) {
+    // This assumes that the points are sorted according to genomic position
+    if (p[posAttr] < offset) {
+      continue;
+    }
+
+    if (offset > scale.domain()[1]) {
+      break;
+    }
+
+    if (p[posAttr] < offset + windowSize) {
       if (!windowMin || p[valAttr] < windowMin[valAttr]) {
         windowMin = p;
       }
       if (!windowMax || p[valAttr] > windowMax[valAttr]) {
         windowMax = p;
       }
-    } else if (p[posAttr] > scale.domain()[1]) {
-      break;
     } else {
       if (windowMax) {
         reducedPoints.push(windowMax);
