@@ -422,6 +422,7 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
               .attr("cy", (d) => this.ratioYScale(d.log2))
+              .attr("fill-opacity", 0.3)
           ),
         (exit) => exit.transition().attr("fill-opacity", 0).remove()
       );
@@ -455,6 +456,7 @@ class ChromosomePlot extends EventTarget {
             update
               .transition()
               .duration(this.animationDuration)
+              .attr("stroke-opacity", 1)
               .attr(
                 "d",
                 (d) =>
@@ -493,6 +495,7 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.pos))
+              .attr("fill-opacity", 0.3)
           ),
         (exit) =>
           exit
