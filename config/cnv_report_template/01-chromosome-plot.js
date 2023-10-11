@@ -509,98 +509,123 @@ class ChromosomePlot extends EventTarget {
   #plotAnnotations() {
     this.#plotArea
       .selectAll(".annotation")
-      .attr("clip-path", "url(#annotation-clip)")
-      .data(this.#data.annotations, (d) => [
-        this.#data.chromosome,
-        d.name,
-        d.start,
-        d.end,
-      ])
+      .data(this.#data.annotations, (d) => [d.name, d.start, d.end])
       .join(
         (enter) => {
-          let annotation_group = enter.append("g").attr("class", "annotation");
-          annotation_group
-            .append("rect")
-            .attr("class", "annotation-marker")
-            .attr("x", (d) => this.xScale(d.start))
-            .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-            .attr("height", this.height - this.margin.top - this.margin.bottom)
-            .attr("stroke", "#000")
-            .attr("stroke-width", 0.5)
-            .attr("fill", "#333")
-            .attr("fill-opacity", 0)
-            .attr("pointer-events", "none")
-            .call((enter) => enter.transition().attr("fill-opacity", 0.05));
-          annotation_group
-            .append("rect")
-            .attr("class", "annotation-label-background")
-            .attr("x", (d) => {
-              let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
-              return (
-                this.xScale(d.start + (d.end - d.start) / 2) -
-                labelWidth / 2 -
-                5
-              );
-            })
-            .attr("y", (d) => {
-              let [_, labelHeight] = getTextDimensions(d.name, "0.8rem");
-              return (
-                this.plotHeight + this.margin.between / 2 - labelHeight / 2 - 2
-              );
-            })
-            .attr("width", (d) => getTextDimensions(d.name, "0.8rem")[0] + 10)
-            .attr("height", (d) => getTextDimensions(d.name, "0.8rem")[1] + 4)
-            .attr("fill", "#EEE")
-            .attr("rx", 4);
-          annotation_group
-            .append("text")
-            .attr("class", "annotation-label")
-            .text((d) => d.name)
-            .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
-            .attr("y", this.plotHeight + this.margin.between / 2)
-            .attr("text-anchor", "middle")
-            .attr("dominant-baseline", "central");
-          return annotation_group;
+          return enter
+            .append("g")
+            .attr("class", "annotation")
+            .attr("clip-path", "url(#annotation-clip)")
+            .attr("opacity", 0)
+            .call((enter) =>
+              enter
+                .append("rect")
+                .attr("class", "annotation-marker")
+                .attr("x", (d) => this.xScale(d.start))
+                .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+                .attr(
+                  "height",
+                  this.height - this.margin.top - this.margin.bottom
+                )
+                .attr("stroke", "#000")
+                .attr("stroke-width", 0.5)
+                .attr("fill", "#333")
+                .attr("fill-opacity", 0.05)
+                .attr("pointer-events", "none")
+            )
+            .call((enter) =>
+              enter
+                .append("rect")
+                .attr("class", "annotation-label-background")
+                .attr("x", (d) => {
+                  let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.xScale(d.start + (d.end - d.start) / 2) -
+                    labelWidth / 2 -
+                    5
+                  );
+                })
+                .attr("y", (d) => {
+                  let [_, labelHeight] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.plotHeight +
+                    this.margin.between / 2 -
+                    labelHeight / 2 -
+                    2
+                  );
+                })
+                .attr(
+                  "width",
+                  (d) => getTextDimensions(d.name, "0.8rem")[0] + 10
+                )
+                .attr(
+                  "height",
+                  (d) => getTextDimensions(d.name, "0.8rem")[1] + 4
+                )
+                .attr("fill", "#EEE")
+                .attr("rx", 4)
+            )
+            .call((enter) =>
+              enter
+                .append("text")
+                .attr("class", "annotation-label")
+                .text((d) => d.name)
+                .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+                .attr("y", this.plotHeight + this.margin.between / 2)
+                .attr("text-anchor", "middle")
+                .attr("dominant-baseline", "central")
+            )
+            .call((enter) =>
+              enter
+                .transition()
+                .duration(this.animationDuration)
+                .attr("opacity", 1)
+            );
         },
-        (update) => {
-          update.selectAll(".annotation-label").call((update) =>
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
-          );
-          update.selectAll(".annotation-label-background").call((update) =>
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("x", (d) => {
-                let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
-                return (
-                  this.xScale(d.start + (d.end - d.start) / 2) -
-                  labelWidth / 2 -
-                  5
-                );
-              })
-          );
+        (update) =>
           update
-            .selectAll(".annotation-marker")
-            .attr("fill-opacity", 0.05)
             .call((update) =>
               update
+                .selectAll(".annotation-label")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+            )
+            .call((update) =>
+              update
+                .selectAll(".annotation-label-background")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => {
+                  let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.xScale(d.start + (d.end - d.start) / 2) -
+                    labelWidth / 2 -
+                    5
+                  );
+                })
+            )
+            .call((update) =>
+              update
+                .selectAll(".annotation-marker")
                 .transition()
                 .duration(this.animationDuration)
                 .attr("x", (d) => this.xScale(d.start))
                 .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-            );
-          return update;
-        },
-        (exit) =>
-          exit
+            )
+            .call((update) =>
+              update
+                .transition()
+                .duration(this.animationDuration)
+                .attr("opacity", 1)
+            ),
+        (exit) => {
+          return exit
             .transition()
             .duration(this.animationDuration)
-            .attr("fill-opacity", 0)
-            .attr("stroke-opacity", 0)
-            .remove()
+            .attr("opacity", 0)
+            .remove();
+        }
       );
   }
 
