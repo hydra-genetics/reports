@@ -429,12 +429,21 @@ class GenomePlot extends EventTarget {
       );
   }
 
-  selectChromosome(chromosome) {
+  selectChromosome(chromosome, start, end) {
     const previousChromosomeIndex = this.#selectedChromosome;
     const selectedChromosomeIndex = this.#data.findIndex(
       (d) => d.chromosome === chromosome
     );
     if (previousChromosomeIndex === selectedChromosomeIndex) {
+      this.dispatchEvent(
+        new CustomEvent("chromosome-zoom", {
+          detail: {
+            chromosome: this.#selectedChromosome,
+            start: start,
+            end: end,
+          },
+        })
+      );
       return;
     }
     this.#selectedChromosome = selectedChromosomeIndex;
@@ -444,7 +453,11 @@ class GenomePlot extends EventTarget {
       .classed("selected", true);
     this.dispatchEvent(
       new CustomEvent("chromosome-change", {
-        detail: { chromosome: this.#selectedChromosome },
+        detail: {
+          chromosome: this.#selectedChromosome,
+          start: start,
+          end: end,
+        },
       })
     );
   }

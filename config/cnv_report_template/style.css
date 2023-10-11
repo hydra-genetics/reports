@@ -92,9 +92,9 @@ svg .segment {
 }
 
 svg .gridline {
-  opacity: 0.25;
-  stroke: black;
-  stroke-width: 0.3px;
+  stroke: #dddddd;
+  stroke-width: 0.5px;
+  shape-rendering: crispEdges;
 }
 
 /* Narrow view */

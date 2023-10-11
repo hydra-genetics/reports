@@ -107,13 +107,23 @@ chromosomePlot.addEventListener("max-zoom-reached", () => {
 });
 
 genomePlot.addEventListener("chromosome-change", (e) => {
-  chromosomePlot.data = cnvData[e.detail.chromosome];
-  chromosomePlot.resetZoom();
+  chromosomePlot.setData(
+    cnvData[e.detail.chromosome],
+    e.detail.start,
+    e.detail.end
+  );
+});
+
+genomePlot.addEventListener("chromosome-zoom", (e) => {
+  chromosomePlot.setData(null, e.detail.start, e.detail.end);
 });
 
 resultsTable.addEventListener("zoom-to-region", (e) => {
-  genomePlot.selectChromosome(e.detail.chromosome);
-  chromosomePlot.zoomTo(e.detail.start, e.detail.start + e.detail.length);
+  genomePlot.selectChromosome(
+    e.detail.chromosome,
+    e.detail.start,
+    e.detail.start + e.detail.length
+  );
 });
 
 d3.select("#table-filter-toggle").on("change", (event) => {

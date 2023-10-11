@@ -5,9 +5,7 @@ class ChromosomePlot extends EventTarget {
   #cytobands;
   #plotArea;
   #lrArea;
-  #lrGrid;
   #vafArea;
-  #vafGrid;
   #ratios;
   #segments;
 
@@ -77,6 +75,8 @@ class ChromosomePlot extends EventTarget {
         "max-width: 100%; height: auto; max-height: 500px; height: intrinsic;"
       );
 
+    this.#drawAxes();
+
     this.svg
       .append("clipPath")
       .attr("id", "lr-area-clip")
@@ -117,16 +117,11 @@ class ChromosomePlot extends EventTarget {
         `translate(0, ${this.plotHeight + this.margin.between})`
       );
 
-    this.#lrGrid = this.#lrArea.append("g").attr("class", "grid");
-    this.#vafGrid = this.#vafArea.append("g").attr("class", "grid");
-
     this.#ratios = this.#lrArea.append("g").attr("class", "ratios");
     this.#segments = this.#lrArea.append("g").attr("class", "segments");
 
-    this.#drawAxes();
     this.#initializeZoom();
     this.#setLabels();
-    this.#drawGridLines();
     this.update();
   }
 
@@ -152,9 +147,22 @@ class ChromosomePlot extends EventTarget {
     return this.#data;
   }
 
-  set data(data) {
-    this.#data = data;
-    return this.update();
+  setData(data, start, end) {
+    const prevChromosome = this.#data.chromosome;
+
+    if (data && data.chromosome !== prevChromosome) {
+      this.#data = data;
+      if (!start && !end) {
+        this.resetZoom();
+      }
+      this.#drawAxes();
+    }
+
+    if (start || end) {
+      this.zoomTo(start, end);
+    }
+
+    this.update();
   }
 
   get length() {
@@ -409,6 +417,7 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
               .attr("cy", (d) => this.ratioYScale(d.log2))
+              .attr("fill-opacity", 0.3)
           ),
         (exit) => exit.transition().attr("fill-opacity", 0).remove()
       );
@@ -442,6 +451,7 @@ class ChromosomePlot extends EventTarget {
             update
               .transition()
               .duration(this.animationDuration)
+              .attr("stroke-opacity", 1)
               .attr(
                 "d",
                 (d) =>
@@ -480,6 +490,7 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.pos))
+              .attr("fill-opacity", 0.3)
           ),
         (exit) =>
           exit
@@ -493,117 +504,137 @@ class ChromosomePlot extends EventTarget {
   #plotAnnotations() {
     this.#plotArea
       .selectAll(".annotation")
-      .attr("clip-path", "url(#annotation-clip)")
-      .data(this.#data.annotations, (d) => [
-        this.#data.chromosome,
-        d.name,
-        d.start,
-        d.end,
-      ])
+      .data(this.#data.annotations, (d) => [d.name, d.start, d.end])
       .join(
         (enter) => {
-          let annotation_group = enter.append("g").attr("class", "annotation");
-          annotation_group
-            .append("rect")
-            .attr("class", "annotation-marker")
-            .attr("x", (d) => this.xScale(d.start))
-            .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-            .attr("height", this.height - this.margin.top - this.margin.bottom)
-            .attr("stroke", "#000")
-            .attr("stroke-width", 0.5)
-            .attr("fill", "#333")
-            .attr("fill-opacity", 0)
-            .attr("pointer-events", "none")
-            .call((enter) => enter.transition().attr("fill-opacity", 0.05));
-          annotation_group
-            .append("rect")
-            .attr("class", "annotation-label-background")
-            .attr("x", (d) => {
-              let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
-              return (
-                this.xScale(d.start + (d.end - d.start) / 2) -
-                labelWidth / 2 -
-                5
-              );
-            })
-            .attr("y", (d) => {
-              let [_, labelHeight] = getTextDimensions(d.name, "0.8rem");
-              return (
-                this.plotHeight + this.margin.between / 2 - labelHeight / 2 - 2
-              );
-            })
-            .attr("width", (d) => getTextDimensions(d.name, "0.8rem")[0] + 10)
-            .attr("height", (d) => getTextDimensions(d.name, "0.8rem")[1] + 4)
-            .attr("fill", "#EEE")
-            .attr("rx", 4);
-          annotation_group
-            .append("text")
-            .attr("class", "annotation-label")
-            .text((d) => d.name)
-            .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
-            .attr("y", this.plotHeight + this.margin.between / 2)
-            .attr("text-anchor", "middle")
-            .attr("dominant-baseline", "central");
-          return annotation_group;
+          return enter
+            .append("g")
+            .attr("class", "annotation")
+            .attr("clip-path", "url(#annotation-clip)")
+            .attr("opacity", 0)
+            .call((enter) =>
+              enter
+                .append("rect")
+                .attr("class", "annotation-marker")
+                .attr("x", (d) => this.xScale(d.start))
+                .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+                .attr(
+                  "height",
+                  this.height - this.margin.top - this.margin.bottom
+                )
+                .attr("stroke", "#000")
+                .attr("stroke-width", 0.5)
+                .attr("fill", "#333")
+                .attr("fill-opacity", 0.05)
+                .attr("pointer-events", "none")
+            )
+            .call((enter) =>
+              enter
+                .append("rect")
+                .attr("class", "annotation-label-background")
+                .attr("x", (d) => {
+                  let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.xScale(d.start + (d.end - d.start) / 2) -
+                    labelWidth / 2 -
+                    5
+                  );
+                })
+                .attr("y", (d) => {
+                  let [_, labelHeight] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.plotHeight +
+                    this.margin.between / 2 -
+                    labelHeight / 2 -
+                    2
+                  );
+                })
+                .attr(
+                  "width",
+                  (d) => getTextDimensions(d.name, "0.8rem")[0] + 10
+                )
+                .attr(
+                  "height",
+                  (d) => getTextDimensions(d.name, "0.8rem")[1] + 4
+                )
+                .attr("fill", "#EEE")
+                .attr("rx", 4)
+            )
+            .call((enter) =>
+              enter
+                .append("text")
+                .attr("class", "annotation-label")
+                .text((d) => d.name)
+                .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+                .attr("y", this.plotHeight + this.margin.between / 2)
+                .attr("text-anchor", "middle")
+                .attr("dominant-baseline", "central")
+            )
+            .call((enter) =>
+              enter
+                .transition()
+                .duration(this.animationDuration)
+                .attr("opacity", 1)
+            );
         },
-        (update) => {
-          update.selectAll(".annotation-label").call((update) =>
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
-          );
-          update.selectAll(".annotation-label-background").call((update) =>
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("x", (d) => {
-                let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
-                return (
-                  this.xScale(d.start + (d.end - d.start) / 2) -
-                  labelWidth / 2 -
-                  5
-                );
-              })
-          );
+        (update) =>
           update
-            .selectAll(".annotation-marker")
-            .attr("fill-opacity", 0.05)
             .call((update) =>
               update
+                .selectAll(".annotation-label")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+            )
+            .call((update) =>
+              update
+                .selectAll(".annotation-label-background")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => {
+                  let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.xScale(d.start + (d.end - d.start) / 2) -
+                    labelWidth / 2 -
+                    5
+                  );
+                })
+            )
+            .call((update) =>
+              update
+                .selectAll(".annotation-marker")
                 .transition()
                 .duration(this.animationDuration)
                 .attr("x", (d) => this.xScale(d.start))
                 .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-            );
-          return update;
-        },
-        (exit) =>
-          exit
+            )
+            .call((update) =>
+              update
+                .transition()
+                .duration(this.animationDuration)
+                .attr("opacity", 1)
+            ),
+        (exit) => {
+          return exit
             .transition()
             .duration(this.animationDuration)
-            .attr("fill-opacity", 0)
-            .attr("stroke-opacity", 0)
-            .remove()
+            .attr("opacity", 0)
+            .remove();
+        }
       );
   }
 
   #drawAxes() {
+    this.svg.selectAll(".y-axis").remove();
     this.svg
-      .append("g")
-      .attr(
-        "transform",
-        `translate(${this.margin.left},${this.height - this.margin.bottom})`
-      )
-      .attr("class", "x-axis")
-      .call(this.xAxis);
-    this.svg
-      .append("g")
+      .insert("g", "#lr-area-clip")
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
       .attr("class", "y-axis")
+      .transition()
+      .duration(this.animationDuration)
       .call(this.ratioYAxis);
     this.svg
-      .append("g")
+      .insert("g", "#lr-area-clip")
       .attr(
         "transform",
         `translate(${this.margin.left},${
@@ -611,7 +642,21 @@ class ChromosomePlot extends EventTarget {
         })`
       )
       .attr("class", "y-axis")
+      .transition()
+      .duration(this.animationDuration)
       .call(this.vafYAxis);
+
+    this.svg.select(".x-axis").remove();
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.margin.left},${this.height - this.margin.bottom})`
+      )
+      .attr("class", "x-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.xAxis);
   }
 
   #initializeZoom() {
@@ -674,6 +719,7 @@ class ChromosomePlot extends EventTarget {
               return;
             }
             this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
+            this.update();
           })
       )
       .on("click", () => {
@@ -681,52 +727,9 @@ class ChromosomePlot extends EventTarget {
         if (xMax - xMin !== this.length) {
           // Only reset if something actually changed
           this.resetZoom();
+          this.update();
         }
       });
-  }
-
-  #drawGridLines() {
-    this.#lrGrid
-      .selectAll(".gridline")
-      .data(this.ratioYScale.ticks(), (d) => d)
-      .join(
-        (enter) =>
-          enter
-            .append("line")
-            .attr("class", "gridline")
-            .attr("x1", 0)
-            .attr("x2", this.xScale(this.length))
-            .attr("y1", (d) => this.ratioYScale(d))
-            .attr("y2", (d) => this.ratioYScale(d)),
-        (update) =>
-          update
-            .transition()
-            .duration(this.animationDuration)
-            .attr("y1", (d) => this.ratioYScale(d))
-            .attr("y2", (d) => this.ratioYScale(d)),
-        (exit) => exit.remove()
-      );
-
-    this.#vafGrid
-      .selectAll(".gridline")
-      .data(this.vafYScale.ticks(), (d) => d)
-      .join(
-        (enter) =>
-          enter
-            .append("line")
-            .attr("class", "gridline")
-            .attr("x1", 0)
-            .attr("x2", this.xScale(this.length))
-            .attr("y1", (d) => this.vafYScale(d))
-            .attr("y2", (d) => this.vafYScale(d)),
-        (update) =>
-          update
-            .transition()
-            .duration(this.animationDuration)
-            .attr("y1", (d) => this.vafYScale(d))
-            .attr("y2", (d) => this.vafYScale(d)),
-        (exit) => exit.remove()
-      );
   }
 
   #setLabels() {
@@ -795,14 +798,13 @@ class ChromosomePlot extends EventTarget {
       }
     }
 
-    const padding = (yMax - yMin) * 0.05;
-
     if (this.fitToData) {
       this.dispatchEvent(
         new CustomEvent("zoom", {
           detail: { dataOutsideRange: false },
         })
       );
+      const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
     } else {
       this.dispatchEvent(
@@ -810,6 +812,7 @@ class ChromosomePlot extends EventTarget {
           detail: { dataOutsideRange: yMin < staticYMin || yMax > staticYMax },
         })
       );
+      const padding = (staticYMax - staticYMin) * 0.05;
       this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
     }
 
@@ -823,6 +826,15 @@ class ChromosomePlot extends EventTarget {
       .select(".y-axis")
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+
+    this.svg.selectAll(".gridline").remove();
+    this.svg
+      .selectAll(".y-axis .tick")
+      .lower()
+      .append("line")
+      .attr("class", "gridline")
+      .attr("x2", this.xScale.range()[1]);
+
     this.svg.select(".x-label").text(this.#data.label);
   }
 
@@ -836,17 +848,16 @@ class ChromosomePlot extends EventTarget {
       return this;
     }
     this.zoomRange = [start, end];
-    return this.update();
+    this.xScale.domain(this.zoomRange);
   }
 
   resetZoom() {
     this.zoomRange = [0, this.length];
-    return this.update();
+    this.xScale.domain(this.zoomRange);
   }
 
   update() {
     this.#updateAxes();
-    this.#drawGridLines();
     this.#plotRatios();
     this.#plotSegments();
     this.#plotVAF();
