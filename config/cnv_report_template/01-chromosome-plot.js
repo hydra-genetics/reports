@@ -5,9 +5,7 @@ class ChromosomePlot extends EventTarget {
   #cytobands;
   #plotArea;
   #lrArea;
-  #lrGrid;
   #vafArea;
-  #vafGrid;
   #ratios;
   #segments;
 
@@ -77,6 +75,8 @@ class ChromosomePlot extends EventTarget {
         "max-width: 100%; height: auto; max-height: 500px; height: intrinsic;"
       );
 
+    this.#drawAxes();
+
     this.svg
       .append("clipPath")
       .attr("id", "lr-area-clip")
@@ -117,16 +117,11 @@ class ChromosomePlot extends EventTarget {
         `translate(0, ${this.plotHeight + this.margin.between})`
       );
 
-    this.#lrGrid = this.#lrArea.append("g").attr("class", "grid");
-    this.#vafGrid = this.#vafArea.append("g").attr("class", "grid");
-
     this.#ratios = this.#lrArea.append("g").attr("class", "ratios");
     this.#segments = this.#lrArea.append("g").attr("class", "segments");
 
-    this.#drawAxes();
     this.#initializeZoom();
     this.#setLabels();
-    this.#drawGridLines();
     this.update();
   }
 
@@ -630,28 +625,16 @@ class ChromosomePlot extends EventTarget {
   }
 
   #drawAxes() {
-    this.svg.select(".x-axis").remove();
-    this.svg
-      .append("g")
-      .attr(
-        "transform",
-        `translate(${this.margin.left},${this.height - this.margin.bottom})`
-      )
-      .attr("class", "x-axis")
-      .transition()
-      .duration(this.animationDuration)
-      .call(this.xAxis);
-
     this.svg.selectAll(".y-axis").remove();
     this.svg
-      .append("g")
+      .insert("g", "#lr-area-clip")
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
       .attr("class", "y-axis")
       .transition()
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
     this.svg
-      .append("g")
+      .insert("g", "#lr-area-clip")
       .attr(
         "transform",
         `translate(${this.margin.left},${
@@ -662,6 +645,18 @@ class ChromosomePlot extends EventTarget {
       .transition()
       .duration(this.animationDuration)
       .call(this.vafYAxis);
+
+    this.svg.select(".x-axis").remove();
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.margin.left},${this.height - this.margin.bottom})`
+      )
+      .attr("class", "x-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.xAxis);
   }
 
   #initializeZoom() {
@@ -735,57 +730,6 @@ class ChromosomePlot extends EventTarget {
           this.update();
         }
       });
-  }
-
-  #drawGridLines() {
-    this.#lrGrid
-      .selectAll(".gridline")
-      .data(this.ratioYScale.ticks(5), (d) => d)
-      .join(
-        (enter) => {
-          enter
-            .append("line")
-            .attr("class", "gridline")
-            .attr("x1", 0)
-            .attr("x2", 0)
-            .attr("y1", (d) => this.ratioYScale(d))
-            .attr("y2", (d) => this.ratioYScale(d))
-            .call((line) =>
-              line.transition().duration(800).attr("x2", this.xScale.range()[1])
-            );
-        },
-        (update) => {
-          update
-            .transition()
-            .duration(this.animationDuration)
-            .attr("y1", (d) => this.ratioYScale(d))
-            .attr("y2", (d) => this.ratioYScale(d))
-            .transition()
-            .duration(800)
-            .attr("x1", this.xScale.range()[0])
-            .attr("x2", this.xScale.range()[1]);
-        },
-        (exit) => {
-          exit
-            .transition()
-            .duration(800)
-            .attr("x1", this.xScale.range()[1])
-            .remove();
-        }
-      );
-
-    this.#vafGrid
-      .selectAll(".gridline")
-      .data(this.vafYScale.ticks(5), (d) => d)
-      .join((enter) =>
-        enter
-          .append("line")
-          .attr("class", "gridline")
-          .attr("x1", 0)
-          .attr("x2", this.xScale(this.length))
-          .attr("y1", (d) => this.vafYScale(d))
-          .attr("y2", (d) => this.vafYScale(d))
-      );
   }
 
   #setLabels() {
@@ -882,6 +826,14 @@ class ChromosomePlot extends EventTarget {
       .select(".y-axis")
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+
+    this.svg
+      .selectAll(".tick")
+      .lower()
+      .append("line")
+      .attr("class", "gridline")
+      .attr("x2", this.width);
+
     this.svg.select(".x-label").text(this.#data.label);
   }
 
@@ -905,7 +857,6 @@ class ChromosomePlot extends EventTarget {
 
   update() {
     this.#updateAxes();
-    this.#drawGridLines();
     this.#plotRatios();
     this.#plotSegments();
     this.#plotVAF();
