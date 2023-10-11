@@ -827,12 +827,13 @@ class ChromosomePlot extends EventTarget {
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
 
+    this.svg.selectAll(".gridline").remove();
     this.svg
-      .selectAll(".tick")
+      .selectAll(".y-axis .tick")
       .lower()
       .append("line")
       .attr("class", "gridline")
-      .attr("x2", this.width);
+      .attr("x2", this.xScale.range()[1]);
 
     this.svg.select(".x-label").text(this.#data.label);
   }
