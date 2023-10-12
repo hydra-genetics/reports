@@ -144,6 +144,11 @@ def generate_copy_rules(output_spec):
     exec(compile("\n".join(rulestrings), "copy_result_files", "exec"), workflow.globals)
 
 
+if len(workflow.modules) == 0:
+    # Only generate copy-rules if the workflow is executed directly.
+    generate_copy_rules(output_spec)
+
+
 def get_cnv_callers(tc_method):
     for tcm in config.get("svdb_merge", {}).get("tc_method", []):
         if tcm["name"] == tc_method:
