@@ -8,6 +8,12 @@ header {
   margin: 3em 0;
 }
 
+header .fix-right {
+  position: absolute;
+  top: 0;
+  right: 1em;
+}
+
 dialog {
   user-select: none;
 }

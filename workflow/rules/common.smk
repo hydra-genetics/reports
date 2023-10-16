@@ -7,6 +7,7 @@ import itertools
 import numpy as np
 import pathlib
 import pandas as pd
+import re
 from typing import List, Union
 import yaml
 from snakemake.io import Wildcards
@@ -16,6 +17,8 @@ from snakemake.utils import min_version
 from hydra_genetics.utils.resources import load_resources
 from hydra_genetics.utils.samples import *
 from hydra_genetics.utils.units import *
+
+MODULE_VERSION = "0.2.0"  # x-release-please-version
 
 min_version("7.8.3")
 
@@ -29,6 +32,21 @@ validate(config, schema="../schemas/config.schema.yaml")
 config = load_resources(config, config["resources"])
 validate(config, schema="../schemas/resources.schema.yaml")
 
+# Check that the module version matches the template version
+template_version_file = pathlib.Path(config["cnv_html_report"]["template_dir"], "00-version.js")
+if not template_version_file.exists():
+    raise FileNotFoundError(
+        "CNV template version file not found, possible mismatch, "
+        "see https://hydra-genetics-reports.readthedocs.io/en/latest/intro/#template-version-matching"
+    )
+with open(template_version_file) as f:
+    template_version = re.search(r'(?<=").+(?=")', f.read().strip())
+    if template_version is None or template_version[0] != MODULE_VERSION:
+        raise ValueError(
+            "CNV template version does not match workflow version: "
+            f"found {template_version[0]}, expected {MODULE_VERSION}, "
+            "see https://hydra-genetics-reports.readthedocs.io/en/latest/intro/#template-version-matching"
+        )
 
 ### Read and validate samples file
 

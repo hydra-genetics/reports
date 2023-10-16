@@ -12,5 +12,8 @@ jobs:
         id: release
         with:
           release-type: simple
-          package-name: reporting
+          package-name: reports
           default-branch: main
+          extra-files:
+            - config/cnv_report_template/00-version.js
+            - workflow/rules/common.smk
