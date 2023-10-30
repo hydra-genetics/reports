@@ -460,28 +460,38 @@ class ChromosomePlot extends EventTarget {
         (update) => {
           if (update.data()[0]?.mean) {
             // Summarised data
-            update.attr("opacity", 1);
-
-            update
-              .selectAll(".point")
-              .transition()
-              .duration(this.animationDuration)
-              .attr("cx", (d) => this.xScale(d.start + (d.end - d.start) / 2))
-              .attr("cy", (d) => this.ratioYScale(d.mean));
-
-            update.selectAll(".variance-rect").call((update) =>
-              update
-                .transition()
-                .duration(this.animationDuration)
-                .attr("x", (d) => this.xScale(d.start))
-                .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
-                .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-                .attr("height", (d) =>
-                  this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-                )
-            );
-
-            return update;
+            return update
+              .call((update) =>
+                update
+                  .selectAll(".point")
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("cx", (d) =>
+                    this.xScale(d.start + (d.end - d.start) / 2)
+                  )
+                  .attr("cy", (d) => this.ratioYScale(d.mean))
+              )
+              .call((update) =>
+                update
+                  .selectAll(".variance-rect")
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("x", (d) => this.xScale(d.start))
+                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr(
+                    "width",
+                    (d) => this.xScale(d.end) - this.xScale(d.start)
+                  )
+                  .attr("height", (d) =>
+                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+                  )
+              )
+              .call((update) =>
+                update
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("opacity", 1)
+              );
           }
 
           return update.call((update) =>
