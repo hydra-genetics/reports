@@ -328,7 +328,7 @@ class GenomePlot extends EventTarget {
 
   plotRatios() {
     this.ratioPanels
-      .selectAll(".point")
+      .selectAll(".data-point")
       .data(
         (d, i, g) =>
           slidingPixelWindow(
@@ -341,14 +341,63 @@ class GenomePlot extends EventTarget {
         (d) => d.start
       )
       .join(
-        (enter) =>
-          enter
+        (enter) => {
+          if (enter.data()[0]?.mean) {
+            return enter
+              .append("g")
+              .attr("class", "data-point")
+              .call((g) =>
+                g
+                  .append("circle")
+                  .attr("class", "point")
+                  .attr("cx", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start + (d.end - d.start) / 2
+                    )
+                  )
+                  .attr("cy", this.ratioYScale.range()[0])
+                  .attr("r", 2)
+                  .attr("fill", "#333")
+                  .attr("fill-opacity", 0.5)
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("cy", (d) => this.ratioYScale(d.mean))
+              )
+              .call((g) =>
+                g
+                  .append("rect")
+                  .attr("class", "variance-rect")
+                  .attr("x", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("y", this.ratioYScale.range()[0])
+                  .attr("width", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end - d.start
+                    )
+                  )
+                  .attr("height", 0)
+                  .attr("fill", "#333")
+                  .attr("fill-opacity", 0.3)
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr("height", (d) =>
+                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+                  )
+              )
+              .call((g) => g.transition().duration(this.animationDuration));
+          }
+
+          return enter
             .append("circle")
             .attr("class", "point")
             .attr("cx", (d, i, g) =>
               this.xScales[g[i].parentNode.dataset.index](d.start)
             )
-            .attr("cy", this.ratioYScale(-this.ratioYScaleRange - 0.2))
+            .attr("cy", this.ratioYScale.range()[0])
             .attr("r", 2)
             .attr("fill", "#333")
             .attr("fill-opacity", 0.3)
@@ -357,9 +406,41 @@ class GenomePlot extends EventTarget {
                 .transition()
                 .duration(this.animationDuration)
                 .attr("cy", (d) => this.ratioYScale(d.log2))
-            ),
-        (update) =>
-          update.call((update) =>
+            );
+        },
+        (update) => {
+          if (update.data()[0]?.mean) {
+            return update
+              .call((update) =>
+                update
+                  .selectAll(".point")
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("cx", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start + (d.end - d.start) / 2
+                    )
+                  )
+                  .attr("cy", (d) => this.ratioYScale(d.log2))
+              )
+              .call((update) =>
+                update
+                  .selectAll(".variance-rect")
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("x", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr("height", (d) =>
+                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+                  )
+              );
+          }
+
+          return update.call((update) =>
             update
               .transition()
               .duration(this.animationDuration)
@@ -367,7 +448,8 @@ class GenomePlot extends EventTarget {
                 this.xScales[g[i].parentNode.dataset.index](d.start)
               )
               .attr("cy", (d) => this.ratioYScale(d.log2))
-          ),
+          );
+        },
         (exit) =>
           exit
             .transition()
@@ -396,11 +478,9 @@ class GenomePlot extends EventTarget {
             .attr("d", (d, i, g) => {
               let j = g[i].parentNode.dataset.index;
               let xScale = this.xScales[j];
-              return `M${xScale(d.start)} ${this.ratioYScale(
-                -this.ratioYScaleRange - 0.2
-              )} L ${xScale(d.end)} ${this.ratioYScale(
-                -this.ratioYScaleRange - 0.2
-              )}`;
+              return `M${xScale(d.start)} ${
+                this.ratioYScale.range()[0]
+              } L ${xScale(d.end)} ${this.ratioYScale.range()[0]}`;
             })
             .attr("stroke", "orange")
             .attr("stroke-width", 2)
