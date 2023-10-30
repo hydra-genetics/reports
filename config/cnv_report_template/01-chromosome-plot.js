@@ -388,7 +388,7 @@ class ChromosomePlot extends EventTarget {
 
   #plotRatios() {
     this.#ratios
-      .selectAll(".point")
+      .selectAll(".data-point")
       .data(
         slidingPixelWindow(
           this.#data.callers[this.#activeCaller].ratios,
@@ -396,34 +396,110 @@ class ChromosomePlot extends EventTarget {
           "start",
           "log2"
         ),
-        (d) => [d.start, d.end, d.log2]
+        (d) => [d.start, d.end, d.log2, d.mean]
       )
       .join(
-        (enter) =>
-          enter
+        (enter) => {
+          if (enter.data()[0]?.mean) {
+            // Summarised data
+            return enter
+              .append("g")
+              .attr("class", "data-point")
+              .attr("opacity", 0)
+              .call((g) =>
+                g
+                  .append("rect")
+                  .attr("class", "variance-rect")
+                  .attr("x", (d) => this.xScale(d.start))
+                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr(
+                    "width",
+                    (d) => this.xScale(d.end) - this.xScale(d.start)
+                  )
+                  .attr("height", (d) =>
+                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+                  )
+                  .attr("fill", "#333")
+                  .attr("fill-opacity", 0.3)
+              )
+              .call((g) =>
+                g
+                  .append("circle")
+                  .attr("class", "point")
+                  .attr("cx", (d) =>
+                    this.xScale(d.start + (d.end - d.start) / 2)
+                  )
+                  .attr("cy", (d) => this.ratioYScale(d.mean))
+                  .attr("r", 2)
+                  .attr("fill", "#333")
+                  .attr("fill-opacity", 0.5)
+              )
+              .call((g) =>
+                g
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("opacity", 1)
+              );
+          }
+
+          return enter
             .append("circle")
-            .attr("class", "point")
+            .attr("class", "data-point")
             .attr("cx", (d) => this.xScale(d.start))
             .attr("cy", (d) => this.ratioYScale(d.log2))
             .attr("r", 2)
             .attr("fill", "#333")
-            .attr("fill-opacity", 0)
+            .attr("opacity", 0)
             .call((enter) =>
               enter
                 .transition()
                 .duration(this.animationDuration)
-                .attr("fill-opacity", 0.3)
-            ),
-        (update) =>
-          update.attr("fill-opacity", 0.3).call((update) =>
+                .attr("opacity", 0.3)
+            );
+        },
+        (update) => {
+          if (update.data()[0]?.mean) {
+            // Summarised data
+            update.attr("opacity", 1);
+
+            update
+              .selectAll(".point")
+              .transition()
+              .duration(this.animationDuration)
+              .attr("cx", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+              .attr("cy", (d) => this.ratioYScale(d.mean));
+
+            update.selectAll(".variance-rect").call((update) =>
+              update
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => this.xScale(d.start))
+                .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+                .attr("height", (d) =>
+                  this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+                )
+            );
+
+            return update;
+          }
+
+          return update.call((update) =>
             update
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
               .attr("cy", (d) => this.ratioYScale(d.log2))
               .attr("fill-opacity", 0.3)
-          ),
-        (exit) => exit.transition().attr("fill-opacity", 0).remove()
+          );
+        },
+        (exit) => {
+          exit
+            .transition()
+            .duration(this.animationDuration)
+            .attr("opacity", 0)
+            .remove();
+        }
       );
   }
 
