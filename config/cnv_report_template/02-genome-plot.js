@@ -427,12 +427,27 @@ class GenomePlot extends EventTarget {
               .attr("cy", (d) => this.ratioYScale(d.log2))
           );
         },
-        (exit) =>
+        (exit) => {
           exit
+            .call((exit) =>
+              exit
+                .selectAll(".variance-rect")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("y", 0)
+                .attr("height", 0)
+            )
+            .call((exit) =>
+              exit
+                .selectAll(".point")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("cy", 0)
+            )
             .transition()
-            .duration(this.animationDuration)
-            .attr("cy", this.ratioYScale(this.ratioYScaleRange + 0.2))
-            .remove()
+            .delay(this.animationDuration)
+            .remove();
+        }
       );
   }
 
