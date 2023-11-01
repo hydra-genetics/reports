@@ -597,6 +597,7 @@ class GenomePlot extends EventTarget {
           }
 
           return enter
+            .append("circle")
             .attr("class", "data-point")
             .attr("cx", (d, i, g) =>
               this.xScales[g[i].parentNode.dataset.index](d.pos)
