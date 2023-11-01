@@ -1,3 +1,5 @@
+const MAX_POINTS = 300;
+
 function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
   let offset = scale.domain()[0];
   let currentWindow = [];
@@ -36,12 +38,11 @@ function summariseWindow(points, posAttr, valAttr) {
 }
 
 function slidingPixelWindowVAF(points, scale, pixelWindowSize = 5) {
+  points = points.filter((p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1]);
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
-  if (windowSize < 4) {
-    let reducedPoints = points.filter(
-      (p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1]
-    );
-    return reducedPoints;
+
+  if (windowSize < 4 || points.length <= MAX_POINTS) {
+    return points;
   }
 
   let reducedPoints = [];
@@ -82,12 +83,12 @@ function slidingPixelWindow(
   valAttr,
   pixelWindowSize = 5
 ) {
+  points = points.filter(
+    (p) => p[posAttr] >= scale.domain()[0] && p[posAttr] < scale.domain()[1]
+  )
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
-  if (windowSize < 4) {
-    let reducedPoints = points.filter(
-      (p) => p[posAttr] >= scale.domain()[0] && p[posAttr] < scale.domain()[1]
-    );
-    return reducedPoints;
+  if (windowSize < 4 || points.length <= MAX_POINTS) {
+    return points;
   }
 
   let reducedPoints = [];
