@@ -420,19 +420,18 @@ class ChromosomePlot extends EventTarget {
                     this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
                   )
                   .attr("fill", "#333")
-                  .attr("fill-opacity", 0.3)
+                  .attr("opacity", 0.3)
               )
               .call((g) =>
                 g
-                  .append("circle")
-                  .attr("class", "point")
-                  .attr("cx", (d) =>
-                    this.xScale(d.start + (d.end - d.start) / 2)
-                  )
-                  .attr("cy", (d) => this.ratioYScale(d.mean))
-                  .attr("r", 2)
-                  .attr("fill", "#333")
-                  .attr("fill-opacity", 0.5)
+                  .append("line")
+                  .attr("class", "mean")
+                  .attr("x1", (d) => this.xScale(d.start))
+                  .attr("x2", (d) => this.xScale(d.end))
+                  .attr("y1", (d) => this.ratioYScale(d.mean))
+                  .attr("y2", (d) => this.ratioYScale(d.mean))
+                  .attr("stroke", "#333")
+                  .attr("opacity", 0.5)
               )
               .call((g) =>
                 g
@@ -463,13 +462,13 @@ class ChromosomePlot extends EventTarget {
             return update
               .call((update) =>
                 update
-                  .selectAll(".point")
+                  .selectAll(".mean")
                   .transition()
                   .duration(this.animationDuration)
-                  .attr("cx", (d) =>
-                    this.xScale(d.start + (d.end - d.start) / 2)
-                  )
-                  .attr("cy", (d) => this.ratioYScale(d.mean))
+                  .attr("x1", (d) => this.xScale(d.start))
+                  .attr("x2", (d) => this.xScale(d.end))
+                  .attr("y1", (d) => this.ratioYScale(d.mean))
+                  .attr("y2", (d) => this.ratioYScale(d.mean))
               )
               .call((update) =>
                 update
@@ -500,7 +499,6 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
               .attr("cy", (d) => this.ratioYScale(d.log2))
-              .attr("opacity", 0.3)
           );
         },
         (exit) => {

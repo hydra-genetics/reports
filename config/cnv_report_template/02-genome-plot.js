@@ -325,20 +325,26 @@ class GenomePlot extends EventTarget {
               .attr("class", "data-point")
               .call((g) =>
                 g
-                  .append("circle")
-                  .attr("class", "point")
-                  .attr("cx", (d, i, g) =>
+                  .append("line")
+                  .attr("class", "mean")
+                  .attr("x1", (d, i, g) =>
                     this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.start + (d.end - d.start) / 2
+                      d.start
                     )
                   )
-                  .attr("cy", this.ratioYScale.range()[0])
-                  .attr("r", 2)
-                  .attr("fill", "#333")
-                  .attr("fill-opacity", 0.5)
+                  .attr("x2", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end
+                    )
+                  )
+                  .attr("y1", this.ratioYScale.range()[0])
+                  .attr("y2", this.ratioYScale.range()[0])
+                  .attr("stroke", "#333")
+                  .attr("opacity", 0.5)
                   .transition()
                   .duration(this.animationDuration)
-                  .attr("cy", (d) => this.ratioYScale(d.mean))
+                  .attr("y1", (d) => this.ratioYScale(d.mean))
+                  .attr("y2", (d) => this.ratioYScale(d.mean))
               )
               .call((g) =>
                 g
@@ -390,15 +396,21 @@ class GenomePlot extends EventTarget {
             return update
               .call((update) =>
                 update
-                  .selectAll(".point")
+                  .selectAll(".mean")
                   .transition()
                   .duration(this.animationDuration)
-                  .attr("cx", (d, i, g) =>
+                  .attr("x1", (d, i, g) =>
                     this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.start + (d.end - d.start) / 2
+                      d.start
                     )
                   )
-                  .attr("cy", (d) => this.ratioYScale(d.log2))
+                  .attr("x2", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end
+                    )
+                  )
+                  .attr("y1", (d) => this.ratioYScale(d.mean))
+                  .attr("y2", (d) => this.ratioYScale(d.mean))
               )
               .call((update) =>
                 update
@@ -439,10 +451,11 @@ class GenomePlot extends EventTarget {
             )
             .call((exit) =>
               exit
-                .selectAll(".point")
+                .selectAll(".mean")
                 .transition()
                 .duration(this.animationDuration)
-                .attr("cy", 0)
+                .attr("y1", 0)
+                .attr("y2", 0)
             )
             .transition()
             .delay(this.animationDuration)
