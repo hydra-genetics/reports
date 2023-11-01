@@ -47,6 +47,9 @@ function slidingPixelWindowVAF(points, scale, pixelWindowSize = 5) {
   let reducedPoints = [];
 
   for (let window of generateWindowSlices(points, scale, "pos", windowSize)) {
+    if (window.length === 0) {
+      continue;
+    }
     let hist = Array(5).fill(0);
     window.forEach((p) => {
       let bin = Math.floor(5 * p.vaf);
@@ -90,6 +93,9 @@ function slidingPixelWindow(
   let reducedPoints = [];
 
   for (let window of generateWindowSlices(points, scale, posAttr, windowSize)) {
+    if (window.length === 0) {
+      continue;
+    }
     reducedPoints.push(summariseWindow(window, posAttr, valAttr));
   }
 
