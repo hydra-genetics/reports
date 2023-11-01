@@ -115,7 +115,12 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
     for variant in vcf.fetch():
         if variant.chrom in skip:
             continue
-        yield variant.chrom, variant.pos, variant.info.get("AF", None)
+        vaf = variant.info.get("AF")
+        if isinstance(vaf, float):
+            yield variant.chrom, variant.pos, vaf
+        elif vaf is not None:
+            for f in vaf:
+                yield variant.chrom, variant.pos, f
 
 
 def get_cnvs(vcf_filename, skip=None):
