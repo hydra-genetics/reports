@@ -98,30 +98,6 @@ class GenomePlot extends EventTarget {
       .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
       .attr("data-index", (_, i) => i);
 
-    this.vafPanels
-      .append("g")
-      .attr("class", "vaf")
-      .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
-      .attr("data-index", (_, i) => i)
-      .selectAll(".point")
-      .data((d, i, g) =>
-        slidingPixelWindow(
-          d.vaf,
-          this.xScales[g[i].parentNode.dataset.index],
-          "pos",
-          "vaf",
-          3
-        )
-      )
-      .join("circle")
-      .attr("cx", (d, i, g) =>
-        this.xScales[g[i].parentNode.dataset.index](d.pos)
-      )
-      .attr("cy", (d) => this.vafYScale(d.vaf))
-      .attr("r", 2)
-      .attr("fill", "#333")
-      .attr("fill-opacity", 0.3);
-
     const overlayClip = d3.selectAll(".genome-view-area").append("g");
     overlayClip
       .selectAll(".panel-overlay-clip")
@@ -176,6 +152,7 @@ class GenomePlot extends EventTarget {
     this.drawGridLines();
     this.setLabels();
     this.plotRatios();
+    this.plotVAF();
     this.plotSegments();
   }
 
@@ -518,6 +495,91 @@ class GenomePlot extends EventTarget {
               )}`;
             })
             .remove()
+      );
+  }
+
+  plotVAF() {
+    this.vafPanels
+      .append("g")
+      .attr("class", "vaf")
+      .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
+      .attr("data-index", (_, i) => i)
+      .selectAll(".data-point")
+      .data((d, i, g) => {
+        return slidingPixelWindowVAF(
+          d.vaf,
+          this.xScales[g[i].parentNode.dataset.index],
+          3
+        );
+      })
+      .join(
+        (enter) => {
+          if (enter.data()[0]?.mean) {
+            return enter
+              .append("g")
+              .attr("class", "data-point")
+              .call((g) =>
+                g
+                  .append("rect")
+                  .attr("class", "variance-rect")
+                  .attr("x", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("y", this.vafYScale.range()[0])
+                  .attr("height", 0)
+                  .attr("width", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end - d.start
+                    )
+                  )
+                  .attr("fill", "#333")
+                  .attr("fill-opacity", 0.3)
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y", (d) => this.vafYScale(d.mean + d.sd))
+                  .attr("height", (d) =>
+                    this.vafYScale(this.vafYScale.domain()[1] - 2 * d.sd)
+                  )
+              )
+              .call((g) =>
+                g
+                  .append("line")
+                  .attr("class", "mean-line")
+                  .attr("x1", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("x2", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end
+                    )
+                  )
+                  .attr("y1", this.vafYScale.range()[0])
+                  .attr("y2", this.vafYScale.range()[0])
+                  .attr("stroke", "#333")
+                  .attr("opacity", 0.5)
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y1", (d) => this.vafYScale(d.mean))
+                  .attr("y2", (d) => this.vafYScale(d.mean))
+              );
+          }
+
+          return enter
+            .attr("class", "data-point")
+            .attr("cx", (d, i, g) =>
+              this.xScales[g[i].parentNode.dataset.index](d.pos)
+            )
+            .attr("cy", (d) => this.vafYScale(d.vaf))
+            .attr("r", 2)
+            .attr("fill", "#333")
+            .attr("fill-opacity", 0.3);
+        },
+        (update) => update,
+        (exit) => exit.remove()
       );
   }
 
