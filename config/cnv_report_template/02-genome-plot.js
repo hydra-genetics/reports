@@ -527,6 +527,10 @@ class GenomePlot extends EventTarget {
   }
 
   plotVAF() {
+    const nVafPoints = this.#data.map((d) => d.vaf.length);
+    const vafPointsPerChromosome =
+      nVafPoints.reduce((a, b) => a + b, 0) / this.#data.length;
+
     this.vafPanels
       .append("g")
       .attr("class", "vaf")
@@ -534,11 +538,16 @@ class GenomePlot extends EventTarget {
       .attr("data-index", (_, i) => i)
       .selectAll(".data-point")
       .data((d, i, g) => {
-        return slidingPixelWindowVAF(
-          d.vaf,
-          this.xScales[g[i].parentNode.dataset.index],
-          3
-        );
+        if (vafPointsPerChromosome < MAX_POINTS) {
+          return d.vaf;
+        } else {
+          return slidingPixelWindowVAF(
+            d.vaf,
+            this.xScales[g[i].parentNode.dataset.index],
+            3,
+            true
+          );
+        }
       })
       .join(
         (enter) => {
