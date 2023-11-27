@@ -15,14 +15,18 @@ function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
     if (p[posAttr] < offset + windowSize) {
       currentWindow.push(p);
     } else {
-      yield currentWindow;
-      offset += windowSize;
+      // Fast forward to the next window with data
+      while (p[posAttr] >= offset + windowSize) {
+        yield currentWindow;
+        offset += windowSize;
+        currentWindow = [];
+      }
       currentWindow = [p];
     }
   }
 }
 
-function summariseWindow(points, posAttr, valAttr) {
+function summariseWindow(points, windowStart, windowSize, valAttr) {
   let sum = points.reduce((a, b) => a + b[valAttr], 0);
   let mean = sum / points.length;
   let sd = Math.sqrt(
@@ -30,16 +34,19 @@ function summariseWindow(points, posAttr, valAttr) {
       points.length
   );
   return {
-    start: points[0][posAttr],
-    end: points[points.length - 1][posAttr],
+    start: windowStart,
+    end: windowStart + windowSize,
     mean: mean,
     sd: sd,
   };
 }
 
 function slidingPixelWindowVAF(points, scale, pixelWindowSize = 5) {
-  points = points.filter((p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1]);
+  points = points.filter(
+    (p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1]
+  );
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
+  let windowStart = Math.floor(scale.domain()[0]);
 
   if (windowSize < 4 || points.length <= MAX_POINTS) {
     return points;
@@ -49,6 +56,7 @@ function slidingPixelWindowVAF(points, scale, pixelWindowSize = 5) {
 
   for (let window of generateWindowSlices(points, scale, "pos", windowSize)) {
     if (window.length === 0) {
+      windowStart += windowSize;
       continue;
     }
     let hist = Array(5).fill(0);
@@ -61,16 +69,23 @@ function slidingPixelWindowVAF(points, scale, pixelWindowSize = 5) {
       // potentially bimodal
       let hiPoints = window.filter((p) => p.vaf >= 0.5);
       if (hiPoints.length > 0) {
-        reducedPoints.push(summariseWindow(hiPoints, "pos", "vaf"));
+        reducedPoints.push(
+          summariseWindow(hiPoints, windowStart, windowSize, "vaf")
+        );
       }
 
       let loPoints = window.filter((p) => p.vaf < 0.5);
       if (loPoints.length > 0) {
-        reducedPoints.push(summariseWindow(loPoints, "pos", "vaf"));
+        reducedPoints.push(
+          summariseWindow(loPoints, windowStart, windowSize, "vaf")
+        );
       }
     } else {
-      reducedPoints.push(summariseWindow(window, "pos", "vaf"));
+      reducedPoints.push(
+        summariseWindow(window, windowStart, windowSize, "vaf")
+      );
     }
+    windowStart += windowSize;
   }
 
   return reducedPoints;
@@ -85,8 +100,9 @@ function slidingPixelWindow(
 ) {
   points = points.filter(
     (p) => p[posAttr] >= scale.domain()[0] && p[posAttr] < scale.domain()[1]
-  )
+  );
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
+  let windowStart = Math.floor(scale.domain()[0]);
   if (windowSize < 4 || points.length <= MAX_POINTS) {
     return points;
   }
@@ -95,9 +111,13 @@ function slidingPixelWindow(
 
   for (let window of generateWindowSlices(points, scale, posAttr, windowSize)) {
     if (window.length === 0) {
+      windowStart += windowSize + 1;
       continue;
     }
-    reducedPoints.push(summariseWindow(window, posAttr, valAttr));
+    reducedPoints.push(
+      summariseWindow(window, windowStart, windowSize, valAttr)
+    );
+    windowStart += windowSize + 1;
   }
 
   return reducedPoints;
