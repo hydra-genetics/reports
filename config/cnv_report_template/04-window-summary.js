@@ -41,10 +41,19 @@ function summariseWindow(points, windowStart, windowSize, valAttr) {
   };
 }
 
-function slidingPixelWindowVAF(points, scale, pixelWindowSize = 5) {
-  points = points.filter(
-    (p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1]
-  );
+function slidingPixelWindowVAF(
+  points,
+  scale,
+  pixelWindowSize = 5
+) {
+  points = points
+    .filter((p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1])
+    .map((p) =>
+      p.vaf.map((v) => {
+        return { pos: p.pos, vaf: v };
+      })
+    )
+    .flat();
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
   let windowStart = Math.floor(scale.domain()[0]);
 
