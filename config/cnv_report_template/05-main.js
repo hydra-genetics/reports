@@ -1,19 +1,14 @@
 const getTextDimensions = function (text, fontSize) {
-  let div = document.createElement("div");
-
-  div.innerText = text;
-  div.style.position = "absolute";
-  div.style.float = "left";
-  div.style.fontSize = fontSize;
-  div.style.whiteSpace = "nowrap";
-  div.style.visibility = "hidden";
-
-  document.body.append(div);
-  let width = div.clientWidth;
-  let height = div.clientHeight;
-  div.remove();
-
-  return [width, height];
+  const canvas =
+    getTextDimensions.canvas ||
+    (getTextDimensions.canvas = document.createElement("canvas"));
+  const context = canvas.getContext("2d");
+  context.font = `${fontSize} sans-serif`;
+  const metrics = context.measureText(text);
+  return [
+    metrics.width,
+    metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent,
+  ];
 };
 
 d3.select("#reports-version")
