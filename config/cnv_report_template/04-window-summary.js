@@ -44,7 +44,8 @@ function summariseWindow(points, windowStart, windowSize, valAttr) {
 function slidingPixelWindowVAF(
   points,
   scale,
-  pixelWindowSize = 5
+  pixelWindowSize = 5,
+  force = false
 ) {
   points = points
     .filter((p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1])
@@ -57,7 +58,7 @@ function slidingPixelWindowVAF(
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
   let windowStart = Math.floor(scale.domain()[0]);
 
-  if (windowSize < 4 || points.length <= MAX_POINTS) {
+  if (!force && (windowSize < 4 || points.length <= MAX_POINTS)) {
     return points;
   }
 
