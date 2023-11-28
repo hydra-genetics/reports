@@ -47,14 +47,18 @@ function slidingPixelWindowVAF(
   pixelWindowSize = 5,
   force = false
 ) {
-  points = points
-    .filter((p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1])
-    .map((p) =>
-      p.vaf.map((v) => {
-        return { pos: p.pos, vaf: v };
-      })
-    )
-    .flat();
+  points = points.filter(
+    (p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1]
+  );
+  if (points[0]?.vaf instanceof Array) {
+    points = points
+      .map((p) =>
+        p.vaf.map((v) => {
+          return { pos: p.pos, vaf: v };
+        })
+      )
+      .flat();
+  }
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
   let windowStart = Math.floor(scale.domain()[0]);
 
