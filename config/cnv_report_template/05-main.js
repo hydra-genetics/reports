@@ -141,6 +141,10 @@ d3.select("#chromosome-fit-to-data").on("change", (e) => {
   chromosomePlot.fitToData = e.target.checked;
 });
 
+d3.select("#chromosome-show-all-datapoints").on("change", (e) => {
+  chromosomePlot.showAllData = e.target.checked;
+});
+
 d3.selectAll("input[name=dataset]").on("change", (e) => {
   chromosomePlot.activeCaller = parseInt(e.target.value);
   genomePlot.activeCaller = parseInt(e.target.value);

@@ -8,10 +8,12 @@ class ChromosomePlot extends EventTarget {
   #vafArea;
   #ratios;
   #segments;
+  #showAllData;
 
   constructor(config) {
     super();
 
+    this.#showAllData = config?.showAllData ? config.showAllData : false;
     this.element = config?.element ? config.element : document.body;
     this.name = config?.name ? config.name : "";
     this.#data = config?.data;
@@ -141,6 +143,15 @@ class ChromosomePlot extends EventTarget {
 
   get fitToData() {
     return this.#fitToData;
+  }
+
+  set showAllData(x) {
+    this.#showAllData = x;
+    this.update();
+  }
+
+  get showAllData() {
+    return this.#showAllData;
   }
 
   get data() {
@@ -390,12 +401,17 @@ class ChromosomePlot extends EventTarget {
     this.#ratios
       .selectAll(".data-point")
       .data(
-        slidingPixelWindow(
-          this.#data.callers[this.#activeCaller].ratios,
-          this.xScale,
-          "start",
-          "log2"
-        ),
+        () => {
+          if (this.#showAllData) {
+            return this.#data.callers[this.#activeCaller].ratios;
+          }
+          return slidingPixelWindow(
+            this.#data.callers[this.#activeCaller].ratios,
+            this.xScale,
+            "start",
+            "log2"
+          );
+        },
         (d) => [d.start, d.end, d.log2, d.mean]
       )
       .join(
@@ -555,13 +571,15 @@ class ChromosomePlot extends EventTarget {
   #plotVAF() {
     this.#vafArea
       .selectAll(".data-point")
-      .data(slidingPixelWindowVAF(this.#data.vaf, this.xScale), (d) => [
-        d.pos,
-        d.start,
-        d.end,
-        d.mean,
-        d.vaf,
-      ])
+      .data(
+        () => {
+          if (this.#showAllData) {
+            return this.#data.vaf;
+          }
+          return slidingPixelWindowVAF(this.#data.vaf, this.xScale);
+        },
+        (d) => [d.pos, d.start, d.end, d.mean, d.vaf]
+      )
       .join(
         (enter) => {
           if (enter.data()[0]?.mean) {
