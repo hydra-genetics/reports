@@ -126,13 +126,13 @@ function slidingPixelWindow(
 
   for (let window of generateWindowSlices(points, scale, posAttr, windowSize)) {
     if (window.length === 0) {
-      windowStart += windowSize + 1;
+      windowStart += windowSize;
       continue;
     }
     reducedPoints.push(
       summariseWindow(window, windowStart, windowSize, valAttr)
     );
-    windowStart += windowSize + 1;
+    windowStart += windowSize;
   }
 
   return reducedPoints;
