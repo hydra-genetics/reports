@@ -61,13 +61,23 @@ def parse_fai(filename, skip=None):
             yield chrom, int(length)
 
 
-def parse_annotation_bed(filename, skip=None):
-    with open(filename) as f:
-        for line in f:
-            chrom, start, end, name = line.strip().split()[:4]
-            if skip is not None and chrom in skip:
-                continue
-            yield chrom, int(start), int(end), name
+def annotation_parser():
+    parsed_annotations = set()
+
+    def parse_annotation_bed(filename, skip=None):
+        with open(filename) as f:
+            for line in f:
+                chrom, start, end, name = line.strip().split()[:4]
+                if skip is not None and chrom in skip:
+                    continue
+                if (name, chrom, start, end) in parsed_annotations:
+                    print(f"Warning: duplicate annotation {name} {chrom}:{start}-{end}", file=sys.stderr)
+                    print(f"Warning: skipping {name} {chrom}:{start}-{end} in {filename}", file=sys.stderr)
+                    continue
+                parsed_annotations.add((name, chrom, start, end))
+                yield chrom, int(start), int(end), name
+
+    return parse_annotation_bed
 
 
 def cytoband_color(giemsa):
@@ -291,9 +301,10 @@ def main():
     vaf = None
     if germline_vcf is not None:
         vaf = get_vaf(germline_vcf, skip_chromosomes)
+    annot_parser = annotation_parser()
     annotations = []
     for filename in annotation_beds:
-        annotations.append(parse_annotation_bed(filename, skip_chromosomes))
+        annotations.append(annot_parser(filename, skip_chromosomes))
 
     cytobands = []
     if cytoband_file and show_cytobands:
