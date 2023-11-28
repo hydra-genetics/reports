@@ -106,14 +106,15 @@ function slidingPixelWindow(
   scale,
   posAttr,
   valAttr,
-  pixelWindowSize = 5
+  pixelWindowSize = 5,
+  force = false
 ) {
   points = points.filter(
     (p) => p[posAttr] >= scale.domain()[0] && p[posAttr] < scale.domain()[1]
   );
   let windowSize = Math.ceil(scale.invert(pixelWindowSize) - scale.domain()[0]);
   let windowStart = Math.floor(scale.domain()[0]);
-  if (windowSize < 4 || points.length <= MAX_POINTS) {
+  if (!force && (windowSize < 4 || points.length <= MAX_POINTS)) {
     return points;
   }
 

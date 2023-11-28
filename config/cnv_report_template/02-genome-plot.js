@@ -304,17 +304,29 @@ class GenomePlot extends EventTarget {
   }
 
   plotRatios() {
+    const nRatioPoints = cnvData.map(
+      (d) => d.callers[this.#activeCaller].ratios.length
+    );
+    const ratioPointsPerChromosome =
+      nRatioPoints.reduce((a, b) => a + b, 0) / cnvData.length;
+
     this.ratioPanels
       .selectAll(".data-point")
       .data(
-        (d, i, g) =>
-          slidingPixelWindow(
-            d.callers[this.#activeCaller].ratios,
-            this.xScales[g[i].parentNode.dataset.index],
-            "start",
-            "log2",
-            3
-          ),
+        (d, i, g) => {
+          if (ratioPointsPerChromosome < MAX_POINTS) {
+            return d.callers[this.#activeCaller].ratios;
+          } else {
+            return slidingPixelWindow(
+              d.callers[this.#activeCaller].ratios,
+              this.xScales[g[i].parentNode.dataset.index],
+              "start",
+              "log2",
+              3,
+              true
+            );
+          }
+        },
         (d) => d.start
       )
       .join(
