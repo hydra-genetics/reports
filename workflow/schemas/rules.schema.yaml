@@ -14,10 +14,35 @@ properties:
             type: string
             description: >
               Merged JSON file with CNV calls and other sample information.
-          template_dir:
+          html_template:
             type: string
             description: >
-              Path to the template directory, defined in the config.
+              Path to the html template
+          js_files:
+            type: array
+            description: >
+              List of javascript files that should be included in the report.
+              The order of the files is significant. If you have dependencies
+              between the files, you need to supply the dependencies before the
+              script(s) that depends on them.
+            items:
+              type: string
+              description: >
+                Path to a javascript file that should be included in the report.
+          css_files:
+            type: array
+            description: >
+              List of css files that should be included in the report. Files
+              are included in the order given.
+            items:
+              type: string
+              description: >
+                Path to a css file that should be included in the report.
+          tc_file:
+            type: string
+            description: >
+              Path to a text file containing the tumor cell content estimated by
+              the method `tc_method`.
 
       output:
         type: object
