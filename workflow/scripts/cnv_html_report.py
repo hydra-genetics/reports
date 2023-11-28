@@ -48,12 +48,10 @@ def main():
     sys.stdout = sys.stderr = logfile
 
     json_filename = snakemake.input.json
-    template_dir = Path(snakemake.input.template_dir)
+    html_template = Path(snakemake.input.html_template)
     html_filename = snakemake.output.html
-
-    html_template = template_dir / "index.html"
-    css_files = sorted(template_dir.glob("*.css"))
-    js_files = sorted(template_dir.glob("*.js"))
+    js_files = snakemake.input.js_files
+    css_files = snakemake.input.css_files
 
     report = create_report(
         html_template,

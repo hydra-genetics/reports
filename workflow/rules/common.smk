@@ -33,7 +33,7 @@ config = load_resources(config, config["resources"])
 validate(config, schema="../schemas/resources.schema.yaml")
 
 # Check that the module version matches the template version
-template_version_file = pathlib.Path(config["cnv_html_report"]["template_dir"], "00-version.js")
+template_version_file = pathlib.Path(workflow.source_path("../templates/cnv_html_report/00-version.js"))
 if not template_version_file.exists():
     raise FileNotFoundError(
         "CNV template version file not found, possible mismatch, "
