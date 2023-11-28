@@ -403,7 +403,11 @@ class ChromosomePlot extends EventTarget {
       .data(
         () => {
           if (this.#showAllData) {
-            return this.#data.callers[this.#activeCaller].ratios;
+            return this.#data.callers[this.#activeCaller].ratios.filter(
+              (p) =>
+                p.start >= this.xScale.domain()[0] &&
+                p.start <= this.xScale.domain()[1]
+            );
           }
           return slidingPixelWindow(
             this.#data.callers[this.#activeCaller].ratios,
@@ -574,7 +578,11 @@ class ChromosomePlot extends EventTarget {
       .data(
         () => {
           if (this.#showAllData) {
-            return this.#data.vaf;
+            return this.#data.vaf.filter(
+              (p) =>
+                p.pos > this.xScale.domain()[0] &&
+                p.pos < this.xScale.domain()[1]
+            );
           }
           return slidingPixelWindowVAF(this.#data.vaf, this.xScale);
         },
