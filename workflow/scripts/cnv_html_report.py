@@ -50,8 +50,14 @@ def main():
     json_filename = snakemake.input.json
     html_template = Path(snakemake.input.html_template)
     html_filename = snakemake.output.html
-    js_files = snakemake.input.js_files
-    css_files = snakemake.input.css_files
+
+    js_files = []
+    if "js_files" in snakemake.input:
+        js_files = snakemake.input.js_files
+
+    css_files = []
+    if "css_files" in snakemake.input:
+        css_files = snakemake.input.css_files
 
     report = create_report(
         html_template,
