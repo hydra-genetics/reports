@@ -14,7 +14,6 @@ reference:
 cnv_html_report:
   cytobands: true
   show_table: true
-  template_dir: ../../config/cnv_report_template
 
 merge_cnv_json:
   annotations:
