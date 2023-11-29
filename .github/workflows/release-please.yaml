@@ -15,5 +15,4 @@ jobs:
           package-name: reports
           default-branch: main
           extra-files:
-            - config/cnv_report_template/00-version.js
-            - workflow/rules/common.smk
+            - workflow/templates/cnv_html_report/index.html

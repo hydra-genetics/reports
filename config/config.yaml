@@ -1,5 +1,5 @@
 ---
-output: "config/output_files.json"
+output: "config/output_files.yaml"
 resources: "config/resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
@@ -12,7 +12,6 @@ reference:
 
 cnv_html_report:
   cytobands: false
-  template_dir: config/cnv_report_template
   show_table: true
 
 merge_cnv_json:

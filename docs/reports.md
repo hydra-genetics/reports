@@ -53,3 +53,19 @@ Only full-length hexadecimal colours (without alpha channel), as shown above, ar
 #### Custom annotations
 
 Custom annotations can be added to the chromosome plot by specifying one or more bed-files in `annotations` under [`merge_cnv_json`](/softwares/#configuration_2). Only the four first columns of the file will be taken into account, and the value in the name column will be displayed in the plot.
+
+### Customising the template
+
+The template used can be found in [`workflow/templates/cnv_html_report`](https://github.com/hydra-genetics/reports/tree/develop/workflow/templates/cnv_html_report). This will be used by default. If you for some reason would like to customise the template, the input files will have to be redefined when importing the module. Below is an example where template files are redefined, while the input data remains the default:
+
+```snakemake
+use rule cnv_html_report from reports as reports_cnv_html_report with:
+    input:
+        json="reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
+        html_template="path/to/custom/template.html",
+        css_files=["path/to/custom/css/style.css"],
+        js_files=["path/to/custom/js/script-1.js", "path/to/custom/js/script-2.js"],
+        tc_file=reports.get_tc_file,
+```
+
+The only template file that is strictly required is the html file `html_template`. Both `css_files` and `js_files` can be left out if you so wish, but the functionality will be severly limited without any javascript.
