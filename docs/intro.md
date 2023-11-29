@@ -17,3 +17,7 @@ module reports:
 
 use rule * from reports as reports_*
 ```
+
+## Versioning caveat
+
+The module makes use of the release-please Github action, meaning that the templates get tagged with the version number every time a new release is published. This means that only reports generated from the main branch are guaranteed to be 100% accurate when it comes the version. Any commit between releases will have the version of the most recent release associated with it.
