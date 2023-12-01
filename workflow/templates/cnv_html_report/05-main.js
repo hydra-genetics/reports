@@ -11,18 +11,6 @@ const getTextDimensions = function (text, fontSize) {
   ];
 };
 
-d3.select("#reports-version")
-  .call((p) =>
-    p
-      .select("a")
-      .attr(
-        "href",
-        `https://github.com/hydra-genetics/reports/tree/v${VERSION}`
-      )
-  )
-  .select("span")
-  .text(VERSION);
-
 d3.select("#dataset-picker")
   .selectAll("div")
   .data(cnvData[0].callers)

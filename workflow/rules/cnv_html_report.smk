@@ -7,7 +7,17 @@ __license__ = "GPL-3"
 rule cnv_html_report:
     input:
         json="reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
-        template_dir=config.get("cnv_html_report", {}).get("template_dir", ""),
+        html_template=workflow.source_path("../templates/cnv_html_report/index.html"),
+        js_files=[
+            workflow.source_path("../templates/cnv_html_report/01-chromosome-plot.js"),
+            workflow.source_path("../templates/cnv_html_report/02-genome-plot.js"),
+            workflow.source_path("../templates/cnv_html_report/03-results-table.js"),
+            workflow.source_path("../templates/cnv_html_report/04-window-summary.js"),
+            workflow.source_path("../templates/cnv_html_report/05-main.js"),
+        ],
+        css_files=[
+            workflow.source_path("../templates/cnv_html_report/style.css"),
+        ],
         tc_file=get_tc_file,
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
