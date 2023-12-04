@@ -29,17 +29,54 @@
         <li>Version: {{ pipeline.version }}</li>
         <li>
           Source:
-          <a href="{{ pipeline.uri|urlencode() }}">{{ pipeline.uri }}</a>
+          <a href="{{ pipeline.uri }}">{{ pipeline.uri }}</a>
         </li>
       </ul>
     </div>
 
-    {% for fl in file_links %}
     <div>
-      <h2>{{ fl.name }}</h2>
-      <p>{{ fl.description }}</p>
-      <p><a href="{{ fl.uri|urlencode() }}">{{ fl.uri.lstrip("./") }}</a></p>
+      <h2>File links</h2>
+
+      {% for fl in file_links %}
+      <div>
+        <h3>{{ fl.name }}</h3>
+        <p>{{ fl.description }}</p>
+        <p><a href="{{ fl.uri|urlencode() }}">{{ fl.uri.lstrip("./") }}</a></p>
+      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
+
+    <div>
+      <h2>Results</h2>
+
+      {% for r in results %}
+      <div>
+        <h3>{{ r.name }}</h3>
+        <p>{{ r.description }}</p>
+        {% if r.type == "table" %}
+        <table>
+          <thead>
+            <tr>
+              {% for c in r.value[0].keys() %}
+              <th>{{ c }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in r.value %}
+            <tr>
+              {% for k in r.value[0].keys() %}
+              <td>{{ row[k] }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% elif r.type == "single_value" %}
+        <p>{{ r.value }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
   </body>
 </html>

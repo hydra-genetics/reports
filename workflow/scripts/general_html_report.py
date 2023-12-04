@@ -27,6 +27,7 @@ def generate_report(template_filename: str, config: dict, final_directory_depth:
             ),
             pipeline=config["pipeline"],
             file_links=config["file_links"],
+            results=config["results"],
         )
     )
 

@@ -12,5 +12,32 @@
       "description": "HTML report summarising the results of the CNV analysis",
       "uri": "results/cnv/NA12878_N.pathology.cnv_report.html"
     }
+  ],
+  "results": [
+    {
+      "name": "TMB",
+      "type": "single_value",
+      "description": "Tumor mutational burden",
+      "value": 12
+    },
+    {
+      "name": "Result 2",
+      "type": "table",
+      "description": "A table of results",
+      "value": [
+        {
+          "column1": "row1",
+          "column2": "value1"
+        },
+        {
+          "column1": "row2",
+          "column2": "value2"
+        },
+        {
+          "column2": "value3",
+          "column1": "row3"
+        }
+      ]
+    }
   ]
 }

@@ -29,6 +29,7 @@ properties:
   file_links:
     type: array
     description: List of file links
+    default: []
     items:
       type: object
       properties:
@@ -42,8 +43,53 @@ properties:
           type: string
           format: uri-reference
           description: URI of the file
+      required:
+        - name
+        - description
+        - uri
+
+  results:
+    type: array
+    description: List of results to present
+    default: []
+    items:
+      type: object
+      oneOf:
+        - type: object
+          properties:
+            name:
+              type: string
+              description: A descriptive name of the result
+            description:
+              type: string
+              description: A more detailed description of the result
+            type:
+              type: string
+              description: The type of result
+              enum:
+                - file_table
+                - image
+                - plain_text
+                - single_value
+                - table
+            value:
+              description: |
+                The value of the result. Exactly what this is depends on the type.
+
+                - file_table: a delimited text file (csv or tsv) with a header.
+                - image: the path to a png image.
+                - plain_text: a string containing the text to be presented.
+                - single_value: a single value, e.g. a number.
+                - table: a json representation of a table.
+          required:
+            - name
+            - description
+            - type
+            - value
 
 required:
   - sample
   - analysis_date
   - pipeline
+  - file_links
+  - results
