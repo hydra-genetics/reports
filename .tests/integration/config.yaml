@@ -11,6 +11,7 @@ cnv_html_report:
 
 general_html_report:
   json: "config/{sample}_{type}.general_report.json"
+  final_directory_depth: 2
 
 merge_cnv_json:
   annotations:

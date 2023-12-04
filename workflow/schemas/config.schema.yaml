@@ -75,6 +75,13 @@ properties:
         examples:
           - "report_configs/{sample}_{type}/general_report.json"
           - "report_configs/general_html_report/{sample}_{type}.general_report.json"
+      final_directory_depth:
+        type: integer
+        description: |
+          How deep in the final results directory the report will be. This
+          will be used to correctly resolve relative paths in the JSON config.
+          For example, if the report is located in the directory `results/reports`,
+          the depth would be 2.
       benchmark_repeats:
         type: integer
         description: set number of times benchmark should be repeated
@@ -86,6 +93,7 @@ properties:
         description: parameters that should be forwarded
     required:
       - json
+      - final_directory_depth
 
   merge_cnv_json:
     type: object

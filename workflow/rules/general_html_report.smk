@@ -12,6 +12,7 @@ rule general_html_report:
     output:
         html="reports/general_html_report/{sample}_{type}.general_report.html",
     params:
+        final_directory_depth=config.get("general_html_report", {}).get("final_directory_depth", 1),
         extra=config.get("general_html_report", {}).get("extra", ""),
     log:
         "reports/general_html_report/{sample}_{type}.general_report.log",
