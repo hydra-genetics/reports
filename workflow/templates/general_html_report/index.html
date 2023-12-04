@@ -74,6 +74,8 @@
         </table>
         {% elif r.type == "single_value" %}
         <p>{{ r.value }}</p>
+        {% elif r.type == "image" %}
+        <img src="{{ r.value }}" />
         {% endif %}
       </div>
       {% endfor %}

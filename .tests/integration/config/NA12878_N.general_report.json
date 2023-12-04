@@ -38,6 +38,12 @@
           "column1": "row3"
         }
       ]
+    },
+    {
+      "name": "Image result",
+      "type": "image",
+      "description": "An image",
+      "value": "https://placehold.co/600x400/png"
     }
   ]
 }
