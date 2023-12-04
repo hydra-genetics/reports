@@ -1,14 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>{{ sample }} &ndash; General Report</title>
+    <title>{{ metadata.sample }} &ndash; General Report</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link href="css/style.css" rel="stylesheet" />
   </head>
   <body>
     <header>
-      <h1>{{ sample }}</h1>
+      <h1>{{ metadata.sample }}</h1>
+      <p><small>Report generated at {{ metadata.report_date }}</small></p>
+      <p><small>Sample analysed at {{ metadata.analysis_date }}</small></p>
+      <!-- x-release-please-start-version -->
+      <p class="fix-right">
+        <small>
+          <a href="https://github.com/hydra-genetics/reports/tree/v0.2.0"
+            >hydra-genetics/reports v0.2.0</a
+          >
+        </small>
+      </p>
+      <!-- x-release-please-end-version -->
     </header>
+
+    <div>
+      <h2>Pipeline</h2>
+      <ul>
+        <li>Name: {{ pipeline.name }}</li>
+        <li>Version: {{ pipeline.version }}</li>
+        <li>Source: <a href="{{ pipeline.uri }}">{{ pipeline.uri }}</a></li>
+      </ul>
+    </div>
+
+    {% for fl in file_links %}
+    <div>
+      <h2>{{ fl.name }}</h2>
+      <p>{{ fl.description }}</p>
+      <p><a href="{{ fl.uri }}">{{ fl.uri }}</a></p>
+    </div>
+    {% endfor %}
   </body>
 </html>

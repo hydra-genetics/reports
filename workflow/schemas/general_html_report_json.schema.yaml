@@ -1,0 +1,49 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: General Report JSON Config
+description: Configuration of a general HTML report for a Hydra Genetics pipeline
+type: object
+properties:
+  sample:
+    type: string
+    description: Name of the sample
+
+  analysis_date:
+    type: string
+    description: Date of the analysis
+
+  pipeline:
+    type: object
+    description: Pipeline information
+    properties:
+      name:
+        type: string
+        description: Name of the pipeline
+      version:
+        type: string
+        description: Version of the pipeline
+      uri:
+        type: string
+        format: uri-reference
+        description: URI of the pipeline
+
+  file_links:
+    type: array
+    description: List of file links
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Descriptive name of the file
+        description:
+          type: string
+          description: Description of the file
+        uri:
+          type: string
+          format: uri-reference
+          description: URI of the file
+
+required:
+  - sample
+  - analysis_date
+  - pipeline

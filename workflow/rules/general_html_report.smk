@@ -6,8 +6,9 @@ __license__ = "GPL-3"
 
 rule general_html_report:
     input:
-        json=config.get("general_html_report", {}).get("json"),
+        config_schema=workflow.source_path("../schemas/general_html_report_json.schema.yaml"),
         html_template=workflow.source_path("../templates/general_html_report/index.html"),
+        json=config.get("general_html_report", {}).get("json"),
     output:
         html="reports/general_html_report/{sample}_{type}.general_report.html",
     params:
