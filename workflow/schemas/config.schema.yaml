@@ -62,6 +62,31 @@ properties:
         type: string
         description: name or path to docker/singularity container
 
+  general_html_report:
+    type: object
+    description: parameters for general_html_report
+    properties:
+      json:
+        type: string
+        format: uri-reference
+        description: |
+          Path to the sample-specific configuration of the report. The wildcards
+          `sample` and `type` are supported.
+        examples:
+          - "report_configs/{sample}_{type}/general_report.json"
+          - "report_configs/general_html_report/{sample}_{type}.general_report.json"
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      extra:
+        type: string
+        description: parameters that should be forwarded
+    required:
+      - json
+
   merge_cnv_json:
     type: object
     description: parameters for merge_cnv_json

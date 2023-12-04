@@ -9,6 +9,9 @@ reference:
 cnv_html_report:
   cytobands: true
 
+general_html_report:
+  json: "config/{sample}_{type}.general_report.json"
+
 merge_cnv_json:
   annotations:
     - config/amp_genes.bed

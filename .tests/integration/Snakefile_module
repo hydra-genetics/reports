@@ -4,6 +4,7 @@ from hydra_genetics.utils.misc import get_module_snakefile
 rule all:
     input:
         "reports/cnv_html_report/NA12878_N.pathology.cnv_report.html",
+        "reports/general_html_report/NA12878_N.general_report.html",
 
 
 module reports:

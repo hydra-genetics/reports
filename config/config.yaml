@@ -14,6 +14,9 @@ cnv_html_report:
   cytobands: false
   show_table: true
 
+general_html_report:
+  json: "reports/general_html_report/{sample}_{type}.general_report.json"
+
 merge_cnv_json:
   annotations:
   cytobands:

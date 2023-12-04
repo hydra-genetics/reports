@@ -6,6 +6,7 @@ __license__ = "GPL-3"
 
 # Include pipeline specific rules
 include: "rules/common.smk"
+include: "rules/general_html_report.smk"
 include: "rules/cnv_html_report.smk"
 
 
