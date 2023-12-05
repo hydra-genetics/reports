@@ -16,3 +16,4 @@ jobs:
           default-branch: main
           extra-files:
             - workflow/templates/cnv_html_report/index.html
+            - workflow/templates/general_html_report/index.html
