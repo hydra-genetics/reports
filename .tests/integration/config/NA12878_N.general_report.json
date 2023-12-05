@@ -44,6 +44,12 @@
       "type": "image",
       "description": "An image",
       "value": "https://placehold.co/600x400/png"
+    },
+    {
+      "name": "Local image",
+      "type": "image",
+      "description": "A local image from a path relative to the analysis directory",
+      "value": "test_data/NA12878_N.png"
     }
   ]
 }

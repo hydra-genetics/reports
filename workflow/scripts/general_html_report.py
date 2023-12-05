@@ -1,6 +1,7 @@
 from jinja2 import Template
 import json
 from jsonschema import validate
+import re
 import time
 import yaml
 
@@ -29,17 +30,25 @@ def validate_table_data(table: list) -> bool:
     return True
 
 
+def fix_relative_uri(uri: str, depth: int) -> str:
+    if re.match("^([^/]+:|/)", uri):
+        return uri
+
+    return depth * "../" + uri
+
+
 def generate_report(template_filename: str, config: dict, final_directory_depth: int) -> str:
     with open(template_filename) as f:
         template = Template(source=f.read())
 
-    if final_directory_depth != 0:
-        for d in config["file_links"]:
-            d["uri"] = final_directory_depth * "../" + d["uri"]
+    for d in config["file_links"]:
+        d["uri"] = fix_relative_uri(d["uri"], final_directory_depth)
 
     for d in config["results"]:
         if d["type"] == "table":
             validate_table_data(d["value"])
+        if d["type"] == "image":
+            d["value"] = fix_relative_uri(d["value"], final_directory_depth)
 
     return template.render(
         dict(

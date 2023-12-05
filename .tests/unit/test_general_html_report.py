@@ -71,3 +71,11 @@ def test_missing_columns():
 
     with pytest.raises(ValueError, match="expected 2 columns in row 2, found 1"):
         validate_table_data(table)
+
+
+def test_fix_relative_uri():
+    assert fix_relative_uri("http://www.google.com", depth=2) == "http://www.google.com"
+    assert fix_relative_uri("https://www.google.com", depth=2) == "https://www.google.com"
+    assert fix_relative_uri("docker://hydra-genetics/picard", depth=2) == "docker://hydra-genetics/picard"
+    assert fix_relative_uri("/path/to/a/file.txt", depth=2) == "/path/to/a/file.txt"
+    assert fix_relative_uri("path/to/a/file.txt", depth=2) == "../../path/to/a/file.txt"
