@@ -3,6 +3,8 @@ nav:
   - Introduction: intro.md
   - Reports: reports.md
   - Softwares: softwares.md
+  - Development:
+      - Tailwind CSS: tailwind.md
 
 theme: readthedocs
 extra_css: [extra.css]

@@ -7,3 +7,5 @@ reports/
 site/
 logs/
 results/
+tailwindcss
+*.min.css
