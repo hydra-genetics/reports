@@ -1,14 +1,21 @@
 from jinja2 import Template
 import json
 from jsonschema import validate
+from jsonschema.exceptions import ValidationError
 import re
+import sys
 import time
 import yaml
 
 
 def validate_dict(d: dict, schema_path: str):
     with open(schema_path) as f:
-        validate(instance=d, schema=yaml.safe_load(f))
+        try:
+            validate(instance=d, schema=yaml.safe_load(f))
+        except ValidationError as ve:
+            print(f"error: failed to validate general report config:", file=sys.stderr)
+            print(ve, file=sys.stderr)
+            sys.exit(1)
 
 
 def validate_table_data(table: list) -> bool:
@@ -37,6 +44,34 @@ def fix_relative_uri(uri: str, depth: int) -> str:
     return depth * "../" + uri
 
 
+def parse_multiqc(d: dict):
+    with open(d["value"]) as f:
+        multiqc_dict = json.loads(f.read())
+
+    multiqc_res = {}
+
+    for s in d["sections"]:
+        if s == "table":
+            multiqc_res[s] = {}
+            multiqc_res[s]["data"] = {}
+            multiqc_res[s]["header"] = {}
+
+            for h_section, d_section in zip(
+                multiqc_dict["report_general_stats_headers"], multiqc_dict["report_general_stats_data"]
+            ):
+                for k, v in h_section.items():
+                    multiqc_res[s]["header"][k] = v
+                for sample, cols in d_section.items():
+                    if sample not in multiqc_res[s]["data"]:
+                        multiqc_res[s]["data"][sample] = {}
+                    for k, v in h_section.items():
+                        if k not in cols:
+                            continue
+                        multiqc_res[s]["data"][sample][k] = cols[k]
+
+    return multiqc_res
+
+
 def generate_report(template_filename: str, config: dict, final_directory_depth: int) -> str:
     with open(template_filename) as f:
         template = Template(source=f.read())
@@ -49,6 +84,8 @@ def generate_report(template_filename: str, config: dict, final_directory_depth:
             validate_table_data(d["value"])
         if d["type"] == "image":
             d["value"] = fix_relative_uri(d["value"], final_directory_depth)
+        if d["type"] == "multiqc":
+            d["data"] = parse_multiqc(d)
 
     return template.render(
         dict(

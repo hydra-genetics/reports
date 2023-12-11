@@ -76,7 +76,28 @@
         <p>{{ r.value }}</p>
         {% elif r.type == "image" %}
         <img src="{{ r.value }}" />
-        {% endif %}
+        {% elif r.type == "multiqc" %} {% if "table" in r.data %}
+        <table>
+          <thead>
+            <tr>
+              <th title="Sample name">Sample</th>
+              {% for k, v in r.data["table"]["header"].items() %}
+              <th title="{{ v.description }}">{{ v.title }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for k, v in r.data["table"]["data"].items() %}
+            <tr>
+              <td>{{ k }}</td>
+              {% for hk in r.data["table"]["header"].keys() %}
+              <td>{{ v[hk] }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %} {% endif %}
       </div>
       {% endfor %}
     </div>

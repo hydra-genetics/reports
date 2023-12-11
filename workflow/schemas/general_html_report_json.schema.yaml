@@ -86,6 +86,34 @@ properties:
             - description
             - type
             - value
+        - type: object
+          properties:
+            name:
+              type: string
+              description: A descriptive name of the result
+            description:
+              type: string
+              description: A more detailed description of the result
+            type:
+              type: string
+              description: The type of result
+              const: multiqc
+            sections:
+              type: array
+              description: List of sections to include.
+              items:
+                type: string
+                description: Name of the section
+                enum:
+                  - table
+            value:
+              description: Path to a MultiQC JSON file where this sample is included.
+          required:
+            - name
+            - description
+            - type
+            - sections
+            - value
 
 required:
   - sample

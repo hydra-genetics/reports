@@ -50,6 +50,13 @@
       "type": "image",
       "description": "A local image from a path relative to the analysis directory",
       "value": "test_data/NA12878_N.png"
+    },
+    {
+      "name": "QC",
+      "type": "multiqc",
+      "description": "QC data from MultiQC with the other samples in the sampe run included for context",
+      "sections": ["table"],
+      "value": "qc/multiqc/multiqc_DNA_data/multiqc_data.json"
     }
   ]
 }
