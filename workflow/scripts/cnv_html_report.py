@@ -52,11 +52,11 @@ def main():
     html_filename = snakemake.output.html
 
     js_files = []
-    if "js_files" in snakemake.input:
+    if "js_files" in snakemake.input.keys():
         js_files = snakemake.input.js_files
 
     css_files = []
-    if "css_files" in snakemake.input:
+    if "css_files" in snakemake.input.keys():
         css_files = snakemake.input.css_files
 
     report = create_report(
