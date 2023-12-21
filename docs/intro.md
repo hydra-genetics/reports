@@ -41,6 +41,9 @@ use rule cnv_html_report from reports as reports_cnv_html_report with:
 
 If wildcards are being used, make sure that those wildcards are also defined in the output section of that particular rule for things to function as expected.
 
+!!! note
+    If the default rule arguments point to files within the module itself, then Snakemake will try to access those from its source cache. If you are running Snakemake with Apptainer/Singularity the path to the cache must be bound for this to work. [The location is determined by the appdirs package](https://snakemake.readthedocs.io/en/stable/executing/cli.html#important-environment-variables), and on a unix/linux system this is determined by the environment variable `$XDG_CACHE_HOME`. The exact path can be obtained by finding the `user_cache_dir` entry after running `python -m appdirs`.
+
 ## Versioning caveat
 
 The module makes use of the release-please Github action, meaning that the templates get tagged with the version number every time a new release is published. This means that only reports generated from the main branch are guaranteed to be 100% accurate when it comes the version. Any commit between releases will have the version of the most recent release associated with it.
