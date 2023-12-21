@@ -499,7 +499,6 @@ class GenomePlot extends EventTarget {
                 this.ratioYScale.range()[0]
               } L ${xScale(d.end)} ${this.ratioYScale.range()[0]}`;
             })
-            .attr("stroke", "orange")
             .attr("stroke-width", 2)
             .call((enter) =>
               enter

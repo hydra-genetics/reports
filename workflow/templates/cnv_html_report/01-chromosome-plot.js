@@ -550,7 +550,6 @@ class ChromosomePlot extends EventTarget {
                   d.log2
                 )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
             )
-            .attr("stroke", "orange")
             .attr("stroke-width", 2)
             .attr("stroke-opacity", 0)
             .call((enter) => enter.transition().attr("stroke-opacity", 1)),
