@@ -51,12 +51,20 @@
               Click and drag to zoom along x-axis. Click the plot to reset zoom.
             </p>
             <div class="no-print">
-              <input type="checkbox" id="chromosome-fit-to-data" />
-              <label for="chromosome-fit-to-data">Zoom to data extent</label>
-              <i
-                class="data-range-warning fa-solid fa-triangle-exclamation"
-                title="There are data points outside the current range"
-              ></i>
+              <div>
+                <input type="checkbox" id="chromosome-fit-to-data" />
+                <label for="chromosome-fit-to-data">Zoom to data extent</label>
+                <i
+                  class="data-range-warning fa-solid fa-triangle-exclamation"
+                  title="There are data points outside the current range"
+                ></i>
+              </div>
+              <div>
+                <input type="checkbox" id="chromosome-show-all-datapoints" />
+                <label for="chromosome-show-all-datapoints"
+                  >Show all data points</label
+                >
+              </div>
             </div>
             <svg id="chromosome-view"></svg>
             <dialog id="chromosome-view-dialog">

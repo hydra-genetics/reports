@@ -12,7 +12,8 @@ rule cnv_html_report:
             workflow.source_path("../templates/cnv_html_report/01-chromosome-plot.js"),
             workflow.source_path("../templates/cnv_html_report/02-genome-plot.js"),
             workflow.source_path("../templates/cnv_html_report/03-results-table.js"),
-            workflow.source_path("../templates/cnv_html_report/04-main.js"),
+            workflow.source_path("../templates/cnv_html_report/04-window-summary.js"),
+            workflow.source_path("../templates/cnv_html_report/05-main.js"),
         ],
         css_files=[
             workflow.source_path("../templates/cnv_html_report/style.css"),

@@ -11,7 +11,7 @@ import cnv_json  # noqa
 
 @pytest.fixture
 def cnvkit_segment_file():
-    return INTEGRATION_DIR / "cnv_sv/cnvkit_batch/NA12878/NA12878_N.cns"
+    return INTEGRATION_DIR / "cnv_sv/cnvkit_batch/sample1/sample1_T.cns"
 
 
 def test_existing_parsers():
@@ -21,5 +21,5 @@ def test_existing_parsers():
 
 def test_parse_cnvkit_segments(cnvkit_segment_file):
     segments = cnv_json.PARSERS["cnvkit"]["segments"](cnvkit_segment_file)
-    assert len(segments) == 9
+    assert len(segments) == 13
     assert all(x in segments[0] for x in ["chromosome", "start", "end", "log2"])
