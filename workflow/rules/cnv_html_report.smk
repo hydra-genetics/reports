@@ -17,6 +17,7 @@ rule cnv_html_report:
             workflow.source_path("../templates/cnv_html_report/05-main.js"),
         ],
         css_files=[
+            workflow.source_path("../templates/assets/icons/icons.css"),
             workflow.source_path("../templates/cnv_html_report/style.css"),
         ],
         tc_file=get_tc_file,
