@@ -1,8 +1,13 @@
 site_name: Hydra-Genetics Reports
 nav:
-  - Introduction: intro.md
-  - Reports: reports.md
-  - Softwares: softwares.md
+  - Overview:
+      - Introduction: intro.md
+  - Reports:
+      - CNV: reports.md
+  - Module details:
+      - Rules: softwares.md
+  - Development:
+      - Icons: icons.md
 
 theme: readthedocs
 extra_css: [extra.css]
