@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.0](https://github.com/hydra-genetics/reports/compare/v0.2.0...v0.3.0) (2024-01-08)
+
+This release contains quite a few updates. Since the module currently only contains the CNV report, all changes are related to this. Perhaps the most significant of these changes is that the report template files are now accessed from the reports module itself, so it is no longer necessary to include the template in the parent workflow. Information on how to customize the template is included in [the documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/).
+
+Previously it was not possible to view the resulting reports without a working internet connection, but now all external dependencies have been integrated into the report. The only requirement is a reasonably modern web browser.
+
+An attempt to improve the performance of the plotting in the CNV report has been done. Now, if there are more than a certain number of points being displayed per chromosome (currently 300), the data is binned to display the median &pm; 1 standard deviation. For the VAF-plots it makes an attempt to detect whether the distribution within a bin is bimodal, in which case it plots two values: one representing values &gt; 0.5 and one representing values &leq; 0.5. Zooming in so that the number of points are fewer than this limit will result in all points being shown, both in the case of the log<sub>2</sub> ratio and the VAF.
+
+### Features
+
+* add template version check ([#46](https://github.com/hydra-genetics/reports/issues/46)) ([dd780f0](https://github.com/hydra-genetics/reports/commit/dd780f0efc0236584b8fdee91bbd0853ab0ee677))
+* embed external dependencies ([#51](https://github.com/hydra-genetics/reports/issues/51)) ([55a05bd](https://github.com/hydra-genetics/reports/commit/55a05bd77a690beb065b7204db881f6baaf5adaa))
+* improve plotting performance ([#42](https://github.com/hydra-genetics/reports/issues/42)) ([87f9542](https://github.com/hydra-genetics/reports/commit/87f9542539c7589de9336a7a275aa025e92fff4f))
+* use template directly from the reports repo ([#48](https://github.com/hydra-genetics/reports/issues/48)) ([7848269](https://github.com/hydra-genetics/reports/commit/7848269f43444fc55091139b37ebf34568417e32))
+
+
+### Bug Fixes
+
+* **cnv:** bug in checking input keys ([#49](https://github.com/hydra-genetics/reports/issues/49)) ([af34098](https://github.com/hydra-genetics/reports/commit/af340981e520e6e95f9649622d6b8e1e94ebce9a))
+* handle huge csv files ([#43](https://github.com/hydra-genetics/reports/issues/43)) ([73c9043](https://github.com/hydra-genetics/reports/commit/73c904387f0c40c54c62dd2676b58534015644ab))
+* optimise transitions in plots ([#45](https://github.com/hydra-genetics/reports/issues/45)) ([651c8c0](https://github.com/hydra-genetics/reports/commit/651c8c0d5fee3506707237374855e0123fceca89))
+
 ## [0.2.0](https://github.com/hydra-genetics/reports/compare/v0.1.0...v0.2.0) (2023-09-21)
 
 
