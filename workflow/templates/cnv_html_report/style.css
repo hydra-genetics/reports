@@ -8,6 +8,12 @@ header {
   margin: 3em 0;
 }
 
+header .fix-right {
+  position: absolute;
+  top: 0;
+  right: 1em;
+}
+
 dialog {
   user-select: none;
 }
@@ -19,7 +25,7 @@ dialog button.close {
   height: 1rem;
   width: 1rem;
   overflow: hidden;
-  font-size: 0.5rem;
+  padding: 0;
   border: none;
   border-radius: 0;
   cursor: pointer;
@@ -88,13 +94,13 @@ svg .panel-overlay {
 }
 
 svg .segment {
-  stroke: orange;
+  stroke: #c14702;
 }
 
 svg .gridline {
-  opacity: 0.25;
-  stroke: black;
-  stroke-width: 0.3px;
+  stroke: #dddddd;
+  stroke-width: 0.5px;
+  shape-rendering: crispEdges;
 }
 
 /* Narrow view */

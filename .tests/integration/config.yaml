@@ -1,20 +1,13 @@
+output: "../../config/output_files.yaml"
 resources: "resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
 
-output: output_files.yaml
-
-default_container: "docker://hydragenetics/common:0.3.0"
-
 reference:
   fai: reference/ref.fai
-  skip_chrs:
-    - chrM
 
 cnv_html_report:
   cytobands: true
-  show_table: true
-  template_dir: ../../config/cnv_report_template
 
 merge_cnv_json:
   annotations:

@@ -7,6 +7,7 @@ import itertools
 import numpy as np
 import pathlib
 import pandas as pd
+import re
 from typing import List, Union
 import yaml
 from snakemake.io import Wildcards
@@ -28,7 +29,6 @@ if not workflow.overwrite_configfiles:
 validate(config, schema="../schemas/config.schema.yaml")
 config = load_resources(config, config["resources"])
 validate(config, schema="../schemas/resources.schema.yaml")
-
 
 ### Read and validate samples file
 

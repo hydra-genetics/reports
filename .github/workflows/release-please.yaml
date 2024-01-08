@@ -12,5 +12,7 @@ jobs:
         id: release
         with:
           release-type: simple
-          package-name: reporting
+          package-name: reports
           default-branch: main
+          extra-files:
+            - workflow/templates/cnv_html_report/index.html

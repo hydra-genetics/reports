@@ -1,19 +1,14 @@
 const getTextDimensions = function (text, fontSize) {
-  let div = document.createElement("div");
-
-  div.innerText = text;
-  div.style.position = "absolute";
-  div.style.float = "left";
-  div.style.fontSize = fontSize;
-  div.style.whiteSpace = "nowrap";
-  div.style.visibility = "hidden";
-
-  document.body.append(div);
-  let width = div.clientWidth;
-  let height = div.clientHeight;
-  div.remove();
-
-  return [width, height];
+  const canvas =
+    getTextDimensions.canvas ||
+    (getTextDimensions.canvas = document.createElement("canvas"));
+  const context = canvas.getContext("2d");
+  context.font = `${fontSize} sans-serif`;
+  const metrics = context.measureText(text);
+  return [
+    metrics.width,
+    metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent,
+  ];
 };
 
 d3.select("#dataset-picker")
@@ -75,11 +70,11 @@ function setModalMessage(msg, className) {
   let icon = document.createElement("i");
 
   if (className === "error") {
-    icon.className = "fa-solid fa-circle-exclamation";
+    icon.className = "bi-exclamation-circle-fill";
   } else if (className === "warning") {
-    icon.className = "fa-solid fa-triangle-exclamation";
+    icon.className = "bi-exclamation-circle-fill";
   } else if (className === "info") {
-    icon.className = "fa-solid fa-circle-info";
+    icon.className = "bi-info-circle-fill";
   }
 
   message.appendChild(icon);
@@ -107,13 +102,23 @@ chromosomePlot.addEventListener("max-zoom-reached", () => {
 });
 
 genomePlot.addEventListener("chromosome-change", (e) => {
-  chromosomePlot.data = cnvData[e.detail.chromosome];
-  chromosomePlot.resetZoom();
+  chromosomePlot.setData(
+    cnvData[e.detail.chromosome],
+    e.detail.start,
+    e.detail.end
+  );
+});
+
+genomePlot.addEventListener("chromosome-zoom", (e) => {
+  chromosomePlot.setData(null, e.detail.start, e.detail.end);
 });
 
 resultsTable.addEventListener("zoom-to-region", (e) => {
-  genomePlot.selectChromosome(e.detail.chromosome);
-  chromosomePlot.zoomTo(e.detail.start, e.detail.start + e.detail.length);
+  genomePlot.selectChromosome(
+    e.detail.chromosome,
+    e.detail.start,
+    e.detail.start + e.detail.length
+  );
 });
 
 d3.select("#table-filter-toggle").on("change", (event) => {
@@ -122,6 +127,10 @@ d3.select("#table-filter-toggle").on("change", (event) => {
 
 d3.select("#chromosome-fit-to-data").on("change", (e) => {
   chromosomePlot.fitToData = e.target.checked;
+});
+
+d3.select("#chromosome-show-all-datapoints").on("change", (e) => {
+  chromosomePlot.showAllData = e.target.checked;
 });
 
 d3.selectAll("input[name=dataset]").on("change", (e) => {

@@ -70,8 +70,8 @@ class ResultsTable extends EventTarget {
 
       case "view":
         return {
-          class: "view-region-link",
-          format: (x) => x,
+          class: "",
+          format: (x) => `<i class="view-region-link bi bi-search">${x}</i>`,
         };
 
       case "type":
@@ -168,7 +168,7 @@ class ResultsTable extends EventTarget {
             (di) => !this.#isFiltered || (this.#isFiltered && di.passed_filter)
           )
           .map((di) => {
-            const allCols = { view: "🔍", chromosome: d.chromosome, ...di };
+            const allCols = { view: "", chromosome: d.chromosome, ...di };
             // Don't display caller and filter status in table
             const { caller, passed_filter, ...cols } = allCols;
             return cols;
@@ -226,16 +226,17 @@ class ResultsTable extends EventTarget {
       .selectAll("td")
       .data((d) => Object.entries(d).filter(([k, _]) => k !== "others"))
       .join("td")
-      .text(([key, value]) => this.columnDef(key).format(value))
+      .html(([key, value]) => this.columnDef(key).format(value))
       .attr("class", ([key, _]) => this.columnDef(key).class);
 
     this.#body.selectAll(".view-region-link").on("click", (e) => {
+      const rowData = e.target.parentNode.parentElement.dataset;
       this.dispatchEvent(
         new CustomEvent("zoom-to-region", {
           detail: {
-            chromosome: e.target.parentElement.dataset.chromosome,
-            start: Number(e.target.parentElement.dataset.start),
-            length: Number(e.target.parentElement.dataset.length),
+            chromosome: rowData.chromosome,
+            start: Number(rowData.start),
+            length: Number(rowData.length),
           },
         })
       );

@@ -98,22 +98,6 @@ class GenomePlot extends EventTarget {
       .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
       .attr("data-index", (_, i) => i);
 
-    this.vafPanels
-      .append("g")
-      .attr("class", "vaf")
-      .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
-      .attr("data-index", (_, i) => i)
-      .selectAll(".point")
-      .data((d) => d.vaf)
-      .join("circle")
-      .attr("cx", (d, i, g) =>
-        this.xScales[g[i].parentNode.dataset.index](d.pos)
-      )
-      .attr("cy", (d) => this.vafYScale(d.vaf))
-      .attr("r", 2)
-      .attr("fill", "#333")
-      .attr("fill-opacity", 0.3);
-
     const overlayClip = d3.selectAll(".genome-view-area").append("g");
     overlayClip
       .selectAll(".panel-overlay-clip")
@@ -168,6 +152,7 @@ class GenomePlot extends EventTarget {
     this.drawGridLines();
     this.setLabels();
     this.plotRatios();
+    this.plotVAF();
     this.plotSegments();
   }
 
@@ -319,24 +304,95 @@ class GenomePlot extends EventTarget {
   }
 
   plotRatios() {
+    const nRatioPoints = cnvData.map(
+      (d) => d.callers[this.#activeCaller].ratios.length
+    );
+    const ratioPointsPerChromosome =
+      nRatioPoints.reduce((a, b) => a + b, 0) / cnvData.length;
+
     this.ratioPanels
-      .selectAll(".point")
-      // Only plot every fifth point for performance
-      // TODO: do something smarter here
+      .selectAll(".data-point")
       .data(
-        (d) =>
-          d.callers[this.#activeCaller].ratios.filter((_, i) => i % 5 === 0),
+        (d, i, g) => {
+          if (ratioPointsPerChromosome < MAX_POINTS) {
+            return d.callers[this.#activeCaller].ratios;
+          } else {
+            return slidingPixelWindow(
+              d.callers[this.#activeCaller].ratios,
+              this.xScales[g[i].parentNode.dataset.index],
+              "start",
+              "log2",
+              3,
+              true
+            );
+          }
+        },
         (d) => d.start
       )
       .join(
-        (enter) =>
-          enter
+        (enter) => {
+          if (enter.data()[0]?.mean) {
+            return enter
+              .append("g")
+              .attr("class", "data-point")
+              .call((g) =>
+                g
+                  .append("line")
+                  .attr("class", "mean")
+                  .attr("x1", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("x2", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end
+                    )
+                  )
+                  .attr("y1", this.ratioYScale.range()[0])
+                  .attr("y2", this.ratioYScale.range()[0])
+                  .attr("stroke", "#333")
+                  .attr("opacity", 0.5)
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y1", (d) => this.ratioYScale(d.mean))
+                  .attr("y2", (d) => this.ratioYScale(d.mean))
+              )
+              .call((g) =>
+                g
+                  .append("rect")
+                  .attr("class", "variance-rect")
+                  .attr("x", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("y", this.ratioYScale.range()[0])
+                  .attr("width", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end - d.start
+                    )
+                  )
+                  .attr("height", 0)
+                  .attr("fill", "#333")
+                  .attr("fill-opacity", 0.3)
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr("height", (d) =>
+                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+                  )
+              )
+              .call((g) => g.transition().duration(this.animationDuration));
+          }
+
+          return enter
             .append("circle")
             .attr("class", "point")
             .attr("cx", (d, i, g) =>
               this.xScales[g[i].parentNode.dataset.index](d.start)
             )
-            .attr("cy", this.ratioYScale(-this.ratioYScaleRange - 0.2))
+            .attr("cy", this.ratioYScale.range()[0])
             .attr("r", 2)
             .attr("fill", "#333")
             .attr("fill-opacity", 0.3)
@@ -345,9 +401,47 @@ class GenomePlot extends EventTarget {
                 .transition()
                 .duration(this.animationDuration)
                 .attr("cy", (d) => this.ratioYScale(d.log2))
-            ),
-        (update) =>
-          update.call((update) =>
+            );
+        },
+        (update) => {
+          if (update.data()[0]?.mean) {
+            return update
+              .call((update) =>
+                update
+                  .selectAll(".mean")
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("x1", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("x2", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end
+                    )
+                  )
+                  .attr("y1", (d) => this.ratioYScale(d.mean))
+                  .attr("y2", (d) => this.ratioYScale(d.mean))
+              )
+              .call((update) =>
+                update
+                  .selectAll(".variance-rect")
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("x", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr("height", (d) =>
+                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+                  )
+              );
+          }
+
+          return update.call((update) =>
             update
               .transition()
               .duration(this.animationDuration)
@@ -355,13 +449,30 @@ class GenomePlot extends EventTarget {
                 this.xScales[g[i].parentNode.dataset.index](d.start)
               )
               .attr("cy", (d) => this.ratioYScale(d.log2))
-          ),
-        (exit) =>
+          );
+        },
+        (exit) => {
           exit
+            .call((exit) =>
+              exit
+                .selectAll(".variance-rect")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("y", 0)
+                .attr("height", 0)
+            )
+            .call((exit) =>
+              exit
+                .selectAll(".mean")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("y1", 0)
+                .attr("y2", 0)
+            )
             .transition()
-            .duration(this.animationDuration)
-            .attr("cy", this.ratioYScale(this.ratioYScaleRange + 0.2))
-            .remove()
+            .delay(this.animationDuration)
+            .remove();
+        }
       );
   }
 
@@ -384,13 +495,10 @@ class GenomePlot extends EventTarget {
             .attr("d", (d, i, g) => {
               let j = g[i].parentNode.dataset.index;
               let xScale = this.xScales[j];
-              return `M${xScale(d.start)} ${this.ratioYScale(
-                -this.ratioYScaleRange - 0.2
-              )} L ${xScale(d.end)} ${this.ratioYScale(
-                -this.ratioYScaleRange - 0.2
-              )}`;
+              return `M${xScale(d.start)} ${
+                this.ratioYScale.range()[0]
+              } L ${xScale(d.end)} ${this.ratioYScale.range()[0]}`;
             })
-            .attr("stroke", "orange")
             .attr("stroke-width", 2)
             .call((enter) =>
               enter
@@ -429,12 +537,116 @@ class GenomePlot extends EventTarget {
       );
   }
 
-  selectChromosome(chromosome) {
+  plotVAF() {
+    const nVafPoints = this.#data.map((d) => d.vaf.length);
+    const vafPointsPerChromosome =
+      nVafPoints.reduce((a, b) => a + b, 0) / this.#data.length;
+
+    this.vafPanels
+      .append("g")
+      .attr("class", "vaf")
+      .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
+      .attr("data-index", (_, i) => i)
+      .selectAll(".data-point")
+      .data((d, i, g) => {
+        if (vafPointsPerChromosome < MAX_POINTS) {
+          return d.vaf;
+        } else {
+          return slidingPixelWindowVAF(
+            d.vaf,
+            this.xScales[g[i].parentNode.dataset.index],
+            3,
+            true
+          );
+        }
+      })
+      .join(
+        (enter) => {
+          if (enter.data()[0]?.mean) {
+            return enter
+              .append("g")
+              .attr("class", "data-point")
+              .call((g) =>
+                g
+                  .append("rect")
+                  .attr("class", "variance-rect")
+                  .attr("x", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("y", this.vafYScale.range()[0])
+                  .attr("height", 0)
+                  .attr("width", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end - d.start
+                    )
+                  )
+                  .attr("fill", "#333")
+                  .attr("fill-opacity", 0.3)
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y", (d) => this.vafYScale(d.mean + d.sd))
+                  .attr("height", (d) =>
+                    this.vafYScale(this.vafYScale.domain()[1] - 2 * d.sd)
+                  )
+              )
+              .call((g) =>
+                g
+                  .append("line")
+                  .attr("class", "mean-line")
+                  .attr("x1", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.start
+                    )
+                  )
+                  .attr("x2", (d, i, g) =>
+                    this.xScales[g[i].parentNode.parentNode.dataset.index](
+                      d.end
+                    )
+                  )
+                  .attr("y1", this.vafYScale.range()[0])
+                  .attr("y2", this.vafYScale.range()[0])
+                  .attr("stroke", "#333")
+                  .attr("opacity", 0.5)
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y1", (d) => this.vafYScale(d.mean))
+                  .attr("y2", (d) => this.vafYScale(d.mean))
+              );
+          }
+
+          return enter
+            .append("circle")
+            .attr("class", "data-point")
+            .attr("cx", (d, i, g) =>
+              this.xScales[g[i].parentNode.dataset.index](d.pos)
+            )
+            .attr("cy", (d) => this.vafYScale(d.vaf))
+            .attr("r", 2)
+            .attr("fill", "#333")
+            .attr("fill-opacity", 0.3);
+        },
+        (update) => update,
+        (exit) => exit.remove()
+      );
+  }
+
+  selectChromosome(chromosome, start, end) {
     const previousChromosomeIndex = this.#selectedChromosome;
     const selectedChromosomeIndex = this.#data.findIndex(
       (d) => d.chromosome === chromosome
     );
     if (previousChromosomeIndex === selectedChromosomeIndex) {
+      this.dispatchEvent(
+        new CustomEvent("chromosome-zoom", {
+          detail: {
+            chromosome: this.#selectedChromosome,
+            start: start,
+            end: end,
+          },
+        })
+      );
       return;
     }
     this.#selectedChromosome = selectedChromosomeIndex;
@@ -444,7 +656,11 @@ class GenomePlot extends EventTarget {
       .classed("selected", true);
     this.dispatchEvent(
       new CustomEvent("chromosome-change", {
-        detail: { chromosome: this.#selectedChromosome },
+        detail: {
+          chromosome: this.#selectedChromosome,
+          start: start,
+          end: end,
+        },
       })
     );
   }

@@ -5,7 +5,6 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=1080, initial-scale=1.0" />
     <title>CNV report</title>
-
     <style>
       {{ css | indent(width=8) }}
     </style>
@@ -22,6 +21,15 @@
             "N/A" }} ({{ metadata.tc_method }})
           </li>
         </ul>
+        <!-- x-release-please-start-version -->
+        <p class="fix-right">
+          <small>
+            <a href="https://github.com/hydra-genetics/reports/tree/v0.2.0"
+              >hydra-genetics/reports v0.2.0</a
+            >
+          </small>
+        </p>
+        <!-- x-release-please-end-version -->
       </header>
 
       <div class="app-container">
@@ -42,16 +50,24 @@
               Click and drag to zoom along x-axis. Click the plot to reset zoom.
             </p>
             <div class="no-print">
-              <input type="checkbox" id="chromosome-fit-to-data" />
-              <label for="chromosome-fit-to-data">Zoom to data extent</label>
-              <i
-                class="data-range-warning fa-solid fa-triangle-exclamation"
-                title="There are data points outside the current range"
-              ></i>
+              <div>
+                <input type="checkbox" id="chromosome-fit-to-data" />
+                <label for="chromosome-fit-to-data">Zoom to data extent</label>
+                <i
+                  class="data-range-warning bi-exclamation-triangle-fill"
+                  title="There are data points outside the current range"
+                ></i>
+              </div>
+              <div>
+                <input type="checkbox" id="chromosome-show-all-datapoints" />
+                <label for="chromosome-show-all-datapoints"
+                  >Show all data points</label
+                >
+              </div>
             </div>
             <svg id="chromosome-view"></svg>
             <dialog id="chromosome-view-dialog">
-              <button class="close"><i class="fa-solid fa-x"></i></button>
+              <button class="close"><i class="bi bi-x-lg"></i></button>
             </dialog>
           </section>
         </div>
@@ -86,11 +102,6 @@
         {% endif %}
       </div>
     </div>
-    <script
-      src="https://kit.fontawesome.com/0a9e116953.js"
-      crossorigin="anonymous"
-    ></script>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
       let cnvData = {{ json | trim | indent(width=8) }};
     </script>

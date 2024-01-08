@@ -61,13 +61,23 @@ def parse_fai(filename, skip=None):
             yield chrom, int(length)
 
 
-def parse_annotation_bed(filename, skip=None):
-    with open(filename) as f:
-        for line in f:
-            chrom, start, end, name = line.strip().split()[:4]
-            if skip is not None and chrom in skip:
-                continue
-            yield chrom, int(start), int(end), name
+def annotation_parser():
+    parsed_annotations = set()
+
+    def parse_annotation_bed(filename, skip=None):
+        with open(filename) as f:
+            for line in f:
+                chrom, start, end, name = line.strip().split()[:4]
+                if skip is not None and chrom in skip:
+                    continue
+                if (name, chrom, start, end) in parsed_annotations:
+                    print(f"Warning: duplicate annotation {name} {chrom}:{start}-{end}", file=sys.stderr)
+                    print(f"Warning: skipping {name} {chrom}:{start}-{end} in {filename}", file=sys.stderr)
+                    continue
+                parsed_annotations.add((name, chrom, start, end))
+                yield chrom, int(start), int(end), name
+
+    return parse_annotation_bed
 
 
 def cytoband_color(giemsa):
@@ -115,7 +125,12 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
     for variant in vcf.fetch():
         if variant.chrom in skip:
             continue
-        yield variant.chrom, variant.pos, variant.info.get("AF", None)
+        vaf = variant.info.get("AF")
+        if isinstance(vaf, float):
+            yield variant.chrom, variant.pos, vaf
+        elif vaf is not None:
+            for f in vaf:
+                yield variant.chrom, variant.pos, f
 
 
 def get_cnvs(vcf_filename, skip=None):
@@ -177,7 +192,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
         cnvs[c]["cytobands"] = cytobands[c]
 
     if vaf is not None:
-        for v in vaf:
+        for v in sorted(vaf, key=lambda x: x[1]):
             cnvs[v[0]]["vaf"].append(
                 dict(
                     pos=v[1],
@@ -232,7 +247,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                     added_cnvs.add(c)
 
     for d in dicts:
-        for r in d["ratios"]:
+        for r in sorted(d["ratios"], key=lambda x: x["start"]):
             cnvs[r["chromosome"]]["callers"][d["caller"]]["ratios"].append(
                 dict(
                     start=r["start"],
@@ -240,7 +255,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                     log2=r["log2"],
                 )
             )
-        for s in d["segments"]:
+        for s in sorted(d["segments"], key=lambda x: x["start"]):
             cnvs[s["chromosome"]]["callers"][d["caller"]]["segments"].append(
                 dict(
                     start=s["start"],
@@ -286,9 +301,10 @@ def main():
     vaf = None
     if germline_vcf is not None:
         vaf = get_vaf(germline_vcf, skip_chromosomes)
+    annot_parser = annotation_parser()
     annotations = []
     for filename in annotation_beds:
-        annotations.append(parse_annotation_bed(filename, skip_chromosomes))
+        annotations.append(annot_parser(filename, skip_chromosomes))
 
     cytobands = []
     if cytoband_file and show_cytobands:

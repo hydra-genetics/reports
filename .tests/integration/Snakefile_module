@@ -1,0 +1,19 @@
+from hydra_genetics.utils.misc import get_module_snakefile
+
+
+include: "../../workflow/rules/common.smk"
+
+
+rule all:
+    input:
+        "results/cnv/sample1_T.pathology.cnv_report.html",
+
+
+module reports:
+    snakefile:
+        "../../workflow/Snakefile"
+    config:
+        config
+
+
+use rule * from reports as reports_*
