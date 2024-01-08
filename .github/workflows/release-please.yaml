@@ -14,5 +14,5 @@ jobs:
           release-type: simple
           package-name: reports
           default-branch: main
-          extra-files:
-            - workflow/templates/cnv_html_report/index.html
+          extra-files: |
+            workflow/templates/cnv_html_report/index.html
