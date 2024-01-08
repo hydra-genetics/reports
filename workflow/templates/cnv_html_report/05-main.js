@@ -70,11 +70,11 @@ function setModalMessage(msg, className) {
   let icon = document.createElement("i");
 
   if (className === "error") {
-    icon.className = "fa-solid fa-circle-exclamation";
+    icon.className = "bi-exclamation-circle-fill";
   } else if (className === "warning") {
-    icon.className = "fa-solid fa-triangle-exclamation";
+    icon.className = "bi-exclamation-circle-fill";
   } else if (className === "info") {
-    icon.className = "fa-solid fa-circle-info";
+    icon.className = "bi-info-circle-fill";
   }
 
   message.appendChild(icon);

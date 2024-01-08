@@ -9,6 +9,7 @@ rule cnv_html_report:
         json="reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json",
         html_template=workflow.source_path("../templates/cnv_html_report/index.html"),
         js_files=[
+            workflow.source_path("../templates/assets/js/d3.v7.min.js"),
             workflow.source_path("../templates/cnv_html_report/01-chromosome-plot.js"),
             workflow.source_path("../templates/cnv_html_report/02-genome-plot.js"),
             workflow.source_path("../templates/cnv_html_report/03-results-table.js"),
@@ -16,6 +17,7 @@ rule cnv_html_report:
             workflow.source_path("../templates/cnv_html_report/05-main.js"),
         ],
         css_files=[
+            workflow.source_path("../templates/assets/css/icons.css"),
             workflow.source_path("../templates/cnv_html_report/style.css"),
         ],
         tc_file=get_tc_file,
