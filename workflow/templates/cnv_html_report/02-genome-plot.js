@@ -90,13 +90,15 @@ class GenomePlot extends EventTarget {
       .append("g")
       .attr("class", "regions")
       .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
-      .attr("data-index", (_, i) => i);
+      .attr("data-index", (_, i) => i)
+      .attr("data-caller", this.#activeCaller);
 
     this.segmentPanels = this.lrPanels
       .append("g")
       .attr("class", "segments")
       .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
-      .attr("data-index", (_, i) => i);
+      .attr("data-index", (_, i) => i)
+      .attr("data-caller", this.#activeCaller);
 
     const overlayClip = d3.selectAll(".genome-view-area").append("g");
     overlayClip
@@ -158,6 +160,8 @@ class GenomePlot extends EventTarget {
 
   set activeCaller(caller) {
     this.#activeCaller = caller;
+    this.ratioPanels.attr("data-caller", caller);
+    this.segmentPanels.attr("data-caller", caller);
     this.update();
   }
 
@@ -318,7 +322,9 @@ class GenomePlot extends EventTarget {
             );
           }
         },
-        (d) => d.start
+        function(d) {
+          return [this.dataset.caller, d.start];
+        }
       )
       .join(
         (enter) => {
@@ -476,7 +482,9 @@ class GenomePlot extends EventTarget {
           d.callers[this.#activeCaller].segments.filter(
             (s) => s.end - s.start > this.totalLength / this.width
           ),
-        (d) => [d.start, d.end, d.log2]
+        function(d) {
+          return [this.dataset.caller, d.start, d.end, d.log2];
+        }
       )
       .join(
         (enter) =>

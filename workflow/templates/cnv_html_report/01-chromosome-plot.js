@@ -119,8 +119,14 @@ class ChromosomePlot extends EventTarget {
         `translate(0, ${this.plotHeight + this.margin.between})`
       );
 
-    this.#ratios = this.#lrArea.append("g").attr("class", "ratios");
-    this.#segments = this.#lrArea.append("g").attr("class", "segments");
+    this.#ratios = this.#lrArea
+      .append("g")
+      .attr("class", "ratios")
+      .attr("data-caller", this.#activeCaller);
+    this.#segments = this.#lrArea
+      .append("g")
+      .attr("class", "segments")
+      .attr("data-caller", this.#activeCaller);
 
     this.#initializeZoom();
     this.#setLabels();
@@ -416,7 +422,9 @@ class ChromosomePlot extends EventTarget {
             "log2"
           );
         },
-        (d) => [d.start, d.end, d.log2, d.mean]
+        function(d) {
+          return [this.dataset.caller, d.start, d.end, d.log2, d.mean];
+        }
       )
       .join(
         (enter) => {
@@ -534,10 +542,12 @@ class ChromosomePlot extends EventTarget {
   #plotSegments() {
     this.#segments
       .selectAll(".segment")
-      .data(this.#data.callers[this.#activeCaller].segments, (d) => [
-        d.start,
-        d.end,
-      ])
+      .data(
+        this.#data.callers[this.#activeCaller].segments,
+        function(d) {
+          return [this.dataset.caller, d.start, d.end];
+        }
+      )
       .join(
         (enter) =>
           enter
