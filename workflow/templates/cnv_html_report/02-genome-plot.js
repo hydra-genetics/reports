@@ -190,15 +190,6 @@ class GenomePlot extends EventTarget {
     return panels;
   }
 
-  set activeCaller(caller) {
-    this.#activeCaller = caller;
-    this.update();
-  }
-
-  get activeCaller() {
-    return this.#activeCaller;
-  }
-
   drawAxes() {
     this.svg
       .append("g")
