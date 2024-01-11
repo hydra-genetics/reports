@@ -537,6 +537,7 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
               .attr("cy", (d) => this.ratioYScale(d.log2))
+              .attr("opacity", 0.3)
           );
         },
         (exit) => {
