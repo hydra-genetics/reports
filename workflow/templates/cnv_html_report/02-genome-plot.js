@@ -304,6 +304,7 @@ class GenomePlot extends EventTarget {
     );
     const ratioPointsPerChromosome =
       nRatioPoints.reduce((a, b) => a + b, 0) / cnvData.length;
+    const self = this;
 
     this.ratioPanels
       .selectAll(".data-point")
@@ -323,7 +324,10 @@ class GenomePlot extends EventTarget {
           }
         },
         function(d) {
-          return [this.dataset.caller, d.start];
+          if (this.dataset.caller) {
+            return [this.dataset.caller, d.start, d.log2, d.mean];
+          }
+          return [self.activeCaller, d.start, d.log2, d.mean];
         }
       )
       .join(
@@ -385,7 +389,7 @@ class GenomePlot extends EventTarget {
 
           return enter
             .append("circle")
-            .attr("class", "point")
+            .attr("class", "data-point")
             .attr("cx", (d, i, g) =>
               this.xScales[g[i].parentNode.dataset.index](d.start)
             )
@@ -435,7 +439,9 @@ class GenomePlot extends EventTarget {
                   .attr("height", (d) =>
                     this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
                   )
-              );
+              )
+              .transition()
+              .duration(this.animationDuration);
           }
 
           return update.call((update) =>
@@ -449,31 +455,39 @@ class GenomePlot extends EventTarget {
           );
         },
         (exit) => {
-          exit
-            .call((exit) =>
+          if (exit.data()[0]?.mean) {
+            return exit.call((exit) => {
               exit
                 .selectAll(".variance-rect")
                 .transition()
                 .duration(this.animationDuration)
-                .attr("y", 0)
+                .attr("y", this.ratioYScale.range()[1])
                 .attr("height", 0)
-            )
-            .call((exit) =>
+            })
+            .call((exit) => {
               exit
                 .selectAll(".mean")
                 .transition()
                 .duration(this.animationDuration)
-                .attr("y1", 0)
-                .attr("y2", 0)
-            )
+                .attr("y1", this.ratioYScale.range()[1])
+                .attr("y2", this.ratioYScale.range()[1])
+            })
             .transition()
             .delay(this.animationDuration)
+            .remove();
+          }
+
+          return exit
+            .transition()
+            .duration(this.animationDuration)
+            .attr("cy", this.ratioYScale.range()[1])
             .remove();
         }
       );
   }
 
   plotSegments() {
+    const self = this;
     this.segmentPanels
       .selectAll(".segment")
       // Only draw segments that will actually be visible
