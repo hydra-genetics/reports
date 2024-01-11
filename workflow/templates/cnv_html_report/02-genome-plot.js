@@ -497,7 +497,10 @@ class GenomePlot extends EventTarget {
             (s) => s.end - s.start > this.totalLength / this.width
           ),
         function(d) {
-          return [this.dataset.caller, d.start, d.end, d.log2];
+          if (this.dataset.caller) {
+            return [this.dataset.caller, d.start, d.end, d.log2];
+          }
+          return [self.activeCaller, d.start, d.end, d.log2];
         }
       )
       .join(
@@ -526,12 +529,17 @@ class GenomePlot extends EventTarget {
                 })
             ),
         (update) =>
-          update.attr("d", (d, i, g) => {
-            let j = g[i].parentNode.dataset.index;
-            let xScale = this.xScales[j];
-            return `M${xScale(d.start)} ${this.ratioYScale(d.log2)} L ${xScale(
-              d.end
-            )} ${this.ratioYScale(d.log2)}`;
+          update.call((update) => {
+            update
+              .transition()
+              .duration(this.animationDuration)
+              .attr("d", (d, i, g) => {
+                let j = g[i].parentNode.dataset.index;
+                let xScale = this.xScales[j];
+                return `M${xScale(d.start)} ${this.ratioYScale(d.log2)} L ${xScale(
+                  d.end
+                )} ${this.ratioYScale(d.log2)}`;
+              });
           }),
         (exit) =>
           exit
