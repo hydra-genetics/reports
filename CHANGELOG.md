@@ -2,6 +2,7 @@
 
 ## [0.3.1](https://github.com/hydra-genetics/reports/compare/v0.3.0...v0.3.1) (2024-01-12)
 
+This is a bug fix release that addresses a bug in the CNV report when toggling callers. In certain cases it could happen that data points wouldn't update properly when changing the caller for which results should be displayed. In addition to this, quickly going back and forth between callers could result in the plots not rendering correctly. These issues have now been fixed.
 
 ### Bug Fixes
 
