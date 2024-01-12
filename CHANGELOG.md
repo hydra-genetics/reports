@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/hydra-genetics/reports/compare/v0.3.0...v0.3.1) (2024-01-12)
+
+
+### Bug Fixes
+
+* address transition bugs when toggling callers ([#57](https://github.com/hydra-genetics/reports/issues/57)) ([1154903](https://github.com/hydra-genetics/reports/commit/1154903f7cc86b8f575eed48f3683054fa33a644))
+
 ## [0.3.0](https://github.com/hydra-genetics/reports/compare/v0.2.0...v0.3.0) (2024-01-08)
 
 This release contains quite a few updates. Since the module currently only contains the CNV report, all changes are related to this. Perhaps the most significant of these changes is that the report template files are now accessed from the reports module itself, so it is no longer necessary to include the template in the parent workflow. Information on how to customize the template is included in [the documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/).
