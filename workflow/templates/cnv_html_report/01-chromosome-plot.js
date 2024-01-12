@@ -119,8 +119,16 @@ class ChromosomePlot extends EventTarget {
         `translate(0, ${this.plotHeight + this.margin.between})`
       );
 
-    this.#ratios = this.#lrArea.append("g").attr("class", "ratios");
-    this.#segments = this.#lrArea.append("g").attr("class", "segments");
+    this.#ratios = this.#lrArea
+      .append("g")
+      .attr("class", "ratios")
+      .attr("data-chromosome", this.data.chromosome)
+      .attr("data-caller", this.#activeCaller);
+    this.#segments = this.#lrArea
+      .append("g")
+      .attr("class", "segments")
+      .attr("data-chromosome", this.data.chromosome)
+      .attr("data-caller", this.#activeCaller);
 
     this.#initializeZoom();
     this.#setLabels();
@@ -129,6 +137,7 @@ class ChromosomePlot extends EventTarget {
 
   set activeCaller(caller) {
     this.#activeCaller = caller;
+    this.#ratios.attr("data-caller", caller);
     this.update();
   }
 
@@ -159,7 +168,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   setData(data, start, end) {
-    const prevChromosome = this.#data.chromosome;
+    const prevChromosome = this.data.chromosome;
 
     if (data && data.chromosome !== prevChromosome) {
       this.#data = data;
@@ -172,6 +181,9 @@ class ChromosomePlot extends EventTarget {
     if (start || end) {
       this.zoomTo(start, end);
     }
+
+    this.#ratios.attr("data-chromosome", this.data.chromosome);
+    this.#segments.attr("data-chromosome", this.data.chromosome);
 
     this.update();
   }
@@ -398,6 +410,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   #plotRatios() {
+    const self = this;
     this.#ratios
       .selectAll(".data-point")
       .data(
@@ -416,7 +429,12 @@ class ChromosomePlot extends EventTarget {
             "log2"
           );
         },
-        (d) => [d.start, d.end, d.log2, d.mean]
+        function(d) {
+          if (this.dataset.chromosome && this.dataset.caller) {
+            return [this.dataset.caller, this.dataset.chromosome, d.start, d.end];
+          }
+          return [self.activeCaller, self.data.chromosome, d.start, d.end];
+        }
       )
       .join(
         (enter) => {
@@ -519,6 +537,7 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
               .attr("cy", (d) => this.ratioYScale(d.log2))
+              .attr("opacity", 0.3)
           );
         },
         (exit) => {
@@ -532,12 +551,18 @@ class ChromosomePlot extends EventTarget {
   }
 
   #plotSegments() {
+    const self = this;
     this.#segments
       .selectAll(".segment")
-      .data(this.#data.callers[this.#activeCaller].segments, (d) => [
-        d.start,
-        d.end,
-      ])
+      .data(
+        this.#data.callers[this.#activeCaller].segments,
+        function(d) {
+          if (this.dataset.caller && this.dataset.chromosome) {
+            return [this.dataset.caller, this.dataset.chromosome, d.start, d.end];
+          }
+          return [self.activeCaller, self.data.chromosome, d.start, d.end];
+        }
+      )
       .join(
         (enter) =>
           enter
