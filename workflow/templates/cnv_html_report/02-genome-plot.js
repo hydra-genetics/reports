@@ -90,15 +90,13 @@ class GenomePlot extends EventTarget {
       .append("g")
       .attr("class", "regions")
       .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
-      .attr("data-index", (_, i) => i)
-      .attr("data-caller", this.#activeCaller);
+      .attr("data-index", (_, i) => i);
 
     this.segmentPanels = this.lrPanels
       .append("g")
       .attr("class", "segments")
       .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
-      .attr("data-index", (_, i) => i)
-      .attr("data-caller", this.#activeCaller);
+      .attr("data-index", (_, i) => i);
 
     const overlayClip = d3.selectAll(".genome-view-area").append("g");
     overlayClip
@@ -160,8 +158,6 @@ class GenomePlot extends EventTarget {
 
   set activeCaller(caller) {
     this.#activeCaller = caller;
-    this.ratioPanels.attr("data-caller", caller);
-    this.segmentPanels.attr("data-caller", caller);
     this.update();
   }
 
@@ -192,6 +188,15 @@ class GenomePlot extends EventTarget {
       .attr("stroke", "#333");
 
     return panels;
+  }
+
+  set activeCaller(caller) {
+    this.#activeCaller = caller;
+    this.update();
+  }
+
+  get activeCaller() {
+    return this.#activeCaller;
   }
 
   drawAxes() {
@@ -304,7 +309,6 @@ class GenomePlot extends EventTarget {
     );
     const ratioPointsPerChromosome =
       nRatioPoints.reduce((a, b) => a + b, 0) / cnvData.length;
-    const self = this;
 
     this.ratioPanels
       .selectAll(".data-point")
@@ -323,12 +327,7 @@ class GenomePlot extends EventTarget {
             );
           }
         },
-        function(d) {
-          if (this.dataset.caller) {
-            return [this.dataset.caller, d.start, d.log2, d.mean];
-          }
-          return [self.activeCaller, d.start, d.log2, d.mean];
-        }
+        (d) => d.start
       )
       .join(
         (enter) => {
@@ -389,7 +388,7 @@ class GenomePlot extends EventTarget {
 
           return enter
             .append("circle")
-            .attr("class", "data-point")
+            .attr("class", "point")
             .attr("cx", (d, i, g) =>
               this.xScales[g[i].parentNode.dataset.index](d.start)
             )
@@ -439,9 +438,7 @@ class GenomePlot extends EventTarget {
                   .attr("height", (d) =>
                     this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
                   )
-              )
-              .transition()
-              .duration(this.animationDuration);
+              );
           }
 
           return update.call((update) =>
@@ -455,39 +452,31 @@ class GenomePlot extends EventTarget {
           );
         },
         (exit) => {
-          if (exit.data()[0]?.mean) {
-            return exit.call((exit) => {
+          exit
+            .call((exit) =>
               exit
                 .selectAll(".variance-rect")
                 .transition()
                 .duration(this.animationDuration)
-                .attr("y", this.ratioYScale.range()[1])
+                .attr("y", 0)
                 .attr("height", 0)
-            })
-            .call((exit) => {
+            )
+            .call((exit) =>
               exit
                 .selectAll(".mean")
                 .transition()
                 .duration(this.animationDuration)
-                .attr("y1", this.ratioYScale.range()[1])
-                .attr("y2", this.ratioYScale.range()[1])
-            })
+                .attr("y1", 0)
+                .attr("y2", 0)
+            )
             .transition()
             .delay(this.animationDuration)
-            .remove();
-          }
-
-          return exit
-            .transition()
-            .duration(this.animationDuration)
-            .attr("cy", this.ratioYScale.range()[1])
             .remove();
         }
       );
   }
 
   plotSegments() {
-    const self = this;
     this.segmentPanels
       .selectAll(".segment")
       // Only draw segments that will actually be visible
@@ -496,12 +485,7 @@ class GenomePlot extends EventTarget {
           d.callers[this.#activeCaller].segments.filter(
             (s) => s.end - s.start > this.totalLength / this.width
           ),
-        function(d) {
-          if (this.dataset.caller) {
-            return [this.dataset.caller, d.start, d.end, d.log2];
-          }
-          return [self.activeCaller, d.start, d.end, d.log2];
-        }
+        (d) => [d.start, d.end, d.log2]
       )
       .join(
         (enter) =>
@@ -529,17 +513,12 @@ class GenomePlot extends EventTarget {
                 })
             ),
         (update) =>
-          update.call((update) => {
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("d", (d, i, g) => {
-                let j = g[i].parentNode.dataset.index;
-                let xScale = this.xScales[j];
-                return `M${xScale(d.start)} ${this.ratioYScale(d.log2)} L ${xScale(
-                  d.end
-                )} ${this.ratioYScale(d.log2)}`;
-              });
+          update.attr("d", (d, i, g) => {
+            let j = g[i].parentNode.dataset.index;
+            let xScale = this.xScales[j];
+            return `M${xScale(d.start)} ${this.ratioYScale(d.log2)} L ${xScale(
+              d.end
+            )} ${this.ratioYScale(d.log2)}`;
           }),
         (exit) =>
           exit
