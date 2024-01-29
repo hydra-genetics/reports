@@ -21,7 +21,7 @@ rule cnv_html_report:
             workflow.source_path("../templates/cnv_html_report/style.css"),
         ],
         tc_file=get_tc_file,
-        extra_table_files=[t["tsv"] for t in config.get("cnv_html_report", {}).get("extra_tables", [])],
+        extra_table_files=[t["path"] for t in config.get("cnv_html_report", {}).get("extra_tables", [])],
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
     params:

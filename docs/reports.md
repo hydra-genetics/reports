@@ -36,10 +36,10 @@ Additional tables can be included in the final report by making use of `extra_ta
 extra_tables:
     - name: Extra table
       description: A description of the table
-      tsv: extra_table.tsv
+      path: extra_table.tsv
 ```
 
-`name` is the name of the table, and will be used as a section heading. `description` is a description of the table and will be displayed as a single paragraph, and `tsv` is the path to the tsv file from which the table should be created.
+`name` is the name of the table, and will be used as a section heading. `description` is a description of the table and will be displayed as a single paragraph, and `path` is the path to the tsv file from which the table should be created.
 
 #### Cytobands
 

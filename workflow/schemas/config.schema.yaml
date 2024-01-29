@@ -52,7 +52,7 @@ properties:
         type: array
         description: >
           Additional tables that should be added to the report. The tables will
-          be based on the columns of the file listed, and column names are
+          be based on the columns of the TSV file listed, and column names are
           required and assumed to be present.
         items:
           type: object
@@ -61,7 +61,7 @@ properties:
               type: string
               description: >
                 The name of the table.
-            tsv:
+            path:
               type: string
               format: uri-reference
               description: >
@@ -73,7 +73,7 @@ properties:
                 A description of the table.
           required:
             - name
-            - tsv
+            - path
     required:
       - show_table
 

@@ -9,10 +9,10 @@ reference:
 cnv_html_report:
   cytobands: true
   extra_tables:
-    - tsv: config/extra_table1.tsv
+    - path: config/extra_table1.tsv
       name: Extra table
       description: An extra table with some extra information.
-    - tsv: config/extra_table2.tsv
+    - path: config/extra_table2.tsv
       name: Another extra table
       description: Another extra table with some extra extra information.
 
