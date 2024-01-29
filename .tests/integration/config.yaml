@@ -8,6 +8,10 @@ reference:
 
 cnv_html_report:
   cytobands: true
+  extra_tables:
+    - tsv: config/extra_table1.tsv
+      name: Extra table
+      description: An extra table with some extra information.
 
 merge_cnv_json:
   annotations:
