@@ -28,6 +28,19 @@ There are a couple of things that can be customised using the config file.
 
 The CNV results table contains CNVs that have been called by the pipeline. In order for the table to be included in the final report, `show_table` under [`cnv_html_report`](/softwares/#configuration) has to be `true`. If this is the case, then both `filtered_cnv_vcfs` and `unfiltered_cnv_vcfs` have to be defined under [`merge_cnv_json`](/softwares/#configuration_2).
 
+#### Additional tables
+
+Additional tables can be included in the final report by making use of `extra_tables` under [`cnv_html_report`](/softwares/#configuration). A table should be represented by a tsv file, and the first row will be used as a header for the table. The value of `extra_tables` in the config should be an array of objects, and the objects should look like this:
+
+```yaml
+extra_tables:
+    - name: Extra table
+      description: A description of the table
+      tsv: extra_table.tsv
+```
+
+`name` is the name of the table, and will be used as a section heading. `description` is a description of the table and will be displayed as a single paragraph, and `tsv` is the path to the tsv file from which the table should be created.
+
 #### Cytobands
 
 Cytobands can be represented in the chromosome plot. For these to be included, `cytobands` under [`cnv_html_report`](/softwares/#configuration) has to be `true`, and `cytobands` under [`merge_cnv_json`](/softwares/#configuration_2) should point to a file with cytoband definitions. The format of this file should follow the UCSC cytoband schema ([hg19](https://www.genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=map&hgta_track=cytoBand&hgta_table=cytoBand&hgta_doSchema=describe+table+schema), [hg38](https://genome.ucsc.edu/cgi-bin/hgTables?db=hg38&hgta_group=map&hgta_track=cytoBand&hgta_table=cytoBand&hgta_doSchema=describe+table+schema)). Currently, files for both hg19 and hg38 are included in the [config directory of the repo](https://github.com/hydra-genetics/reports/tree/develop/config).
