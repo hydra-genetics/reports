@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/hydra-genetics/reports/compare/v0.3.1...v0.4.0) (2024-01-30)
+
+The CNV report now accepts TSV files that will be displayed as tables in the final report. See the [documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/#additional-tables) for more information on how to use this functionality.
+
+### Features
+
+* support for adding tsv tables ([#63](https://github.com/hydra-genetics/reports/issues/63)) ([#64](https://github.com/hydra-genetics/reports/issues/64)) ([bcf47d3](https://github.com/hydra-genetics/reports/commit/bcf47d395853db8452d2a73b95e39017c38d30f4))
+
+
+### Bug Fixes
+
+* pin pulp to version &lt;2.8.0 for snakemake <8.1.2 ([bcf47d3](https://github.com/hydra-genetics/reports/commit/bcf47d395853db8452d2a73b95e39017c38d30f4))
+
 ## [0.3.1](https://github.com/hydra-genetics/reports/compare/v0.3.0...v0.3.1) (2024-01-12)
 
 This is a bug fix release that addresses a bug in the CNV report when toggling callers. In certain cases it could happen that data points wouldn't update properly when changing the caller for which results should be displayed. In addition to this, quickly going back and forth between callers could result in the plots not rendering correctly. These issues have now been fixed.
