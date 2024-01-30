@@ -72,8 +72,10 @@
           </section>
         </div>
 
-        {% if metadata.show_table %}
+        {% if metadata.show_table or extra_tables | length > 0 %}
         <div class="table-container">
+        {% endif %}
+        {% if metadata.show_table %}
           <section>
             <h2>Results table</h2>
             <p class="no-print">
@@ -98,6 +100,39 @@
             >
             <table id="cnv-table"></table>
           </section>
+        {% endif %}
+
+        {% if extra_tables | length > 0 %}
+          <section>
+            <h2>Additional tables</h2>
+
+            {% for table in extra_tables %}
+            <section>
+              <h3>{{ table.name }}</h3>
+              <p>{{ table.description }}</p>
+              <table id="extra-table-{{ loop.index }}">
+                <thead>
+                  <tr>
+                    {% for k in table.header %}
+                    <th>{{ k }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in table.data %}
+                  <tr>
+                    {% for h in table.header %}
+                    <td>{{ row[h] }}</td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </section>
+            {% endfor %}
+          </section>
+        {% endif %}
+        {% if metadata.show_table or extra_tables | length > 0 %} 
         </div>
         {% endif %}
       </div>
