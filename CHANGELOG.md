@@ -2,6 +2,7 @@
 
 ## [0.4.0](https://github.com/hydra-genetics/reports/compare/v0.3.1...v0.4.0) (2024-01-30)
 
+The CNV report now accepts TSV files that will be displayed as tables in the final report. See the [documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/#additional-tables) for more information on how to use this functionality.
 
 ### Features
 
