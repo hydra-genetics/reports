@@ -48,6 +48,32 @@ properties:
           Whether or not to display a table of called CNVs in the report. If
           this is true, then the attributes `filtered_cnv_vcfs` and
           `unfiltered_cnv_vcfs` under `merge_cnv_json` are required.
+      extra_tables:
+        type: array
+        description: >
+          Additional tables that should be added to the report. The tables will
+          be based on the columns of the TSV file listed, and column names are
+          required and assumed to be present.
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+              description: >
+                The name of the table.
+            path:
+              type: string
+              format: uri-reference
+              description: >
+                Path to a TSV file representing the table to be added. Column
+                names are required and assumed to be present.
+            description:
+              type: string
+              description: >
+                A description of the table.
+          required:
+            - name
+            - path
     required:
       - show_table
 
