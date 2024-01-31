@@ -10,7 +10,8 @@ def get_sample_name(filename):
 
 
 def parse_table(table_def):
-    with open(table_def["path"]) as f:
+    tsv_path = table_def["path"].format(**snakemake.wildcards)
+    with open(tsv_path) as f:
         table_data = list(csv.DictReader(f, delimiter="\t"))
 
     return {

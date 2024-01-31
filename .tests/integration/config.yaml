@@ -15,6 +15,11 @@ cnv_html_report:
     - path: config/extra_table2.tsv
       name: Another extra table
       description: Another extra table with some extra extra information.
+    - path: cnv_sv/svdb_query/{sample}_{type}.extra_table.tsv
+      name: Extra table with wildcards
+      description: >
+        The file on which this table is based on has wildcards in
+        the filename.
 
 merge_cnv_json:
   annotations:
