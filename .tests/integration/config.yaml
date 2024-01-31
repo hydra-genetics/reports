@@ -20,6 +20,12 @@ cnv_html_report:
       description: >
         The file on which this table is based on has wildcards in
         the filename.
+    - path: config/empty_table.tsv
+      name: An empty table
+      description: >
+        A table that only has a header row, but no data. It should still
+        be presented, but it should at the same time be clear that it is
+        empty, and meant to be so.
 
 merge_cnv_json:
   annotations:

@@ -119,6 +119,7 @@
                   </tr>
                 </thead>
                 <tbody>
+                  {% if table.data | length > 0 %}
                   {% for row in table.data %}
                   <tr>
                     {% for h in table.header %}
@@ -126,6 +127,13 @@
                     {% endfor %}
                   </tr>
                   {% endfor %}
+                  {% else %}
+                  <tr>
+                    <td colspan="{{ table.header | length }}">
+                      No data available in table
+                    </td>
+                  </tr>
+                  {% endif %}
                 </tbody>
               </table>
             </section>
