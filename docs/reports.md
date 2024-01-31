@@ -41,6 +41,10 @@ extra_tables:
 
 `name` is the name of the table, and will be used as a section heading. `description` is a description of the table and will be displayed as a single paragraph, and `path` is the path to the tsv file from which the table should be created.
 
+If the table file is completely empty, the execution will fail with an error. If the table is empty, but it has a table row, the table will be presented. It will however have a message clarifying that there is no data in the table.
+
+Wildcards are allowed in `path`, as long as the same wildcards are present in the output file name. By default these wildcards are `sample`, `type` and `tc_method`.
+
 #### Cytobands
 
 Cytobands can be represented in the chromosome plot. For these to be included, `cytobands` under [`cnv_html_report`](/softwares/#configuration) has to be `true`, and `cytobands` under [`merge_cnv_json`](/softwares/#configuration_2) should point to a file with cytoband definitions. The format of this file should follow the UCSC cytoband schema ([hg19](https://www.genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=map&hgta_track=cytoBand&hgta_table=cytoBand&hgta_doSchema=describe+table+schema), [hg38](https://genome.ucsc.edu/cgi-bin/hgTables?db=hg38&hgta_group=map&hgta_track=cytoBand&hgta_table=cytoBand&hgta_doSchema=describe+table+schema)). Currently, files for both hg19 and hg38 are included in the [config directory of the repo](https://github.com/hydra-genetics/reports/tree/develop/config).
