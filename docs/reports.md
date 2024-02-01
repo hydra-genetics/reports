@@ -39,7 +39,7 @@ extra_tables:
       path: extra_table.tsv
 ```
 
-`name` is the name of the table, and will be used as a section heading. `description` is a description of the table and will be displayed as a single paragraph, and `path` is the path to the tsv file from which the table should be created.
+`name` is the name of the table, and will be used as a section heading. `description` is a description of the table and will be displayed as a single paragraph, and `path` is the path to the tsv file from which the table should be created. If the table file is completely empty, the execution will fail with an error. If the table is empty, but it contains a header, the table will be presented. It will however have a message clarifying that there is no data in the table, and that this is how it is meant to be. Wildcards are allowed in `path`, as long as the same wildcards are present in the output file name. By default these wildcards are `sample`, `type` and `tc_method`.
 
 #### Cytobands
 
