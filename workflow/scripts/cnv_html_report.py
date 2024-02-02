@@ -10,13 +10,19 @@ def get_sample_name(filename):
 
 
 def parse_table(table_def):
-    with open(table_def["path"]) as f:
-        table_data = list(csv.DictReader(f, delimiter="\t"))
+    tsv_path = table_def["path"].format(**snakemake.wildcards)
+    with open(tsv_path) as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        header = reader.fieldnames
+        table_data = list(reader)
+
+    if len(table_data) == 0 and not header:
+        raise ValueError(f"empty table in {tsv_path}")
 
     return {
         "name": table_def.get("name", ""),
         "description": table_def.get("description", ""),
-        "header": list(table_data[0].keys()),
+        "header": header,
         "data": table_data,
     }
 
