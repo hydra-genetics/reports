@@ -2,6 +2,7 @@
 
 ## [0.4.1](https://github.com/hydra-genetics/reports/compare/v0.4.0...v0.4.1) (2024-02-02)
 
+This is a bugfix release that addresses two things related to the additional tables in the CNV report: wildcards in the path definition now works as expected and empty tables are handled in a better way. See the [documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/#additional-tables) for more details.
 
 ### Bug Fixes
 
