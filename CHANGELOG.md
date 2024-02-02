@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.1](https://github.com/hydra-genetics/reports/compare/v0.4.0...v0.4.1) (2024-02-02)
+
+This is a bugfix release that addresses two things related to the additional tables in the CNV report: wildcards in the path definition now works as expected and empty tables are handled in a better way. See the [documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/#additional-tables) for more details.
+
+### Bug Fixes
+
+* allow for empty tables if header is defined ([d0d778e](https://github.com/hydra-genetics/reports/commit/d0d778e198dadd461bf28c84ef17d16216d62174))
+* allow wildcards in extra_table path ([#67](https://github.com/hydra-genetics/reports/issues/67)) ([d0d778e](https://github.com/hydra-genetics/reports/commit/d0d778e198dadd461bf28c84ef17d16216d62174))
+
 ## [0.4.0](https://github.com/hydra-genetics/reports/compare/v0.3.1...v0.4.0) (2024-01-30)
 
 The CNV report now accepts TSV files that will be displayed as tables in the final report. See the [documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/#additional-tables) for more information on how to use this functionality.
