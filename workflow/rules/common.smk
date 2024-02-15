@@ -167,6 +167,14 @@ def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     return config.get("merge_cnv_json", {}).get("germline_vcf", [])
 
 
+def get_germline_vcf_tbi(wildcards: Wildcards) -> List[Union[str, Path]]:
+    vcf = get_germline_vcf(wildcards)
+    if isinstance(vcf, list):
+        return map(lambda x: x + ".tbi", vcf)
+    else:
+        return vcf + ".tbi"
+
+
 def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []

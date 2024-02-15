@@ -89,6 +89,7 @@ rule merge_cnv_json:
         fai=config.get("reference", {}).get("fai", ""),
         annotation_bed=config.get("merge_cnv_json", {}).get("annotations", []),
         germline_vcf=get_germline_vcf,
+        germline_vcf_tbi=get_germline_vcf_tbi,
         filtered_cnv_vcfs=get_filtered_cnv_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,
         cytobands=config.get("merge_cnv_json", {}).get("cytobands", []),
