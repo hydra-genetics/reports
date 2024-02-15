@@ -8,7 +8,7 @@ import numpy as np
 import pathlib
 import pandas as pd
 import re
-from typing import List, Union
+from typing import List, Union, NoReturn
 import yaml
 from snakemake.io import Wildcards
 from snakemake.utils import validate
@@ -163,7 +163,7 @@ def get_cnv_segments(wildcards):
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
-def get_germline_vcf(wildcards: Wildcards) -> Union[List, Path]:
+def get_germline_vcf(wildcards: Wildcards) -> Union[List[NoReturn], Path, str]:
     return config.get("merge_cnv_json", {}).get("germline_vcf", [])
 
 
