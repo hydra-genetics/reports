@@ -25,20 +25,21 @@ class CNV:
     def overlaps(self, other):
         return self.chromosome == other.chromosome and (
             # overlaps in the beginning, or self contained in other
-            (self.start >= other.start and self.start <= other.end())
-            or
+            (self.start >= other.start and self.start <= other.end()) or
             # overlaps at the end, or self contained in other
-            (self.end() >= other.start and self.end() <= other.end())
-            or
+            (self.end() >= other.start and self.end() <= other.end()) or
             # other is contained in self
-            (other.start >= self.start and other.end() <= self.end())
-        )
+            (other.start >= self.start and other.end() <= self.end()))
 
     def __hash__(self):
-        return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.copy_number}")
+        return hash(
+            f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.copy_number}"
+        )
 
 
-cytoband_config = snakemake.config.get("merge_cnv_json", {}).get("cytoband_config", {}).get("colors", {})
+cytoband_config = snakemake.config.get("merge_cnv_json",
+                                       {}).get("cytoband_config",
+                                               {}).get("colors", {})
 cytoband_centromere = "acen"
 cytoband_colors = {
     "gneg": cytoband_config.get("gneg", "#e3e3e3"),
@@ -81,25 +82,27 @@ def parse_cytobands(filename, skip=None):
             chrom, start, end, name, giemsa = line.strip().split()
             if skip is not None and chrom in skip:
                 continue
-            cytobands[chrom].append(
-                {
-                    "name": name,
-                    "start": int(start),
-                    "end": int(end),
-                    "direction": "none",
-                    "giemsa": giemsa,
-                    "color": cytoband_color(giemsa),
-                }
-            )
+            cytobands[chrom].append({
+                "name": name,
+                "start": int(start),
+                "end": int(end),
+                "direction": "none",
+                "giemsa": giemsa,
+                "color": cytoband_color(giemsa),
+            })
 
     for k, v in cytobands.items():
         cytobands[k] = sorted(v, key=lambda x: x["start"])
-        centromere_index = [i for i, x in enumerate(cytobands[k]) if x["giemsa"] == cytoband_centromere]
+        centromere_index = [
+            i for i, x in enumerate(cytobands[k])
+            if x["giemsa"] == cytoband_centromere
+        ]
 
         if len(centromere_index) > 0 and len(centromere_index) != 2:
             print(
-                f"error: chromosome {k} does not have 0 or 2 centromere bands, " f"found {len(centromere_index)}", file=sys.stderr
-            )
+                f"error: chromosome {k} does not have 0 or 2 centromere bands, "
+                f"found {len(centromere_index)}",
+                file=sys.stderr)
             sys.exit(1)
         elif len(centromere_index) == 0:
             continue
@@ -110,7 +113,8 @@ def parse_cytobands(filename, skip=None):
     return cytobands
 
 
-def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
+def get_vaf(vcf_filename: Union[str, bytes, Path],
+            skip=None) -> Generator[tuple, None, None]:
     vcf = pysam.VariantFile(str(vcf_filename))
     for variant in vcf.fetch():
         if variant.chrom in skip:
@@ -126,7 +130,9 @@ def get_cnvs(vcf_filename, skip=None):
             continue
         caller = variant.info.get("CALLER")
         if caller is None:
-            raise KeyError("could not find caller information for variant, has the vcf been annotated?")
+            raise KeyError(
+                "could not find caller information for variant, has the vcf been annotated?"
+            )
         genes = variant.info.get("Genes")
         if genes is None:
             continue
@@ -146,7 +152,8 @@ def get_cnvs(vcf_filename, skip=None):
     return cnvs
 
 
-def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs):
+def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes,
+                    filtered_cnvs, unfiltered_cnvs):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
         cnvkit="cnvkit",
@@ -160,7 +167,14 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
             length=chrom_length,
             vaf=[],
             annotations=[],
-            callers={c: dict(name=c, label=caller_labels.get(c, c), ratios=[], segments=[], cnvs=[]) for c in callers},
+            callers={
+                c: dict(name=c,
+                        label=caller_labels.get(c, c),
+                        ratios=[],
+                        segments=[],
+                        cnvs=[])
+                for c in callers
+            },
         )
 
     for a in annotations:
@@ -170,20 +184,17 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                     start=item[1],
                     end=item[2],
                     name=item[3],
-                )
-            )
+                ))
 
     for c in cytobands:
         cnvs[c]["cytobands"] = cytobands[c]
 
     if vaf is not None:
         for v in vaf:
-            cnvs[v[0]]["vaf"].append(
-                dict(
-                    pos=v[1],
-                    vaf=v[2],
-                )
-            )
+            cnvs[v[0]]["vaf"].append(dict(
+                pos=v[1],
+                vaf=v[2],
+            ))
 
     # Iterate over the unfiltered CNVs and pair them according to overlap.
     for uf_cnvs, f_cnvs in zip(unfiltered_cnvs, filtered_cnvs):
@@ -227,8 +238,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                             cn=c.copy_number,
                             baf=c.baf,
                             passed_filter=pass_filter,
-                        )
-                    )
+                        ))
                     added_cnvs.add(c)
 
     for d in dicts:
@@ -238,16 +248,14 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                     start=r["start"],
                     end=r["end"],
                     log2=r["log2"],
-                )
-            )
+                ))
         for s in d["segments"]:
             cnvs[s["chromosome"]]["callers"][d["caller"]]["segments"].append(
                 dict(
                     start=s["start"],
                     end=s["end"],
                     log2=s["log2"],
-                )
-            )
+                ))
 
     for v in cnvs.values():
         v["callers"] = list(v["callers"].values())
@@ -300,7 +308,8 @@ def main():
         filtered_cnv_vcfs.append(get_cnvs(f_vcf, skip_chromosomes))
         unfiltered_cnv_vcfs.append(get_cnvs(uf_vcf, skip_chromosomes))
 
-    cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs)
+    cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, cytobands, fai,
+                           filtered_cnv_vcfs, unfiltered_cnv_vcfs)
 
     with open(output_file, "w") as f:
         print(json.dumps(cnvs), file=f)

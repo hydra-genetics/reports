@@ -26,28 +26,6 @@ properties:
         format: uri-reference
         description: URI of the pipeline
 
-  file_links:
-    type: array
-    description: List of file links
-    default: []
-    items:
-      type: object
-      properties:
-        name:
-          type: string
-          description: Descriptive name of the file
-        description:
-          type: string
-          description: Description of the file
-        uri:
-          type: string
-          format: uri-reference
-          description: URI of the file
-      required:
-        - name
-        - description
-        - uri
-
   results:
     type: array
     description: List of results to present
@@ -72,15 +50,18 @@ properties:
                 - plain_text
                 - single_value
                 - table
+                - file_link
             value:
               description: |
                 The value of the result. Exactly what this is depends on the type.
-
                 - file_table: a delimited text file (csv or tsv) with a header.
                 - image: the path to a png image.
                 - plain_text: a string containing the text to be presented.
                 - single_value: a single value, e.g. a number.
                 - table: a json representation of a table.
+                - file_link: path to file
+            nav_header:
+              description: If report is to be navigated through a tab menu, write under which header this result should fall under. For example Biomarker or Fusions. 
           required:
             - name
             - description
@@ -119,5 +100,4 @@ required:
   - sample
   - analysis_date
   - pipeline
-  - file_links
   - results

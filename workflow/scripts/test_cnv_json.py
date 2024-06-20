@@ -22,4 +22,5 @@ def test_existing_parsers():
 def test_parse_cnvkit_segments(cnvkit_segment_file):
     segments = cnv_json.PARSERS["cnvkit"]["segments"](cnvkit_segment_file)
     assert len(segments) == 9
-    assert all(x in segments[0] for x in ["chromosome", "start", "end", "log2"])
+    assert all(x in segments[0]
+               for x in ["chromosome", "start", "end", "log2"])

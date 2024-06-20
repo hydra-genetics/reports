@@ -66,15 +66,6 @@ properties:
     type: object
     description: parameters for general_html_report
     properties:
-      json:
-        type: string
-        format: uri-reference
-        description: |
-          Path to the sample-specific configuration of the report. The wildcards
-          `sample` and `type` are supported.
-        examples:
-          - "report_configs/{sample}_{type}/general_report.json"
-          - "report_configs/general_html_report/{sample}_{type}.general_report.json"
       final_directory_depth:
         type: integer
         description: |
@@ -92,7 +83,6 @@ properties:
         type: string
         description: parameters that should be forwarded
     required:
-      - json
       - final_directory_depth
 
   merge_cnv_json:

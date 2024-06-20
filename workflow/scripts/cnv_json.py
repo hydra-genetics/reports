@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 import sys
 
-
 # The functions `parse_*_ratios` functions take a filename of a file containing
 # copy number log2-ratios across the genome for a specific CNV caller. The
 # functions `parse_*_segments` takes a filename of a file containing log2-ratio
@@ -20,7 +19,6 @@ import sys
 #     "log2": float,
 # }
 #
-
 
 PARSERS = collections.defaultdict(dict)
 
@@ -90,8 +88,7 @@ def parse_cnvkit_ratios(file):
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[5]),
-            )
-        )
+            ))
     return ratios
 
 
@@ -105,8 +102,7 @@ def parse_cnvkit_segments(file):
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),
-            )
-        )
+            ))
     return segments
 
 
@@ -120,8 +116,7 @@ def parse_gatk_ratios(file):
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[3]),
-            )
-        )
+            ))
     return ratios
 
 
@@ -135,8 +130,7 @@ def parse_gatk_segments(file):
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),
-            )
-        )
+            ))
     return segments
 
 
@@ -163,7 +157,8 @@ def main():
 
     skip_chromosomes = snakemake.params["skip_chromosomes"]
 
-    csv.field_size_limit(snakemake.params.get('csv_field_size_limt', 100000000))
+    csv.field_size_limit(snakemake.params.get('csv_field_size_limt',
+                                              100000000))
 
     if caller not in PARSERS:
         print(f"error: no parser for {caller} implemented", file=sys.stderr)
@@ -174,7 +169,9 @@ def main():
 
     if skip_chromosomes is not None:
         ratios = [r for r in ratios if r["chromosome"] not in skip_chromosomes]
-        segments = [s for s in segments if s["chromosome"] not in skip_chromosomes]
+        segments = [
+            s for s in segments if s["chromosome"] not in skip_chromosomes
+        ]
 
     with open(output_filename, "w") as f:
         print(to_json(caller, ratios, segments), file=f)

@@ -1,4 +1,5 @@
 output: "../../config/output_files.yaml"
+general_report: "../../config/general_report.yaml"
 resources: "resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
@@ -10,8 +11,8 @@ cnv_html_report:
   cytobands: true
 
 general_html_report:
-  json: "config/{sample}_{type}.general_report.json"
   final_directory_depth: 2
+
 
 merge_cnv_json:
   annotations:

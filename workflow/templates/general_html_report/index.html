@@ -1,28 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <title>{{ metadata.sample }} &ndash; General Report</title>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link href="css/style.css" rel="stylesheet" />
-  </head>
-  <body>
-    <header>
-      <h1>{{ metadata.sample }}</h1>
-      <p><small>Report generated at {{ metadata.report_date }}</small></p>
-      <p><small>Sample analysed at {{ metadata.analysis_date }}</small></p>
-      <!-- x-release-please-start-version -->
-      <p class="fix-right">
-        <small>
-          <a href="https://github.com/hydra-genetics/reports/tree/v0.2.0"
-            >hydra-genetics/reports v0.2.0</a
-          >
-        </small>
-      </p>
-      <!-- x-release-please-end-version -->
-    </header>
+  <style>
+    {{ css | indent(width=8) }}
+  </style>
 
-    <div>
+    <head>
+      <title>{{ metadata.sample }} &ndash; General Report</title>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />    
+      <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+    
+    <div class="tab">
+      <h3> Sample: {{ metadata.sample }}</h3>
+
+    <button class="tablinks" onclick="openNav(event, 'Metadata')">Metadata</button>
+    {{ nav_bar }}
+    </div>
+
+    <div class="center">
+      <div id = "Metadata" class="tabcontent">
+        <h1>{{ metadata.sample }}</h1>
+
+        <p><small>Report generated at {{ metadata.report_date }}</small></p>
+        <p><small>Sample analysed at {{ metadata.analysis_date }}</small></p>
+        <!-- x-release-please-start-version -->
+        <p class="fix-right">
+          <small>
+            <a href="https://github.com/hydra-genetics/reports/tree/v0.2.0"
+              >hydra-genetics/reports v0.2.0</a
+            >
+          </small>
+        </p>
+        <!-- x-release-please-end-version -->
       <h2>Pipeline</h2>
       <ul>
         <li>Name: {{ pipeline.name }}</li>
@@ -34,72 +45,112 @@
       </ul>
     </div>
 
-    <div>
-      <h2>File links</h2>
+        {% for k in nav_header %}
+          <div id = "{{ k }}" class="tabcontent">
+            <h1>{{ metadata.sample }}</h1>
+            <h2> {{ k }} results</h2>
 
-      {% for fl in file_links %}
-      <div>
-        <h3>{{ fl.name }}</h3>
-        <p>{{ fl.description }}</p>
-        <p><a href="{{ fl.uri|urlencode() }}">{{ fl.uri.lstrip("./") }}</a></p>
+          {% for r in results %}
+            {% if r.nav_header == k %}
+              <div class="test">
+              <hr>
+              <h3>{{ r.name }}</h3>
+              <p>{{ r.description }}</p>
+              {% if r.type == "table" %}
+              <table>
+                <thead>
+                  <tr>
+                    {% for c in r.value[0].keys() %}
+                    <th>{{ c }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in r.value %}
+                  <tr>
+                    {% for k in r.value[0].keys() %}
+                    <td>{{ row[k] }}</td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              
+              {% elif r.type == "file_link" %}
+              <a href="{{ r.value}}">{{ r.value }} </a>
+
+              {% elif r.type == "single_value" %}
+              <div class="single">
+              <p>{{ r.value }}</p>
+              </div>
+              {% elif r.type == "image" %}
+              <img src="{{ r.value }}" />
+
+              {% elif r.type == "file_table" %}
+              <div class="scroll">
+              {{ r.data }}
+              </div>
+              {% elif r.type == "multiqc" %} {% if "table" in r.data %}
+              <div class="scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th title="Sample name">Sample</th>
+                    {% for k, v in r.data["table"]["header"].items() %}
+                    <th title="{{ v.description }}">{{ v.title }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for k, v in r.data["table"]["data"].items() %}
+                  <tr>
+                    <td>{{ k }}</td>
+                    {% for hk in r.data["table"]["header"].keys() %}
+                    <td>{{ v[hk] }}</td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              </div>
+            </hr>
+              {% endif %} {% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+          {% endfor %}
+
+
+        
       </div>
-      {% endfor %}
-    </div>
 
-    <div>
-      <h2>Results</h2>
 
-      {% for r in results %}
-      <div>
-        <h3>{{ r.name }}</h3>
-        <p>{{ r.description }}</p>
-        {% if r.type == "table" %}
-        <table>
-          <thead>
-            <tr>
-              {% for c in r.value[0].keys() %}
-              <th>{{ c }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in r.value %}
-            <tr>
-              {% for k in r.value[0].keys() %}
-              <td>{{ row[k] }}</td>
-              {% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% elif r.type == "single_value" %}
-        <p>{{ r.value }}</p>
-        {% elif r.type == "image" %}
-        <img src="{{ r.value }}" />
-        {% elif r.type == "multiqc" %} {% if "table" in r.data %}
-        <table>
-          <thead>
-            <tr>
-              <th title="Sample name">Sample</th>
-              {% for k, v in r.data["table"]["header"].items() %}
-              <th title="{{ v.description }}">{{ v.title }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for k, v in r.data["table"]["data"].items() %}
-            <tr>
-              <td>{{ k }}</td>
-              {% for hk in r.data["table"]["header"].keys() %}
-              <td>{{ v[hk] }}</td>
-              {% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% endif %} {% endif %}
-      </div>
-      {% endfor %}
+      
+
+      <script>
+        function openNav(evt, navHeader) {
+        // Declare all variables
+        var i, tabcontent, tablinks;
+
+        // Get all elements with class="tabcontent" and hide them
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+          tabcontent[i].style.display = "none";
+        }
+
+        // Get all elements with class="tablinks" and remove the class "active"
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+          tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+
+        // Show the current tab, and add an "active" class to the link that opened the tab
+        document.getElementById(navHeader).style.display = "block";
+        evt.currentTarget.className += " active";
+      } 
+      </script>
+
     </div>
-  </body>
+    </body>  
 </html>

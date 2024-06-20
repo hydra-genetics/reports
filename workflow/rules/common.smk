@@ -13,7 +13,7 @@ import yaml
 from snakemake.io import Wildcards
 from snakemake.utils import validate
 from snakemake.utils import min_version
-
+from datetime import datetime
 from hydra_genetics.utils.resources import load_resources
 from hydra_genetics.utils.samples import *
 from hydra_genetics.utils.units import *
@@ -45,6 +45,7 @@ units = (
 
 validate(units, schema="../schemas/units.schema.yaml")
 
+
 with open(config["output"]) as output:
     if config["output"].endswith("json"):
         output_spec = json.load(output)
@@ -52,6 +53,12 @@ with open(config["output"]) as output:
         output_spec = yaml.safe_load(output.read())
 
 validate(output_spec, schema="../schemas/output_files.schema.yaml")
+
+with open(config["general_report"]) as f:
+    if f.name.endswith(".yaml"):
+        general_report = yaml.safe_load(f)
+
+validate(general_report, "../schemas/general_report.schema.yaml")
 
 
 ### Set wildcard constraints

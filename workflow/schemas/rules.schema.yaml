@@ -97,6 +97,10 @@ properties:
           html_template:
             type: string
             description: path to the html template to use for the report
+          internal_json:
+            type: [string, object]
+            description: pipeline specific json file
+
 
       output:
         type: object

@@ -1,0 +1,6 @@
+files:
+  - name: CNV report 
+    type: file_link
+    description: Link to CNV HTML report
+    input: results/dna/cnv/{sample}_{type}/{sample}_{type}.pathology_purecn.cnv.html
+    nav_header: CNV

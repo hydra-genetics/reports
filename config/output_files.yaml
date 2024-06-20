@@ -2,6 +2,10 @@ files:
   - name: "CNV HTML report"
     input: "reports/cnv_html_report/{sample}_{type}.pathology.cnv_report.html"
     output: "results/cnv/{sample}_{type}.pathology.cnv_report.html"
-  - name: "General HTML report"
+    types:
+      - T
+  - name: "General Report"
     input: "reports/general_html_report/{sample}_{type}.general_report.html"
-    output: "results/reports/{sample}_{type}.general_report.html"
+    output: "results/dna/reports/{sample}_{type}.general_report.html"
+    types:
+      - T

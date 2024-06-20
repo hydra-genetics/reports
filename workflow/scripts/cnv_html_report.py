@@ -8,7 +8,8 @@ def get_sample_name(filename):
     return Path(filename).name.split(".")[0]
 
 
-def create_report(template_filename, json_filename, css_files, js_files, show_table, tc, tc_method):
+def create_report(template_filename, json_filename, css_files, js_files,
+                  show_table, tc, tc_method):
     with open(template_filename) as f:
         template = Template(source=f.read())
 
@@ -37,8 +38,7 @@ def create_report(template_filename, json_filename, css_files, js_files, show_ta
                 tc=tc,
                 tc_method=tc_method,
             ),
-        )
-    )
+        ))
 
 
 def main():
