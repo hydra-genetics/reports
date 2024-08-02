@@ -1,0 +1,6 @@
+files:
+  - name: Tmb
+    type: single_value
+    description: Insert description here or write '' to leave blank
+    input: results/dna/{sample}_{type}/biomarker/{sample}_{type}.TMB.txt
+    nav_header: Biomarker

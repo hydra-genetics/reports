@@ -2,7 +2,7 @@ output: "../../config/output_files.yaml"
 resources: "resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
-
+general_report: "../../config/reports/general_report.yaml"
 reference:
   fai: reference/ref.fai
 

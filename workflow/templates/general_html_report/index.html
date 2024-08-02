@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <style>
+    {{ css | indent(width=8) }}
+  </style>
+
+    <head>
+      <title>{{ metadata.sample }} {{ pipeline.name }} General Report &ndash; General Report</title>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />    
+      <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+    
+    <div class="tab">
+      <h3> {{ metadata.sample }}</h3>
+
+    <button class="tablinks" onclick="openNav(event, 'Metadata')" id="defaultOpen">Metadata & Sample info</button>
+    {{ nav_bar }}
+    </div>
+    <div class="center">
+      <div id = "Metadata" class="tabcontent">
+        <h1>{{ pipeline.name }} General report</h1>
+        
+      <h3> Sample information </h3>
+      <table>
+        <thead>
+          <tr>
+            <td><b>Sample id</b></td>
+            <td>{{ metadata.sample }}</td>
+          </tr>
+          <tr>
+            <td><b>Sample type</b></td>
+            {% if '_T' in metadata.sample %}
+            <td>Tumor DNA</td>
+            {% elif '_R' in metadata.sample %}
+            <td> Tumor RNA</td>
+            {% else %}
+            <td> Normal tissue</td>
+            <td>1.20</td>
+            {% endif %}
+            </tr>
+            <tr>
+            {% if metadata.tc_pathology != 'NA' %}
+            <td><b>Tc pathology</b></td>
+            <td> {{ metadata.tc_pathology }} </td>
+            </tr>
+            <tr>
+            <td><b>Tc purecn</b></td>
+            <td>{{ metadata.tc_purecn }} </td>
+            {% endif %}
+            </tr>
+          
+        </thead>
+      </table>
+      <h3>Pipeline</h3>
+      <table>
+        <thead>
+          <tr>
+            <td><b>Name</b></td>
+            <td><b>Version</b></td>
+            <td><b>Source</b></td>
+          </tr>
+          <tr>
+            <td>{{ pipeline.name }}</td>
+            <td>  {{ pipeline.version }}</td>
+            <td><a href="{{ pipeline.uri }}">{{ pipeline.uri }}</a></td>
+          </tr>
+      </thead>
+      </table>
+        <div class="bottom">
+        <p><small>Report generated at {{ metadata.report_date }}</small></p>
+        <p><small>Sample analysed at {{ metadata.analysis_date }}</small></p>
+        <!-- x-release-please-start-version -->
+        <!-- x-release-please-end-version -->
+      </div>
+    </div>
+
+        {% for k in nav_header %}
+          <div id = "{{ k }}" class="tabcontent">
+            <h1>{{ pipeline.name }} General report</h1>
+            <h2> {{ k }} results</h2>
+
+          {% for r in results %}
+            {% if r.nav_header == k %}
+              <div class="test">
+              <hr>
+              <h3>{{ r.name }}</h3>
+              <p>{{ r.description }}</p>
+              {% if r.type == "table" %}
+              <table>
+                <thead>
+                  <tr>
+                    {% for c in r.value[0].keys() %}
+                    <th>{{ c }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in r.value %}
+                  <tr>
+                    {% for k in r.value[0].keys() %}
+                    <td>{{ row[k] }}</td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              
+              {% elif r.type == "file_link" %}
+              <a href="{{ r.value}}">{{ r.value }} </a>
+
+              {% elif r.type == "single_value" %}
+              <div class="single">
+              <p>{{ r.value }}</p>
+              </div>
+              {% elif r.type == "image" %}
+              <img src="{{ r.value }}" />
+
+              {% elif r.type == "file_table" %}
+              <div class="scroll">
+              {{ r.data }}
+              </div>
+              {% elif r.type == "multiqc" %} 
+              {% for t in r.data %}  
+              {% if "table" in t %}
+              <div class="scroll">
+              
+              
+              <table>
+                <thead>
+                  <tr>
+                    <th title="Sample name">Sample</th>
+                    {% for k, v in t["table"]["header"].items() %}
+                    <th title="{{ v.description }}">{{ v.title }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for k, v in t["table"]["data"].items() %}                  
+                  <tr>
+                    <td>{{ k }}</td>
+                    {% for hk in t["table"]["header"].keys() %}
+
+                    <td style="background-color: rgba({{t["table"]["header"][hk]["colour"]}}, 0.2)" >{{ v[hk] }} </td>
+
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              </div>
+            </hr>
+              {% endif %}
+              {% endfor %}
+              {% endif %}
+              </div>
+              
+            {% endif %}
+          {% endfor %}
+        </div>
+
+          {% endfor %}
+
+
+        
+      </div>
+
+
+      
+
+      <script>
+        function openNav(evt, navHeader) {
+        // Declare all variables
+        var i, tabcontent, tablinks;
+
+        // Get all elements with class="tabcontent" and hide them
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+          tabcontent[i].style.display = "none";
+        }
+
+        // Get all elements with class="tablinks" and remove the class "active"
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+          tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+                
+
+        // Show the current tab, and add an "active" class to the link that opened the tab
+        document.getElementById(navHeader).style.display = "block";
+        evt.currentTarget.className += " active";
+      } 
+      document.getElementById("defaultOpen").click();
+      </script>
+
+    </div>
+    </body>  
+</html>

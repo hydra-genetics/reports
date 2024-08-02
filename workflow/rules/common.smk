@@ -13,10 +13,11 @@ import yaml
 from snakemake.io import Wildcards
 from snakemake.utils import validate
 from snakemake.utils import min_version
-
+from datetime import datetime
 from hydra_genetics.utils.resources import load_resources
 from hydra_genetics.utils.samples import *
 from hydra_genetics.utils.units import *
+from hydra_genetics.utils.software_versions import get_pipeline_version
 
 min_version("7.8.3")
 
@@ -52,6 +53,9 @@ with open(config["output"]) as output:
         output_spec = yaml.safe_load(output.read())
 
 validate(output_spec, schema="../schemas/output_files.schema.yaml")
+
+pipeline_version = get_pipeline_version(workflow, pipeline_name="pipeline")
+date_string = datetime.now().strftime("%Y%m%d")
 
 
 ### Set wildcard constraints
@@ -126,6 +130,10 @@ def generate_copy_rules(output_spec):
     exec(compile("\n".join(rulestrings), "copy_result_files", "exec"), workflow.globals)
 
 
+with open(config["general_report"]) as f:
+    if f.name.endswith(".yaml"):
+        general_report = yaml.safe_load(f)
+
 if len(workflow.modules) == 0:
     # Only generate copy-rules if the workflow is executed directly.
     generate_copy_rules(output_spec)
@@ -182,19 +190,30 @@ def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
 
 
 def get_tc(wildcards):
-    if wildcards.tc_method == "pathology":
-        try:
+    tc_method = wildcards.tc_method
+    if tc_method == "pathology_purecn":
+        tc = ""
+        tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
+        if os.path.exists(tc_file):
+            with open(tc_file) as f:
+                tc = f.read().strip()
+        if tc == "" or float(tc) < 0.35:
             return get_sample(samples, wildcards)["tumor_content"]
-        except KeyError:
-            return None
-
-    tc_file = get_tc_file(wildcards)
-
-    if not os.path.exists(tc_file):
-        return None
-
-    with open(tc_file) as f:
-        return f.read().strip()
+        else:
+            return tc
+    elif tc_method == "pathology":
+        return get_sample(samples, wildcards)["tumor_content"]
+    else:
+        tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
+        if not os.path.exists(tc_file):
+            return -1
+        else:
+            with open(tc_file) as f:
+                tc = f.read().strip()
+                if tc == "":
+                    return "0.2"
+                else:
+                    return tc
 
 
 def get_tc_file(wildcards):
