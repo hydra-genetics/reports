@@ -96,16 +96,15 @@ class TestTableFilter(unittest.TestCase):
             unfiltered_cnvs=unfiltered_cnvs,
         )
 
-        # from pprint import pprint
-        # pprint(m)
-
         # Ordered dicts are guaranteed for python 3.7+
         assert m[0]["callers"][0]["name"] == "cnvkit"
         assert m[0]["callers"][1]["name"] == "gatk"
 
         # cnvkit segments
+        assert len(m[0]["callers"][0]["cnvs"]) == 2, "expected 2 cnvkit segments"
         assert m[0]["callers"][0]["cnvs"][0]["passed_filter"] is False, "first cnvkit segment should fail filter"
         assert m[0]["callers"][0]["cnvs"][1]["passed_filter"] is True, "second cnvkit segment should pass filter"
 
         # gatk segment
+        assert len(m[0]["callers"][1]["cnvs"]) == 1, "expected 1 gatk segment"
         assert m[0]["callers"][1]["cnvs"][0]["passed_filter"] is True, "gatk segment should pass filter"

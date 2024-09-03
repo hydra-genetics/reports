@@ -188,8 +188,8 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
             first_caller = callers[0]
             rest_callers = callers[1:]
 
-            # Keep track of added CNVs on a chromosome to avoid duplicates
-            added_cnvs = set()
+            # Keep track of added CNVs (and filter status) on a chromosome to avoid duplicates
+            added_cnvs = {}
 
             for cnv1 in cnvdict[first_caller]:
                 pass_filter = False
@@ -212,20 +212,25 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                                 pass_filter = True
 
                 for c in cnv_group:
-                    if c in added_cnvs:
-                        continue
-                    cnvs[c.chromosome]["callers"][c.caller]["cnvs"].append(
-                        dict(
-                            genes=c.genes,
-                            start=c.start,
-                            length=c.length,
-                            type=c.type,
-                            cn=c.copy_number,
-                            baf=c.baf,
-                            passed_filter=pass_filter,
-                        )
+                    # Track CNV filter status.
+                    # If a CNV that was previously set to not pass the filter,
+                    # but later passes due to another comparison, then update
+                    # the filter status.
+                    if c not in added_cnvs or pass_filter:
+                        added_cnvs[c] = pass_filter
+
+            for c, pass_filter in added_cnvs.items():
+                cnvs[c.chromosome]["callers"][c.caller]["cnvs"].append(
+                    dict(
+                        genes=c.genes,
+                        start=c.start,
+                        length=c.length,
+                        type=c.type,
+                        cn=c.copy_number,
+                        baf=c.baf,
+                        passed_filter=pass_filter,
                     )
-                    added_cnvs.add(c)
+                )
 
     for d in dicts:
         for r in sorted(d["ratios"], key=lambda x: x["start"]):
