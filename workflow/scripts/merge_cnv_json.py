@@ -1,11 +1,10 @@
 from collections import defaultdict
-from collections.abc import Generator
 from dataclasses import dataclass
 import json
 from pathlib import Path
 import pysam
 import sys
-from typing import Union
+from typing import Generator, Union
 
 
 @dataclass
