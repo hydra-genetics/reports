@@ -38,20 +38,6 @@ class CNV:
         return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.copy_number}")
 
 
-cytoband_config = snakemake.config.get("merge_cnv_json", {}).get("cytoband_config", {}).get("colors", {})
-cytoband_centromere = "acen"
-cytoband_colors = {
-    "gneg": cytoband_config.get("gneg", "#e3e3e3"),
-    "gpos25": cytoband_config.get("gpos25", "#555555"),
-    "gpos50": cytoband_config.get("gpos50", "#393939"),
-    "gpos75": cytoband_config.get("gpos75", "#8e8e8e"),
-    "gpos100": cytoband_config.get("gpos100", "#000000"),
-    "acen": cytoband_config.get("acen", "#963232"),
-    "gvar": cytoband_config.get("gvar", "#000000"),
-    "stalk": cytoband_config.get("stalk", "#7f7f7f"),
-}
-
-
 def parse_fai(filename, skip=None):
     with open(filename) as f:
         for line in f:
@@ -80,11 +66,7 @@ def annotation_parser():
     return parse_annotation_bed
 
 
-def cytoband_color(giemsa):
-    return cytoband_colors.get(giemsa, "#ff0000")
-
-
-def parse_cytobands(filename, skip=None):
+def parse_cytobands(filename, cytoband_colors, cytoband_centromere="acen", skip=None):
     cytobands = defaultdict(list)
     with open(filename) as f:
         for line in f:
@@ -98,7 +80,7 @@ def parse_cytobands(filename, skip=None):
                     "end": int(end),
                     "direction": "none",
                     "giemsa": giemsa,
-                    "color": cytoband_color(giemsa),
+                    "color": cytoband_colors.get(giemsa, "#ff0000"),
                 }
             )
 
@@ -292,6 +274,19 @@ def main():
     skip_chromosomes = snakemake.params["skip_chromosomes"]
     show_cytobands = snakemake.params["cytobands"]
 
+    cytoband_config = snakemake.config.get("merge_cnv_json", {}).get("cytoband_config", {}).get("colors", {})
+    cytoband_centromere = "acen"
+    cytoband_colors = {
+        "gneg": cytoband_config.get("gneg", "#e3e3e3"),
+        "gpos25": cytoband_config.get("gpos25", "#555555"),
+        "gpos50": cytoband_config.get("gpos50", "#393939"),
+        "gpos75": cytoband_config.get("gpos75", "#8e8e8e"),
+        "gpos100": cytoband_config.get("gpos100", "#000000"),
+        "acen": cytoband_config.get("acen", "#963232"),
+        "gvar": cytoband_config.get("gvar", "#000000"),
+        "stalk": cytoband_config.get("stalk", "#7f7f7f"),
+    }
+
     cnv_dicts = []
     for fname in json_files:
         with open(fname) as f:
@@ -308,7 +303,7 @@ def main():
 
     cytobands = []
     if cytoband_file and show_cytobands:
-        cytobands = parse_cytobands(cytoband_file, skip_chromosomes)
+        cytobands = parse_cytobands(cytoband_file, cytoband_colors, cytoband_centromere, skip_chromosomes)
 
     filtered_cnv_vcfs = []
     unfiltered_cnv_vcfs = []
