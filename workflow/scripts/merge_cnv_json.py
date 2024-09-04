@@ -102,6 +102,8 @@ def parse_cytobands(filename, cytoband_colors, cytoband_centromere="acen", skip=
 
 
 def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
+    if skip is None:
+        skip = []
     vcf = pysam.VariantFile(str(vcf_filename))
     for variant in vcf.fetch():
         if variant.chrom in skip:
