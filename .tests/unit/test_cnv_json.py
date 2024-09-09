@@ -2,8 +2,9 @@ from pathlib import Path
 import pytest
 import sys
 
-SCRIPT_DIR = Path(__file__).parent.resolve()
-INTEGRATION_DIR = SCRIPT_DIR / "../../.tests/integration"
+TEST_DIR = Path(__file__).parent.resolve()
+SCRIPT_DIR = TEST_DIR / "../../workflow/scripts"
+INTEGRATION_DIR = TEST_DIR / "../integration"
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import cnv_json  # noqa
