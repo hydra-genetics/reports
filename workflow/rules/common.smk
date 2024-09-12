@@ -150,6 +150,9 @@ def get_cnv_ratios(wildcards):
     if wildcards.caller == "gatk":
         return "cnv_sv/gatk_denoise_read_counts/{sample}_{type}.clean.denoisedCR.tsv"
 
+    if wildcards.caller == "jumble":
+        return "cnv_sv/jumble_run/{sample}_{type}/{sample}_{type}.bam.cnr"
+
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
@@ -159,6 +162,9 @@ def get_cnv_segments(wildcards):
 
     if wildcards.caller == "gatk":
         return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+
+    if wildcards.caller == "jumble":
+        return "cnv_sv/jumble_run/{sample}_{type}/{sample}_{type}.bam.cns"
 
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
