@@ -203,6 +203,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
     caller_labels = dict(
         cnvkit="cnvkit",
         gatk="GATK",
+        jumble="jumble",
     )
     cnvs = {}
     for chrom, chrom_length in chromosomes:
