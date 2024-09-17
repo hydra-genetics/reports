@@ -216,6 +216,19 @@ def get_tc(wildcards):
                     return tc
 
 
+def get_tc_general_report(wildcards):
+    if get_sample(samples, wildcards)["tumor_content"]:
+        tc_pathology = get_sample(samples, wildcards)["tumor_content"]
+    else:
+        tc_pathology = "NA"
+    tc_purecn = "NA"
+    tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
+    if os.path.exists(tc_file):
+        with open(tc_file) as f:
+            tc_purecn = f.read().strip()
+    return [tc_pathology, tc_purecn]
+
+
 def get_tc_file(wildcards):
     tc_method = wildcards.tc_method
     if tc_method == "pathology":

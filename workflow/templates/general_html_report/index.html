@@ -41,11 +41,13 @@
             {% endif %}
             </tr>
             <tr>
-            {% if metadata.tc_pathology != 'NA' %}
+            {% if metadata.tc_pathology %}
             <td><b>Tc pathology</b></td>
             <td> {{ metadata.tc_pathology }} </td>
+            {% endif %}
             </tr>
             <tr>
+            {% if metadata.tc_purecn %}
             <td><b>Tc purecn</b></td>
             <td>{{ metadata.tc_purecn }} </td>
             {% endif %}
@@ -83,7 +85,7 @@
 
           {% for r in results %}
             {% if r.nav_header == k %}
-              <div class="test">
+              <div class="padding">
               <hr>
               <h3>{{ r.name }}</h3>
               <p>{{ r.description }}</p>
@@ -111,6 +113,10 @@
               <a href="{{ r.value}}">{{ r.value }} </a>
 
               {% elif r.type == "single_value" %}
+              <div class="single">
+              <p>{{ r.value }}</p>
+              </div>
+              {% elif r.type == "plain_text" %}
               <div class="single">
               <p>{{ r.value }}</p>
               </div>

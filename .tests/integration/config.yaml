@@ -2,7 +2,9 @@ output: "../../config/output_files.yaml"
 resources: "resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
+default_container: "docker://hydragenetics/common:0.3.0"
 general_report: "../../config/reports/general_report.yaml"
+
 reference:
   fai: reference/ref.fai
 

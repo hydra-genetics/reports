@@ -128,20 +128,18 @@ def parse_multiqc(d: dict, multiqc_config: list):
                             value)
 
     multiqc_tables = []
-
     for table in multiqc_res['table']['data']:
         header = multiqc_res['table']['data'][table]
         old_header = multiqc_res['table']['header']
         new_header = {k: old_header[k] for k in header.keys()}
-
         # Keep custom header if custom header exists and matches headers in default header
         header_check = []
         for val in to_keep:
             if val in header:
                 header_check.append(val)
-
+        print(to_keep)
         if len(header_check) != 0:
-            custom_header = {k: old_header[k] for k in to_keep}
+            custom_header = {k: old_header[k] for k in header_check}
             multiqc_tables.append({
                 'table': {
                     'data': {
@@ -212,13 +210,11 @@ def generate_report(template_filename: str, config: dict,
     for header in navigation_bar:
         nav_bar_html += f'\t\t\t\t<button class="tablinks" onclick="openNav(event, \'{header}\')">{header}</button>\n'
 
-    if config["tc_pathology"]:
+    if (config["tc_pathology"] == 'NA') and (config["tc_purecn"] == 'NA'):
         return template.render(
             dict(metadata=dict(
                 analysis_date=config["analysis_date"],
                 report_date=time.strftime("%Y-%m-%d %H:%M", time.localtime()),
-                tc_pathology=config["tc_pathology"],
-                tc_purecn=config["tc_purecn"],
                 sample=config["sample"],
             ),
                  pipeline=config["pipeline"],
@@ -231,6 +227,8 @@ def generate_report(template_filename: str, config: dict,
             dict(metadata=dict(
                 analysis_date=config["analysis_date"],
                 report_date=time.strftime("%Y-%m-%d %H:%M", time.localtime()),
+                tc_pathology=config["tc_pathology"],
+                tc_purecn=config["tc_purecn"],
                 sample=config["sample"],
             ),
                  pipeline=config["pipeline"],

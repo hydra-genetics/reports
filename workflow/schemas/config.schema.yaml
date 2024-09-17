@@ -25,6 +25,29 @@ properties:
     required:
       - fai
 
+  general_html_report:
+    type: object
+    description: parameters for general_html_report
+    properties:
+      final_directory_depth:
+        type: integer
+        description: |
+          How deep in the final results directory the report will be. This
+          will be used to correctly resolve relative paths in the JSON config.
+          For example, if the report is located in the directory `results/reports`,
+          the depth would be 2.
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      extra:
+        type: string
+        description: parameters that should be forwarded
+    required:
+      - final_directory_depth
+
   cnv_html_report:
     type: object
     description: parameters for cnv_html_report
@@ -233,4 +256,5 @@ required:
   - units
   - output
   - resources
+  - general_report
   - default_container

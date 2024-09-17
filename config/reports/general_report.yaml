@@ -1,6 +1,31 @@
 files:
-  - name: Tmb
-    type: single_value
-    description: Insert description here or write '' to leave blank
-    input: results/dna/{sample}_{type}/biomarker/{sample}_{type}.TMB.txt
-    nav_header: Biomarker
+  - name: file_table
+    type: file_table
+    description: Comma or tab separated file
+    input: config/file_table.csv
+    nav_header: File types
+  - name: plain_text
+    type: plain_text
+    description: plain text file
+    input: config/plain_text.txt
+    nav_header: File types
+  - name: file_table (txt, Tab-separated)
+    type: file_table
+    description: A tab separated txt file
+    input: config/table.txt
+    nav_header: File types
+  - name: table
+    type: table
+    input: config/table.json
+    description: Json file with json representation of a table
+    nav_header: File types
+  - name: file_link
+    type: file_link
+    input: results/cnv/{sample}_{type}.pathology.cnv_report.html
+    description: File link to other results
+    nav_header: File types
+  - name: image
+    type: image
+    input: config/image.png
+    description: Image file
+    nav_header: File types

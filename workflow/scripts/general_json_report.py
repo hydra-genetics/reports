@@ -3,10 +3,9 @@
 
 import yaml
 import json
-import csv
 
 
-def metadata(sample, analysis_date, pipeline):
+def metadata(sample, analysis_date, pipeline, tc):
     # Uri Still in progress
     analysis_date = analysis_date
     pipeline_name = list(pipeline.keys())[0]
@@ -14,12 +13,8 @@ def metadata(sample, analysis_date, pipeline):
                     version=pipeline[pipeline_name]['version'],
                     uri="")
 
-    if tc != []:
-        tc_pathology = tc[0]
-        tc_purecn = tc[1]
-    else:
-        tc_pathology = 'NA'
-        tc_purecn = 'NA'
+    tc_pathology = tc[0]
+    tc_purecn = tc[1]
 
     dict_ = dict(sample=sample,
                  analysis_date=analysis_date,
@@ -29,20 +24,32 @@ def metadata(sample, analysis_date, pipeline):
     return dict_
 
 
-def table(file, name, type, description, nav_header):
-    with open(file) as f:
-        list_ = []
-        csv_table = csv.reader(f, delimiter='\t')
-        header = next(csv_table)
-        table = zip(*csv_table)
-        for tupl in table:
-            for val in tupl:
-                list_.append(val)
-        table_dict = dict(zip(header, list_))
+def plain_text(file, name, type, description, nav_header):
+    with open(file, 'r') as f:
+        plain_text = f.readlines()
+
+    new_lines = []
+    for val in plain_text:
+        if '\n' in val:
+            val = val.replace('\n', '')
+        new_lines.append(val)
+    plain_text = '<br>'.join(new_lines)
     dict_ = dict(name=name,
                  type=type,
                  description=description,
-                 value=[table_dict],
+                 value=plain_text,
+                 nav_header=nav_header)
+    return dict_
+
+
+def table(file, name, type, description, nav_header):
+    with open(file, 'r') as f:
+        json_file = json.load(f)
+
+    dict_ = dict(name=name,
+                 type=type,
+                 description=description,
+                 value=json_file,
                  nav_header=nav_header)
     return dict_
 
@@ -115,8 +122,11 @@ def generate_json(output_files, sample, analysis_date, pipeline):
             if d["type"] == "image":
                 results1 = file_table(sample_path, d['name'], d['type'],
                                       d['description'], nav_header)
+            if d["type"] == "plain_text":
+                results1 = plain_text(sample_path, d['name'], d['type'],
+                                      d['description'], nav_header)
         results.append(results1)
-    meta_data = metadata(sample, analysis_date, pipeline)
+    meta_data = metadata(sample, analysis_date, pipeline, tc)
     json_file = dict(meta_data, results=results)
     return json_file
 
