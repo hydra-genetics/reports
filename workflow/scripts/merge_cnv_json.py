@@ -106,14 +106,17 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
         skip = []
     vcf = pysam.VariantFile(str(vcf_filename))
     for variant in vcf.fetch():
-        if variant.chrom in skip:
+        chrom = variant.chrom
+        if not chrom.startswith("chr"):
+            chrom = f"chr{chrom}"
+        if chrom in skip:
             continue
         vaf = variant.info.get("AF")
         if isinstance(vaf, float):
-            yield variant.chrom, variant.pos, vaf
+            yield chrom, variant.pos, vaf
         elif vaf is not None:
             for f in vaf:
-                yield variant.chrom, variant.pos, f
+                yield chrom, variant.pos, f
 
 
 def get_cnvs(vcf_filename, skip=None):
