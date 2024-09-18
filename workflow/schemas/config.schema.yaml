@@ -25,6 +25,11 @@ properties:
     required:
       - fai
 
+  general_report:
+    type: string
+    format: uri-reference
+    description: path to yaml config for the general report
+
   general_html_report:
     type: object
     description: parameters for general_html_report
