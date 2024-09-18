@@ -161,7 +161,7 @@ def parse_jumble_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=f"chr{line[0]},
+                chromosome=f"chr{line[0]}",
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),
