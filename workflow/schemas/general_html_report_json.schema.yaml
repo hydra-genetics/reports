@@ -61,7 +61,7 @@ properties:
                 - table: a json representation of a table.
                 - file_link: path to file
             nav_header:
-              description: If report is to be navigated through a tab menu, write under which header this result should fall under. For example Biomarker or Fusions. 
+              description: If report is to be navigated through a tab menu, write under which header this result should fall under. For example Biomarker or Fusions.
           required:
             - name
             - description
