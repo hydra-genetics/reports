@@ -120,7 +120,10 @@ def get_cnvs(vcf_filename, skip=None):
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
     for variant in vcf.fetch():
-        if skip is not None and variant.chrom in skip:
+        chrom = variant.chrom
+        if not chrom.startswith("chr"):
+            chrom = f"chr{chrom}"
+        if skip is not None and chrom in skip:
             continue
         caller = variant.info.get("CALLER")
         if caller is None:
@@ -132,7 +135,7 @@ def get_cnvs(vcf_filename, skip=None):
             genes = [genes]
         cnv = CNV(
             caller,
-            variant.chrom,
+            chrom,
             sorted(genes),
             variant.pos,
             variant.info.get("SVLEN"),
@@ -140,7 +143,7 @@ def get_cnvs(vcf_filename, skip=None):
             variant.info.get("CORR_CN"),
             variant.info.get("BAF"),
         )
-        cnvs[variant.chrom][caller].append(cnv)
+        cnvs[chrom][caller].append(cnv)
     return cnvs
 
 
