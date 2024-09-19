@@ -431,9 +431,9 @@ class ChromosomePlot extends EventTarget {
         },
         function(d) {
           if (this.dataset.chromosome && this.dataset.caller) {
-            return [this.dataset.caller, this.dataset.chromosome, d.start, d.end];
+            return [this.dataset.caller, this.dataset.chromosome, d];
           }
-          return [self.activeCaller, self.data.chromosome, d.start, d.end];
+          return [self.activeCaller, self.data.chromosome, d];
         }
       )
       .join(
@@ -558,9 +558,9 @@ class ChromosomePlot extends EventTarget {
         this.#data.callers[this.#activeCaller].segments,
         function(d) {
           if (this.dataset.caller && this.dataset.chromosome) {
-            return [this.dataset.caller, this.dataset.chromosome, d.start, d.end];
+            return [this.dataset.caller, this.dataset.chromosome, d];
           }
-          return [self.activeCaller, self.data.chromosome, d.start, d.end];
+          return [self.activeCaller, self.data.chromosome, d];
         }
       )
       .join(
