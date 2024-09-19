@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/hydra-genetics/reports/compare/v0.4.2...v0.5.0) (2024-09-19)
+
+
+### Features
+
+* add jumble to reports module ([#80](https://github.com/hydra-genetics/reports/issues/80)) ([6a0bbc5](https://github.com/hydra-genetics/reports/commit/6a0bbc5a73360ce2720c186bc147b1f173dfc3d7))
+
+
+### Bug Fixes
+
+* rendering issue of summarised log2 ratios when changing caller ([6a0bbc5](https://github.com/hydra-genetics/reports/commit/6a0bbc5a73360ce2720c186bc147b1f173dfc3d7))
+
 ## [0.4.2](https://github.com/hydra-genetics/reports/compare/v0.4.1...v0.4.2) (2024-09-09)
 
 
