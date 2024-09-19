@@ -140,6 +140,36 @@ def parse_gatk_segments(file):
     return segments
 
 
+@cnv_parser("tsv", header=True)
+def parse_jumble_ratios(file):
+    ratios = []
+    for line in file:
+        ratios.append(
+            dict(
+                chromosome=f"chr{line[0]}",
+                start=int(line[1]),
+                end=int(line[2]),
+                log2=float(line[5]),
+            )
+        )
+    return ratios
+
+
+@cnv_parser("tsv", header=True)
+def parse_jumble_segments(file):
+    segments = []
+    for line in file:
+        segments.append(
+            dict(
+                chromosome=f"chr{line[0]}",
+                start=int(line[1]),
+                end=int(line[2]),
+                log2=float(line[4]),
+            )
+        )
+    return segments
+
+
 def to_json(caller, ratios, segments):
     json_dict = dict(
         caller=caller,

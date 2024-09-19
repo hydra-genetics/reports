@@ -106,21 +106,27 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
         skip = []
     vcf = pysam.VariantFile(str(vcf_filename))
     for variant in vcf.fetch():
-        if variant.chrom in skip:
+        chrom = variant.chrom
+        if not chrom.startswith("chr"):
+            chrom = f"chr{chrom}"
+        if chrom in skip:
             continue
         vaf = variant.info.get("AF")
         if isinstance(vaf, float):
-            yield variant.chrom, variant.pos, vaf
+            yield chrom, variant.pos, vaf
         elif vaf is not None:
             for f in vaf:
-                yield variant.chrom, variant.pos, f
+                yield chrom, variant.pos, f
 
 
 def get_cnvs(vcf_filename, skip=None):
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
     for variant in vcf.fetch():
-        if skip is not None and variant.chrom in skip:
+        chrom = variant.chrom
+        if not chrom.startswith("chr"):
+            chrom = f"chr{chrom}"
+        if skip is not None and chrom in skip:
             continue
         caller = variant.info.get("CALLER")
         if caller is None:
@@ -132,7 +138,7 @@ def get_cnvs(vcf_filename, skip=None):
             genes = [genes]
         cnv = CNV(
             caller,
-            variant.chrom,
+            chrom,
             sorted(genes),
             variant.pos,
             variant.info.get("SVLEN"),
@@ -140,7 +146,7 @@ def get_cnvs(vcf_filename, skip=None):
             variant.info.get("CORR_CN"),
             variant.info.get("BAF"),
         )
-        cnvs[variant.chrom][caller].append(cnv)
+        cnvs[chrom][caller].append(cnv)
     return cnvs
 
 
@@ -203,6 +209,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
     caller_labels = dict(
         cnvkit="cnvkit",
         gatk="GATK",
+        jumble="jumble",
     )
     cnvs = {}
     for chrom, chrom_length in chromosomes:
