@@ -106,21 +106,27 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
         skip = []
     vcf = pysam.VariantFile(str(vcf_filename))
     for variant in vcf.fetch():
-        if variant.chrom in skip:
+        chrom = variant.chrom
+        if not chrom.startswith("chr"):
+            chrom = f"chr{chrom}"
+        if chrom in skip:
             continue
         vaf = variant.info.get("AF")
         if isinstance(vaf, float):
-            yield variant.chrom, variant.pos, vaf
+            yield chrom, variant.pos, vaf
         elif vaf is not None:
             for f in vaf:
-                yield variant.chrom, variant.pos, f
+                yield chrom, variant.pos, f
 
 
 def get_cnvs(vcf_filename, skip=None):
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
     for variant in vcf.fetch():
-        if skip is not None and variant.chrom in skip:
+        chrom = variant.chrom
+        if not chrom.startswith("chr"):
+            chrom = f"chr{chrom}"
+        if skip is not None and chrom in skip:
             continue
         caller = variant.info.get("CALLER")
         if caller is None:
@@ -132,7 +138,7 @@ def get_cnvs(vcf_filename, skip=None):
             genes = [genes]
         cnv = CNV(
             caller,
-            variant.chrom,
+            chrom,
             sorted(genes),
             variant.pos,
             variant.info.get("SVLEN"),
@@ -140,7 +146,61 @@ def get_cnvs(vcf_filename, skip=None):
             variant.info.get("CORR_CN"),
             variant.info.get("BAF"),
         )
-        cnvs[variant.chrom][caller].append(cnv)
+        cnvs[chrom][caller].append(cnv)
+    return cnvs
+
+
+def filter_chr_cnvs(unfiltered_cnvs: Dict[str, List[CNV]], filtered_cnvs: Dict[str, List[CNV]]) -> Dict[str, List[Dict]]:
+    if len(unfiltered_cnvs) == 0:
+        return {}
+    callers = sorted(list(unfiltered_cnvs.keys()))
+    first_caller = callers[0]
+    rest_callers = callers[1:]
+
+    # Keep track of added CNVs (and filter status) on a chromosome to avoid duplicates
+    added_cnvs = {}
+
+    for cnv1 in unfiltered_cnvs[first_caller]:
+        pass_filter = False
+
+        if cnv1 in filtered_cnvs.get(first_caller, []):
+            # The CNV is part of the filtered set, so all overlapping
+            # CNVs should pass the filter.
+            pass_filter = True
+
+        cnv_group = [cnv1]
+        for caller2 in rest_callers:
+            for cnv2 in unfiltered_cnvs[caller2]:
+                if cnv1.overlaps(cnv2):
+                    # Add overlapping CNVs from other callers
+                    cnv_group.append(cnv2)
+
+                    if cnv2 in filtered_cnvs.get(caller2, []):
+                        # If the overlapping CNV is part of the filtered
+                        # set, the whole group should pass the filter.
+                        pass_filter = True
+
+        for c in cnv_group:
+            # Track CNV filter status.
+            # If a CNV that was previously set to not pass the filter,
+            # but later passes due to another comparison, then update
+            # the filter status.
+            if c not in added_cnvs or pass_filter:
+                added_cnvs[c] = pass_filter
+
+    cnvs = defaultdict(list)
+    for c, pass_filter in added_cnvs.items():
+        cnvs[c.caller].append(
+            dict(
+                genes=c.genes,
+                start=c.start,
+                length=c.length,
+                type=c.type,
+                cn=c.copy_number,
+                baf=c.baf,
+                passed_filter=pass_filter,
+            )
+        )
     return cnvs
 
 
@@ -203,6 +263,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
     caller_labels = dict(
         cnvkit="cnvkit",
         gatk="GATK",
+        jumble="jumble",
     )
     cnvs = {}
     for chrom, chrom_length in chromosomes:

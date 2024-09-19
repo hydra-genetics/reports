@@ -45,3 +45,4 @@ svdb_merge:
       cnv_caller:
         - cnvkit
         - gatk
+        - jumble
