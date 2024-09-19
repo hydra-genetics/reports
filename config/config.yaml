@@ -3,7 +3,7 @@ output: "config/output_files.yaml"
 resources: "config/resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
-
+general_report: "config/reports/general_report.yaml"
 default_container: "docker://hydragenetics/common:0.3.0"
 
 reference:
@@ -13,6 +13,9 @@ reference:
 cnv_html_report:
   cytobands: false
   show_table: true
+
+general_html_report:
+  final_directory_depth: 3
 
 merge_cnv_json:
   annotations:

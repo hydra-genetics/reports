@@ -1,0 +1,103 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: General Report JSON Config
+description: Configuration of a general HTML report for a Hydra Genetics pipeline
+type: object
+properties:
+  sample:
+    type: string
+    description: Name of the sample
+
+  analysis_date:
+    type: string
+    description: Date of the analysis
+
+  pipeline:
+    type: object
+    description: Pipeline information
+    properties:
+      name:
+        type: string
+        description: Name of the pipeline
+      version:
+        type: string
+        description: Version of the pipeline
+      uri:
+        type: string
+        format: uri-reference
+        description: URI of the pipeline
+
+  results:
+    type: array
+    description: List of results to present
+    default: []
+    items:
+      type: object
+      oneOf:
+        - type: object
+          properties:
+            name:
+              type: string
+              description: A descriptive name of the result
+            description:
+              type: string
+              description: A more detailed description of the result
+            type:
+              type: string
+              description: The type of result
+              enum:
+                - file_table
+                - image
+                - plain_text
+                - single_value
+                - table
+                - file_link
+            value:
+              description: |
+                The value of the result. Exactly what this is depends on the type.
+                - file_table: a delimited text file (csv or tsv) with a header.
+                - image: the path to a png image.
+                - plain_text: a string containing the text to be presented.
+                - single_value: a single value, e.g. a number.
+                - table: a json representation of a table.
+                - file_link: path to file
+            nav_header:
+              description: If report is to be navigated through a tab menu, write under which header this result should fall under. For example Biomarker or Fusions.
+          required:
+            - name
+            - description
+            - type
+            - value
+        - type: object
+          properties:
+            name:
+              type: string
+              description: A descriptive name of the result
+            description:
+              type: string
+              description: A more detailed description of the result
+            type:
+              type: string
+              description: The type of result
+              const: multiqc
+            sections:
+              type: array
+              description: List of sections to include.
+              items:
+                type: string
+                description: Name of the section
+                enum:
+                  - table
+            value:
+              description: Path to a MultiQC JSON file where this sample is included.
+          required:
+            - name
+            - description
+            - type
+            - sections
+            - value
+
+required:
+  - sample
+  - analysis_date
+  - pipeline
+  - results
