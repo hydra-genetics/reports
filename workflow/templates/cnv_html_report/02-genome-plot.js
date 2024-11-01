@@ -325,7 +325,7 @@ class GenomePlot extends EventTarget {
             );
           }
         },
-        function(d) {
+        function (d) {
           if (this.dataset.caller) {
             return [this.dataset.caller, d.start, d.log2, d.mean];
           }
@@ -458,25 +458,26 @@ class GenomePlot extends EventTarget {
         },
         (exit) => {
           if (exit.data()[0]?.mean) {
-            return exit.call((exit) => {
-              exit
-                .selectAll(".variance-rect")
-                .transition()
-                .duration(this.animationDuration)
-                .attr("y", this.ratioYScale.range()[1])
-                .attr("height", 0)
-            })
-            .call((exit) => {
-              exit
-                .selectAll(".mean")
-                .transition()
-                .duration(this.animationDuration)
-                .attr("y1", this.ratioYScale.range()[1])
-                .attr("y2", this.ratioYScale.range()[1])
-            })
-            .transition()
-            .delay(this.animationDuration)
-            .remove();
+            return exit
+              .call((exit) => {
+                exit
+                  .selectAll(".variance-rect")
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y", this.ratioYScale.range()[1])
+                  .attr("height", 0);
+              })
+              .call((exit) => {
+                exit
+                  .selectAll(".mean")
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("y1", this.ratioYScale.range()[1])
+                  .attr("y2", this.ratioYScale.range()[1]);
+              })
+              .transition()
+              .delay(this.animationDuration)
+              .remove();
           }
 
           return exit
@@ -498,7 +499,7 @@ class GenomePlot extends EventTarget {
           d.callers[this.#activeCaller].segments.filter(
             (s) => s.end - s.start > this.totalLength / this.width
           ),
-        function(d) {
+        function (d) {
           if (this.dataset.caller) {
             return [this.dataset.caller, d.start, d.end, d.log2];
           }
@@ -538,9 +539,9 @@ class GenomePlot extends EventTarget {
               .attr("d", (d, i, g) => {
                 let j = g[i].parentNode.dataset.index;
                 let xScale = this.xScales[j];
-                return `M${xScale(d.start)} ${this.ratioYScale(d.log2)} L ${xScale(
-                  d.end
-                )} ${this.ratioYScale(d.log2)}`;
+                return `M${xScale(d.start)} ${this.ratioYScale(
+                  d.log2
+                )} L ${xScale(d.end)} ${this.ratioYScale(d.log2)}`;
               });
           }),
         (exit) =>
