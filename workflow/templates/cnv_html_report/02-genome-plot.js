@@ -238,7 +238,9 @@ class GenomePlot extends EventTarget {
       )
       .attr("y1", (d) => this.ratioYScale(d))
       .attr("y2", (d) => this.ratioYScale(d))
-      .attr("class", "gridline");
+      .attr("class", (d) => {
+        return d === 0 ? "gridline baseline" : "gridline";
+      });
 
     vafGrid
       .selectAll(".gridline")

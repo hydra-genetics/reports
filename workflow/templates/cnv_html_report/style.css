@@ -103,6 +103,11 @@ svg .gridline {
   shape-rendering: crispEdges;
 }
 
+svg .gridline.baseline {
+  stroke: #777777;
+  stroke-width: 1.5px;
+}
+
 /* Narrow view */
 @media screen and (max-width: 600px) {
   .plot-container .x-label,
