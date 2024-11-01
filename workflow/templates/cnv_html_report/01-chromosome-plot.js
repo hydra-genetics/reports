@@ -98,6 +98,18 @@ class ChromosomePlot extends EventTarget {
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
       .attr("class", "plot-area");
 
+    this.cursor = this.#plotArea
+      .append("g")
+      .attr("class", "cursor")
+      .attr("opacity", 0);
+
+    this.cursor
+      .append("line")
+      .attr("class", "cursor-line")
+      .attr("y1", 0)
+      .attr("y2", 10000)
+      .attr("stroke", "black");
+
     if (this.#data.cytobands) {
       this.#cytobands = this.svg
         .append("g")
@@ -890,6 +902,7 @@ class ChromosomePlot extends EventTarget {
         d3
           .drag()
           .on("start", (e) => {
+            this.hideCursor();
             d3.select(".zoom-layer")
               .append("rect")
               .attr("class", "zoom-region")
@@ -927,6 +940,7 @@ class ChromosomePlot extends EventTarget {
             }
           })
           .on("end", (e) => {
+            this.showCursor();
             d3.select(".zoom-region").remove();
             let xMin = Math.max(0, Math.min(e.x, e.subject.x));
             let xMax = Math.min(
@@ -947,7 +961,14 @@ class ChromosomePlot extends EventTarget {
           this.resetZoom();
           this.update();
         }
-      });
+        this.showCursor();
+      })
+      .on("mouseenter mousemove", (e) => {
+        console.log(e);
+        let x = d3.pointer(e)[0];
+        this.setCursor(x);
+      })
+      .on("mouseleave", () => this.hideCursor());
   }
 
   #setLabels() {
@@ -1054,6 +1075,22 @@ class ChromosomePlot extends EventTarget {
       .attr("x2", this.xScale.range()[1]);
 
     this.svg.select(".x-label").text(this.#data.label);
+  }
+
+  hideCursor() {
+    this.cursor.attr("opacity", 0);
+  }
+
+  showCursor() {
+    this.cursor.attr("opacity", 1);
+  }
+
+  setCursor(x) {
+    this.cursor
+      .attr("opacity", 1)
+      .select(".cursor-line")
+      .attr("x1", x)
+      .attr("x2", x);
   }
 
   getZoomRange() {
