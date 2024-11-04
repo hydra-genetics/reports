@@ -1104,7 +1104,8 @@ class ChromosomePlot extends EventTarget {
 
   setCursor(x) {
     let chromosomePos = Math.floor(this.xScale.invert(x)).toLocaleString();
-    let [labelWidth, labelHeight] = getTextDimensions(chromosomePos, "0.8rem");
+    let labelHeight = getTextDimensions("0,", "0.8rem")[1];
+    let labelWidth = getTextDimensions(chromosomePos, "0.8rem")[0];
     let margin = 5;
     this.cursor.attr("opacity", 1).attr("transform", `translate(${x}, 0)`);
     this.cursor
