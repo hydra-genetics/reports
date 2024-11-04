@@ -1146,7 +1146,9 @@ class ChromosomePlot extends EventTarget {
       .selectAll(".y-axis .tick")
       .lower()
       .append("line")
-      .attr("class", "gridline")
+      .attr("class", (d) => {
+        return d == 0 ? "gridline baseline" : "gridline";
+      })
       .attr("x2", this.xScale.range()[1]);
 
     this.svg.select(".x-label").text(this.#data.label);
