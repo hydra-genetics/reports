@@ -103,6 +103,16 @@ svg .gridline {
   shape-rendering: crispEdges;
 }
 
+svg .cursor-line {
+  stroke: #888888;
+}
+
+svg .cursor-label {
+  fill: #dddddd;
+  stroke: #888888;
+  stroke-width: 1px;
+}
+
 svg .cursor text {
   font-size: 0.8rem;
 }

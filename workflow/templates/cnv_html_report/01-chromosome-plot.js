@@ -153,6 +153,7 @@ class ChromosomePlot extends EventTarget {
       .append("rect")
       .attr("class", "cursor-label")
       .attr("y", this.plotHeight * 2 + this.margin.between + 5)
+      .attr("rx", 3)
       .attr("stroke", "black")
       .attr("fill", "white");
 
