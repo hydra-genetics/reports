@@ -107,8 +107,21 @@ class ChromosomePlot extends EventTarget {
       .append("line")
       .attr("class", "cursor-line")
       .attr("y1", 0)
-      .attr("y2", this.plotHeight * 2 + this.margin.between)
+      .attr("y2", this.plotHeight * 2 + this.margin.between + 5)
       .attr("stroke", "black");
+
+    this.cursor
+      .append("rect")
+      .attr("class", "cursor-label")
+      .attr("y", this.plotHeight * 2 + this.margin.between + 5)
+      .attr("stroke", "black")
+      .attr("fill", "white");
+
+    this.cursor
+      .append("text")
+      .attr("x", 5)
+      .attr("y", this.plotHeight * 2 + this.margin.between + 20)
+      .attr("fill", "black");
 
     if (this.#data.cytobands) {
       this.#cytobands = this.svg
@@ -1085,7 +1098,19 @@ class ChromosomePlot extends EventTarget {
   }
 
   setCursor(x) {
+    let chromosomePos = Math.floor(this.xScale.invert(x));
+    let [labelWidth, labelHeight] = getTextDimensions(chromosomePos, "0.8rem");
+    let margin = 5;
     this.cursor.attr("opacity", 1).attr("transform", `translate(${x}, 0)`);
+    this.cursor
+      .select(".cursor-label")
+      .attr("x", -labelWidth / 2 - margin)
+      .attr("width", labelWidth + 2 * margin)
+      .attr("height", labelHeight + 2 * margin);
+    this.cursor
+      .select("text")
+      .attr("x", -labelWidth / 2)
+      .text(chromosomePos);
   }
 
   getZoomRange() {

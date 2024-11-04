@@ -103,6 +103,10 @@ svg .gridline {
   shape-rendering: crispEdges;
 }
 
+svg .cursor text {
+  font-size: 0.8rem;
+}
+
 /* Narrow view */
 @media screen and (max-width: 600px) {
   .plot-container .x-label,
