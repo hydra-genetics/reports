@@ -98,31 +98,6 @@ class ChromosomePlot extends EventTarget {
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
       .attr("class", "plot-area");
 
-    this.cursor = this.#plotArea
-      .append("g")
-      .attr("class", "cursor")
-      .attr("opacity", 0);
-
-    this.cursor
-      .append("line")
-      .attr("class", "cursor-line")
-      .attr("y1", 0)
-      .attr("y2", this.plotHeight * 2 + this.margin.between + 5)
-      .attr("stroke", "black");
-
-    this.cursor
-      .append("rect")
-      .attr("class", "cursor-label")
-      .attr("y", this.plotHeight * 2 + this.margin.between + 5)
-      .attr("stroke", "black")
-      .attr("fill", "white");
-
-    this.cursor
-      .append("text")
-      .attr("x", 5)
-      .attr("y", this.plotHeight * 2 + this.margin.between + 20)
-      .attr("fill", "black");
-
     if (this.#data.cytobands) {
       this.#cytobands = this.svg
         .append("g")
@@ -157,6 +132,36 @@ class ChromosomePlot extends EventTarget {
 
     this.#initializeZoom();
     this.#setLabels();
+
+    this.annotations = this.#plotArea
+      .append("g")
+      .attr("class", "annotation-container");
+
+    this.cursor = this.#plotArea
+      .append("g")
+      .attr("class", "cursor")
+      .attr("opacity", 0);
+
+    this.cursor
+      .append("line")
+      .attr("class", "cursor-line")
+      .attr("y1", 0)
+      .attr("y2", this.plotHeight * 2 + this.margin.between + 5)
+      .attr("stroke", "black");
+
+    this.cursor
+      .append("rect")
+      .attr("class", "cursor-label")
+      .attr("y", this.plotHeight * 2 + this.margin.between + 5)
+      .attr("stroke", "black")
+      .attr("fill", "white");
+
+    this.cursor
+      .append("text")
+      .attr("x", 5)
+      .attr("y", this.plotHeight * 2 + this.margin.between + 20)
+      .attr("fill", "black");
+
     this.update();
   }
 
@@ -745,7 +750,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   #plotAnnotations() {
-    this.#plotArea
+    this.annotations
       .selectAll(".annotation")
       .data(this.#data.annotations, (d) => [d.name, d.start, d.end])
       .join(
