@@ -108,6 +108,16 @@ svg .gridline.baseline {
   stroke-width: 1.5px;
 }
 
+svg .cursor-line {
+  stroke: #888888;
+}
+
+svg .cursor-label {
+  fill: #dddddd;
+  stroke: #888888;
+  stroke-width: 1px;
+}
+
 /* Narrow view */
 @media screen and (max-width: 600px) {
   .plot-container .x-label,

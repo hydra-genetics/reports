@@ -1,3 +1,79 @@
+class PlotCursor {
+  constructor(config) {
+    this.parent = config?.element ? config.element : document.body;
+    this.fontSize = config?.fontSize ? config.fontSize : "0.8rem";
+    this.height = config?.height ? config.height : 100;
+    this.labelMargin = config?.labelMargin
+      ? config.labelMargin
+      : { top: 2, right: 5, bottom: 5, left: 5 };
+    this.labelHeight = getTextDimensions("0,", this.fontSize)[1];
+    this.scale = config?.scale ? config.scale : null;
+    this.hidden = true;
+
+    if (this.scale === null) {
+      throw Error("scale cannot be null");
+    }
+
+    this.cursor = this.parent
+      .append("g")
+      .attr("class", "cursor")
+      .attr("opacity", this.hidden ? 0 : 1);
+
+    this.cursor
+      .append("line")
+      .attr("class", "cursor-line")
+      .attr("y1", 0)
+      .attr("y2", this.height)
+      .attr("stroke", "black");
+
+    this.cursor
+      .append("rect")
+      .attr("class", "cursor-label")
+      .attr("y", this.height + 5)
+      .attr(
+        "height",
+        this.labelHeight + this.labelMargin.top + this.labelMargin.bottom
+      )
+      .attr("rx", 3)
+      .attr("stroke", "black")
+      .attr("fill", "white");
+
+    this.cursor
+      .append("text")
+      .attr("x", 5)
+      .attr("y", this.height + 5 + this.labelMargin.top + this.labelHeight)
+      .attr("fill", "black")
+      .attr("font-size", this.fontSize);
+  }
+
+  show() {
+    this.hidden = false;
+    this.cursor.attr("opacity", 1);
+  }
+
+  hide() {
+    this.hidden = true;
+    this.cursor.attr("opacity", 0);
+  }
+
+  set(x) {
+    let label = Math.floor(this.scale.invert(x)).toLocaleString();
+    let labelWidth = getTextDimensions(label, this.fontSize)[0];
+    this.cursor.attr("opacity", 1).attr("transform", `translate(${x}, 0)`);
+    this.cursor
+      .select(".cursor-label")
+      .attr("x", -labelWidth / 2 - this.labelMargin.left)
+      .attr(
+        "width",
+        labelWidth + this.labelMargin.left + this.labelMargin.right
+      );
+    this.cursor
+      .select("text")
+      .attr("x", -labelWidth / 2)
+      .text(label);
+  }
+}
+
 class ChromosomePlot extends EventTarget {
   #data;
   #activeCaller;
@@ -132,6 +208,17 @@ class ChromosomePlot extends EventTarget {
 
     this.#initializeZoom();
     this.#setLabels();
+
+    this.annotations = this.#plotArea
+      .append("g")
+      .attr("class", "annotation-container");
+
+    this.cursor = new PlotCursor({
+      element: this.#plotArea,
+      height: this.plotHeight * 2 + this.margin.between,
+      scale: this.xScale,
+    });
+
     this.update();
   }
 
@@ -720,7 +807,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   #plotAnnotations() {
-    this.#plotArea
+    this.annotations
       .selectAll(".annotation")
       .data(this.#data.annotations, (d) => [d.name, d.start, d.end])
       .join(
@@ -890,6 +977,7 @@ class ChromosomePlot extends EventTarget {
         d3
           .drag()
           .on("start", (e) => {
+            this.cursor.hide();
             d3.select(".zoom-layer")
               .append("rect")
               .attr("class", "zoom-region")
@@ -927,6 +1015,7 @@ class ChromosomePlot extends EventTarget {
             }
           })
           .on("end", (e) => {
+            this.cursor.show();
             d3.select(".zoom-region").remove();
             let xMin = Math.max(0, Math.min(e.x, e.subject.x));
             let xMax = Math.min(
@@ -940,14 +1029,21 @@ class ChromosomePlot extends EventTarget {
             this.update();
           })
       )
-      .on("click", () => {
+      .on("click", (e) => {
         let [xMin, xMax] = this.xScale.domain();
         if (xMax - xMin !== this.length) {
           // Only reset if something actually changed
           this.resetZoom();
           this.update();
         }
-      });
+        let xPos = d3.pointer(e)[0];
+        this.cursor.set(xPos);
+      })
+      .on("mouseenter mousemove", (e) => {
+        let xPos = d3.pointer(e)[0];
+        this.cursor.set(xPos);
+      })
+      .on("mouseleave", () => this.cursor.hide());
   }
 
   #setLabels() {
