@@ -107,7 +107,7 @@ class ChromosomePlot extends EventTarget {
       .append("line")
       .attr("class", "cursor-line")
       .attr("y1", 0)
-      .attr("y2", 10000)
+      .attr("y2", this.plotHeight * 2 + this.margin.between)
       .attr("stroke", "black");
 
     if (this.#data.cytobands) {
@@ -964,7 +964,6 @@ class ChromosomePlot extends EventTarget {
         this.showCursor();
       })
       .on("mouseenter mousemove", (e) => {
-        console.log(e);
         let x = d3.pointer(e)[0];
         this.setCursor(x);
       })
@@ -1086,11 +1085,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   setCursor(x) {
-    this.cursor
-      .attr("opacity", 1)
-      .select(".cursor-line")
-      .attr("x1", x)
-      .attr("x2", x);
+    this.cursor.attr("opacity", 1).attr("transform", `translate(${x}, 0)`);
   }
 
   getZoomRange() {
