@@ -973,14 +973,14 @@ class ChromosomePlot extends EventTarget {
             this.update();
           })
       )
-      .on("click", () => {
+      .on("click", (e) => {
         let [xMin, xMax] = this.xScale.domain();
         if (xMax - xMin !== this.length) {
           // Only reset if something actually changed
           this.resetZoom();
           this.update();
         }
-        this.showCursor();
+        this.setCursor(d3.pointer(e)[0]);
       })
       .on("mouseenter mousemove", (e) => {
         let x = d3.pointer(e)[0];
