@@ -113,10 +113,6 @@ svg .cursor-label {
   stroke-width: 1px;
 }
 
-svg .cursor text {
-  font-size: 0.8rem;
-}
-
 /* Narrow view */
 @media screen and (max-width: 600px) {
   .plot-container .x-label,
