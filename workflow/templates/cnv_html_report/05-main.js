@@ -133,6 +133,31 @@ d3.select("#chromosome-show-all-datapoints").on("change", (e) => {
   chromosomePlot.showAllData = e.target.checked;
 });
 
+const baselineOffsetInput = d3.select("#chromosome-baseline-offset");
+const currentBaselineOffset = d3.select("#current-baseline-offset");
+const baselineOffsetReset = d3.select("#reset-baseline-offset");
+
+baselineOffsetInput.on("change", (e) => {
+  const dy = e.target.value;
+  baselineOffsetReset.property("disabled", true);
+  if (dy != 0) {
+    baselineOffsetReset.property("disabled", false);
+  }
+  chromosomePlot.setBaselineOffset(dy);
+});
+
+baselineOffsetInput.on("input", (e) => {
+  const dy = e.target.value;
+  currentBaselineOffset.text(dy);
+});
+
+baselineOffsetReset.on("click", () => {
+  baselineOffsetInput.node().value = 0;
+  baselineOffsetReset.property("disabled", true);
+  currentBaselineOffset.text(0);
+  baselineOffsetInput.node().dispatchEvent(new Event("change"));
+});
+
 d3.selectAll("input[name=dataset]").on("change", (e) => {
   chromosomePlot.activeCaller = parseInt(e.target.value);
   genomePlot.activeCaller = parseInt(e.target.value);
