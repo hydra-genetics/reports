@@ -144,6 +144,7 @@ baselineOffsetInput.on("change", (e) => {
     baselineOffsetReset.property("disabled", false);
   }
   chromosomePlot.setBaselineOffset(dy);
+  genomePlot.setBaselineOffset(dy);
 });
 
 baselineOffsetInput.on("input", (e) => {

@@ -16,6 +16,7 @@ class GenomePlot extends EventTarget {
     this.height = config?.height ? config.height : 400;
     this.width = config?.width ? config.width : 800;
     this.#data = config?.data;
+    this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
     this.#activeCaller = config?.caller ? config.caller : 0;
     this.#selectedChromosome = config?.selectedChromosome
       ? config.selectedChromosome
@@ -327,9 +328,19 @@ class GenomePlot extends EventTarget {
         },
         function (d) {
           if (this.dataset.caller) {
-            return [this.dataset.caller, d.start, d.log2, d.mean];
+            return [
+              this.dataset.caller,
+              d.start,
+              d.log2 - this.baselineOffset,
+              d.mean,
+            ];
           }
-          return [self.activeCaller, d.start, d.log2, d.mean];
+          return [
+            self.activeCaller,
+            d.start,
+            d.log2 - this.baselineOffset,
+            d.mean,
+          ];
         }
       )
       .join(
@@ -358,8 +369,12 @@ class GenomePlot extends EventTarget {
                   .attr("opacity", 0.5)
                   .transition()
                   .duration(this.animationDuration)
-                  .attr("y1", (d) => this.ratioYScale(d.mean))
-                  .attr("y2", (d) => this.ratioYScale(d.mean))
+                  .attr("y1", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset)
+                  )
+                  .attr("y2", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset)
+                  )
               )
               .call((g) =>
                 g
@@ -381,7 +396,9 @@ class GenomePlot extends EventTarget {
                   .attr("fill-opacity", 0.3)
                   .transition()
                   .duration(this.animationDuration)
-                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr("y", (d) =>
+                    this.ratioYScale(d.mean + d.sd - this.baselineOffset)
+                  )
                   .attr("height", (d) =>
                     this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
                   )
@@ -403,7 +420,9 @@ class GenomePlot extends EventTarget {
               enter
                 .transition()
                 .duration(this.animationDuration)
-                .attr("cy", (d) => this.ratioYScale(d.log2))
+                .attr("cy", (d) =>
+                  this.ratioYScale(d.log2 - this.baselineOffset)
+                )
             );
         },
         (update) => {
@@ -424,8 +443,12 @@ class GenomePlot extends EventTarget {
                       d.end
                     )
                   )
-                  .attr("y1", (d) => this.ratioYScale(d.mean))
-                  .attr("y2", (d) => this.ratioYScale(d.mean))
+                  .attr("y1", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset)
+                  )
+                  .attr("y2", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset)
+                  )
               )
               .call((update) =>
                 update
@@ -437,7 +460,9 @@ class GenomePlot extends EventTarget {
                       d.start
                     )
                   )
-                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr("y", (d) =>
+                    this.ratioYScale(d.mean + d.sd - this.baselineOffset)
+                  )
                   .attr("height", (d) =>
                     this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
                   )
@@ -453,7 +478,7 @@ class GenomePlot extends EventTarget {
               .attr("cx", (d, i, g) =>
                 this.xScales[g[i].parentNode.dataset.index](d.start)
               )
-              .attr("cy", (d) => this.ratioYScale(d.log2))
+              .attr("cy", (d) => this.ratioYScale(d.log2 - this.baselineOffset))
           );
         },
         (exit) => {
@@ -527,8 +552,10 @@ class GenomePlot extends EventTarget {
                   let j = g[i].parentNode.dataset.index;
                   let xScale = this.xScales[j];
                   return `M${xScale(d.start)} ${this.ratioYScale(
-                    d.log2
-                  )} L ${xScale(d.end)} ${this.ratioYScale(d.log2)}`;
+                    d.log2 - this.baselineOffset
+                  )} L ${xScale(d.end)} ${this.ratioYScale(
+                    d.log2 - this.baselineOffset
+                  )}`;
                 })
             ),
         (update) =>
@@ -540,8 +567,10 @@ class GenomePlot extends EventTarget {
                 let j = g[i].parentNode.dataset.index;
                 let xScale = this.xScales[j];
                 return `M${xScale(d.start)} ${this.ratioYScale(
-                  d.log2
-                )} L ${xScale(d.end)} ${this.ratioYScale(d.log2)}`;
+                  d.log2 - this.baselineOffset
+                )} L ${xScale(d.end)} ${this.ratioYScale(
+                  d.log2 - this.baselineOffset
+                )}`;
               });
           }),
         (exit) =>
@@ -687,6 +716,11 @@ class GenomePlot extends EventTarget {
         },
       })
     );
+  }
+
+  setBaselineOffset(dy) {
+    this.baselineOffset = dy;
+    this.update();
   }
 
   update() {
