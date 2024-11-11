@@ -148,14 +148,15 @@ baselineOffsetInput.on("change", (e) => {
 });
 
 baselineOffsetInput.on("input", (e) => {
-  const dy = e.target.value;
-  currentBaselineOffset.text(dy);
+  const dy = parseFloat(e.target.value);
+  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 1 });
+  currentBaselineOffset.text(strdy);
 });
 
 baselineOffsetReset.on("click", () => {
   baselineOffsetInput.node().value = 0;
   baselineOffsetReset.property("disabled", true);
-  currentBaselineOffset.text(0);
+  currentBaselineOffset.text("0.0");
   baselineOffsetInput.node().dispatchEvent(new Event("change"));
 });
 

@@ -89,6 +89,13 @@ dialog.info p i {
   max-width: 60em;
 }
 
+#current-baseline-offset {
+  display: inline-block;
+  width: 1.75rem;
+  text-align: right;
+  margin-right: 0.5rem;
+}
+
 svg .panel-overlay {
   stroke: forestgreen;
 }
