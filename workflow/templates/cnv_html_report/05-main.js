@@ -133,31 +133,38 @@ d3.select("#chromosome-show-all-datapoints").on("change", (e) => {
   chromosomePlot.showAllData = e.target.checked;
 });
 
-const baselineOffsetInput = d3.select("#chromosome-baseline-offset");
+const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
 const currentBaselineOffset = d3.select("#current-baseline-offset");
 const baselineOffsetReset = d3.select("#reset-baseline-offset");
 
-baselineOffsetInput.on("change", (e) => {
-  const dy = e.target.value;
+baselineOffsetSlider.on("change", () => {
+  currentBaselineOffset.node().dispatchEvent(new Event("change"));
+});
+
+baselineOffsetSlider.on("input", (e) => {
+  const dy = parseFloat(e.target.value);
+  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  currentBaselineOffset.node().value = strdy;
+});
+
+currentBaselineOffset.on("change", (e) => {
+  const dy = parseFloat(e.target.value);
   baselineOffsetReset.property("disabled", true);
   if (dy != 0) {
     baselineOffsetReset.property("disabled", false);
   }
+  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  baselineOffsetSlider.node().value = dy;
+  currentBaselineOffset.node().value = strdy;
   chromosomePlot.setBaselineOffset(dy);
   genomePlot.setBaselineOffset(dy);
 });
 
-baselineOffsetInput.on("input", (e) => {
-  const dy = parseFloat(e.target.value);
-  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 1 });
-  currentBaselineOffset.text(strdy);
-});
-
 baselineOffsetReset.on("click", () => {
-  baselineOffsetInput.node().value = 0;
+  baselineOffsetSlider.node().value = 0;
   baselineOffsetReset.property("disabled", true);
-  currentBaselineOffset.text("0.0");
-  baselineOffsetInput.node().dispatchEvent(new Event("change"));
+  currentBaselineOffset.node().value = "0.00";
+  baselineOffsetSlider.node().dispatchEvent(new Event("change"));
 });
 
 d3.selectAll("input[name=dataset]").on("change", (e) => {

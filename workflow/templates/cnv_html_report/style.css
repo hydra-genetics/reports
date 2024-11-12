@@ -90,9 +90,7 @@ dialog.info p i {
 }
 
 #current-baseline-offset {
-  display: inline-block;
-  width: 1.75rem;
-  text-align: right;
+  width: 3rem;
   margin-right: 0.5rem;
 }
 
