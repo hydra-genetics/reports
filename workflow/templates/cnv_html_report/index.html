@@ -64,6 +64,19 @@
                   >Show all data points</label
                 >
               </div>
+              <div>
+                <label for="chromosome-baseline-offset">Baseline offset</label>
+                <input
+                  type="range"
+                  id="chromosome-baseline-offset"
+                  min="-2"
+                  max="2"
+                  step="0.05"
+                  value="0"
+                />
+                <input type="number" min="-2" max="2" step="0.05" id="current-baseline-offset" value="0.00"></input>
+                <button id="reset-baseline-offset" disabled>Reset</button>
+              </div>
             </div>
             <svg id="chromosome-view"></svg>
             <dialog id="chromosome-view-dialog">

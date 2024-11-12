@@ -133,6 +133,56 @@ d3.select("#chromosome-show-all-datapoints").on("change", (e) => {
   chromosomePlot.showAllData = e.target.checked;
 });
 
+const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
+const currentBaselineOffset = d3.select("#current-baseline-offset");
+const baselineOffsetReset = d3.select("#reset-baseline-offset");
+
+baselineOffsetSlider.on("change", () => {
+  currentBaselineOffset.node().dispatchEvent(new Event("change"));
+});
+
+baselineOffsetSlider.on("input", (e) => {
+  const dy = parseFloat(e.target.value);
+  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  currentBaselineOffset.node().value = strdy;
+});
+
+currentBaselineOffset.on("change", (e) => {
+  const minDy = e.target.min ? parseFloat(e.target.min) : -2.0;
+  const maxDy = e.target.max ? parseFloat(e.target.max) : 2.0;
+  const dy = parseFloat(e.target.value);
+
+  if (dy < minDy || dy > maxDy) {
+    e.target.classList.add("invalid");
+    e.target.title = `Value outside the valid range [${minDy}, ${maxDy}]`;
+    console.error(
+      `baseline offset outside the valid range [${minDy}, ${maxDy}]`
+    );
+    return;
+  }
+
+  e.target.classList.remove("invalid");
+  e.target.title = "";
+
+  baselineOffsetReset.property("disabled", true);
+  if (dy != 0) {
+    baselineOffsetReset.property("disabled", false);
+  }
+
+  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  baselineOffsetSlider.node().value = dy;
+  currentBaselineOffset.node().value = strdy;
+  chromosomePlot.setBaselineOffset(dy);
+  genomePlot.setBaselineOffset(dy);
+});
+
+baselineOffsetReset.on("click", () => {
+  baselineOffsetSlider.node().value = 0;
+  baselineOffsetReset.property("disabled", true);
+  currentBaselineOffset.node().value = "0.00";
+  baselineOffsetSlider.node().dispatchEvent(new Event("change"));
+});
+
 d3.selectAll("input[name=dataset]").on("change", (e) => {
   chromosomePlot.activeCaller = parseInt(e.target.value);
   genomePlot.activeCaller = parseInt(e.target.value);
