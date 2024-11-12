@@ -148,11 +148,27 @@ baselineOffsetSlider.on("input", (e) => {
 });
 
 currentBaselineOffset.on("change", (e) => {
+  const minDy = e.target.min ? parseFloat(e.target.min) : -2.0;
+  const maxDy = e.target.max ? parseFloat(e.target.max) : 2.0;
   const dy = parseFloat(e.target.value);
+
+  if (dy < minDy || dy > maxDy) {
+    e.target.classList.add("invalid");
+    e.target.title = `Value outside the valid range [${minDy}, ${maxDy}]`;
+    console.error(
+      `baseline offset outside the valid range [${minDy}, ${maxDy}]`
+    );
+    return;
+  }
+
+  e.target.classList.remove("invalid");
+  e.target.title = "";
+
   baselineOffsetReset.property("disabled", true);
   if (dy != 0) {
     baselineOffsetReset.property("disabled", false);
   }
+
   const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
   baselineOffsetSlider.node().value = dy;
   currentBaselineOffset.node().value = strdy;

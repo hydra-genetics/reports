@@ -94,6 +94,10 @@ dialog.info p i {
   margin-right: 0.5rem;
 }
 
+#current-baseline-offset.invalid {
+  background-color: #ff6762;
+}
+
 svg .panel-overlay {
   stroke: forestgreen;
 }
