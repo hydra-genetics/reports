@@ -2,31 +2,33 @@ class PlotCursor {
   constructor(config) {
     this.parent = config?.element ? config.element : document.body;
     this.fontSize = config?.fontSize ? config.fontSize : "0.8rem";
+    this.width = config?.width ? config.width : 100;
     this.height = config?.height ? config.height : 100;
     this.labelMargin = config?.labelMargin
       ? config.labelMargin
       : { top: 2, right: 5, bottom: 5, left: 5 };
     this.labelHeight = getTextDimensions("0,", this.fontSize)[1];
-    this.scale = config?.scale ? config.scale : null;
+    this.xScale = config?.xScale ? config.xScale : null;
+    this.yScale = config?.yScale ? config.yScale : null;
     this.hidden = true;
 
-    if (this.scale === null) {
+    if (this.xScale === null || this.yScale === null) {
       throw Error("scale cannot be null");
     }
 
-    this.cursor = this.parent
+    this.verticalCursor = this.parent
       .append("g")
-      .attr("class", "cursor")
+      .attr("class", "vertical-cursor cursor")
       .attr("opacity", this.hidden ? 0 : 1);
 
-    this.cursor
+    this.verticalCursor
       .append("line")
       .attr("class", "cursor-line")
       .attr("y1", 0)
       .attr("y2", this.height)
       .attr("stroke", "black");
 
-    this.cursor
+    this.verticalCursor
       .append("rect")
       .attr("class", "cursor-label")
       .attr("y", this.height + 5)
@@ -38,36 +40,54 @@ class PlotCursor {
       .attr("stroke", "black")
       .attr("fill", "white");
 
-    this.cursor
+    this.verticalCursor
       .append("text")
       .attr("x", 5)
       .attr("y", this.height + 5 + this.labelMargin.top + this.labelHeight)
       .attr("fill", "black")
       .attr("font-size", this.fontSize);
+
+    this.horizontalCursor = this.parent
+      .append("g")
+      .attr("class", "horizontal-cursor cursor")
+      .attr("opacity", this.hidden ? 0 : 1);
+
+    this.horizontalCursor
+      .append("line")
+      .attr("class", "cursor-line")
+      .attr("x1", 0)
+      .attr("x2", this.width);
   }
 
   show() {
     this.hidden = false;
-    this.cursor.attr("opacity", 1);
+    this.verticalCursor.attr("opacity", 1);
+    this.horizontalCursor.attr("opacity", 1);
   }
 
   hide() {
     this.hidden = true;
-    this.cursor.attr("opacity", 0);
+    this.verticalCursor.attr("opacity", 0);
+    this.horizontalCursor.attr("opacity", 0);
   }
 
-  set(x) {
-    let label = Math.floor(this.scale.invert(x)).toLocaleString();
+  set(x, y) {
+    let label = Math.floor(this.xScale.invert(x)).toLocaleString();
     let labelWidth = getTextDimensions(label, this.fontSize)[0];
-    this.cursor.attr("opacity", 1).attr("transform", `translate(${x}, 0)`);
-    this.cursor
+    this.verticalCursor
+      .attr("opacity", 1)
+      .attr("transform", `translate(${x}, 0)`);
+    this.horizontalCursor
+      .attr("opacity", 1)
+      .attr("transform", `translate(0, ${y})`);
+    this.verticalCursor
       .select(".cursor-label")
       .attr("x", -labelWidth / 2 - this.labelMargin.left)
       .attr(
         "width",
         labelWidth + this.labelMargin.left + this.labelMargin.right
       );
-    this.cursor
+    this.verticalCursor
       .select("text")
       .attr("x", -labelWidth / 2)
       .text(label);
@@ -217,7 +237,8 @@ class ChromosomePlot extends EventTarget {
     this.cursor = new PlotCursor({
       element: this.#plotArea,
       height: this.plotHeight * 2 + this.margin.between,
-      scale: this.xScale,
+      width: this.width - this.margin.left - this.margin.right,
+      xScale: this.xScale,
     });
 
     this.update();
@@ -1053,12 +1074,10 @@ class ChromosomePlot extends EventTarget {
           this.resetZoom();
           this.update();
         }
-        let xPos = d3.pointer(e)[0];
-        this.cursor.set(xPos);
+        this.cursor.set(...d3.pointer(e));
       })
       .on("mouseenter mousemove", (e) => {
-        let xPos = d3.pointer(e)[0];
-        this.cursor.set(xPos);
+        this.cursor.set(...d3.pointer(e));
       })
       .on("mouseleave", () => this.cursor.hide());
   }
