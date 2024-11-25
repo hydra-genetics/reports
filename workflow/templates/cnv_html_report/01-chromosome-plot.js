@@ -314,6 +314,16 @@ class ChromosomePlot extends EventTarget {
       .attr("pointer-events", "all");
     this.mouseTrap
       .append("g")
+      .attr("transform", `translate(0,${this.plotHeight})`)
+      .attr("id", "zoom-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.margin.between)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+    this.mouseTrap
+      .append("g")
       .attr(
         "transform",
         `translate(0,${this.plotHeight + this.margin.between})`
@@ -329,6 +339,11 @@ class ChromosomePlot extends EventTarget {
     this.mouseTrap.select("#lr-mousetrap").on("mouseenter mousemove", (e) => {
       let pos = d3.pointer(e);
       this.ratioCursor.set(pos[1]);
+      this.positionCursor.set(pos[0]);
+    });
+
+    this.mouseTrap.select("#zoom-mousetrap").on("mouseenter mousemove", (e) => {
+      let pos = d3.pointer(e);
       this.positionCursor.set(pos[0]);
     });
 
