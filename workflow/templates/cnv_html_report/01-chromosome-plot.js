@@ -1228,12 +1228,19 @@ class ChromosomePlot extends EventTarget {
           })
       )
       .on("click", (e) => {
+        isDragging = false;
         const [xMin, xMax] = this.xScale.domain();
         if (xMax - xMin !== this.length) {
           this.resetZoom();
           this.update();
         }
-        positionCursor.set(d3.pointer(e)[0]);
+        const pos = d3.pointer(e);
+        positionCursor.set(pos[0]);
+        if (e.target.parentElement.id === "lr-mousetrap") {
+          ratioCursor.set(pos[1]);
+        } else if (e.target.parentElement.id == "vaf-mousetrap") {
+          vafCursor.set(pos[1]);
+        }
       });
 
     const positionCursor = new XCursor({
