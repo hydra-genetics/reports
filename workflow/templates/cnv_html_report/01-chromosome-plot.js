@@ -20,6 +20,7 @@ class YCursor {
       .append("g")
       .lower()
       .attr("class", "cursor")
+      .attr("pointer-events", "none")
       .attr("opacity", this.hidden ? 0 : 1);
 
     this.cursor
