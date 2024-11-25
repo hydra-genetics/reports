@@ -294,7 +294,6 @@ class ChromosomePlot extends EventTarget {
       .attr("data-chromosome", this.data.chromosome)
       .attr("data-caller", this.#activeCaller);
 
-    this.#initializeZoom();
     this.#setLabels();
 
     this.annotations = this.#plotArea
@@ -339,11 +338,80 @@ class ChromosomePlot extends EventTarget {
       this.positionCursor.set(pos[0]);
     });
 
-    this.mouseTrap.selectAll(".mousetrap").on("mouseleave", () => {
-      this.positionCursor.hide();
-      this.ratioCursor.hide();
-      this.vafCursor.hide();
-    });
+    // Where the zooming elements are drawn
+    this.zoomLayer = this.mouseTrap
+      .append("g")
+      .lower()
+      .attr("id", "zoom-layer");
+
+    this.mouseTrap
+      .selectAll(".mousetrap")
+      .on("mouseleave", () => {
+        this.positionCursor.hide();
+        this.ratioCursor.hide();
+        this.vafCursor.hide();
+      })
+      .call(
+        d3
+          .drag()
+          .on("start", (e) => {
+            this.zoomLayer
+              .append("rect")
+              .attr("id", "zoom-region")
+              .attr("x", e.x)
+              .attr(
+                "height",
+                this.height - this.margin.bottom - this.margin.top
+              )
+              .attr("stroke-width", 0)
+              .attr("fill-opacity", 0.1)
+              .attr("pointer-events", "none");
+          })
+          .on("drag", (e) => {
+            const leftBound = Math.min(e.x, e.subject.x);
+            let width = Math.abs(Math.max(0, e.x) - e.subject.x);
+
+            if (leftBound + width > this.xScale.range()[1]) {
+              width = this.xScale.range()[1] - leftBound;
+            }
+
+            const genomeWidth =
+              this.xScale.invert(Math.max(e.x, e.subject.x)) -
+              this.xScale.invert(leftBound);
+
+            const zoomRegion = this.zoomLayer
+              .select("#zoom-region")
+              .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
+              .attr("width", width);
+
+            if (genomeWidth < this.minZoomRange) {
+              zoomRegion.attr("fill", "red");
+            } else {
+              zoomRegion.attr("fill", "#333");
+            }
+          })
+          .on("end", (e) => {
+            this.zoomLayer.select("#zoom-region").remove();
+            const xMin = Math.max(0, Math.min(e.x, e.subject.x));
+            const xMax = Math.min(
+              this.xScale.range()[1],
+              Math.max(e.x, e.subject.x)
+            );
+            if (xMax - xMin < 3) {
+              return;
+            }
+            this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
+            this.update();
+          })
+      )
+      .on("click", (e) => {
+        const [xMin, xMax] = this.xScale.domain();
+        if (xMax - xMin !== this.length) {
+          this.resetZoom();
+          this.update();
+        }
+        this.positionCursor.set(d3.pointer(e)[0]);
+      });
 
     this.positionCursor = new XCursor({
       element: this.mouseTrap,
@@ -1122,86 +1190,6 @@ class ChromosomePlot extends EventTarget {
       .transition()
       .duration(this.animationDuration)
       .call(this.xAxis);
-  }
-
-  #initializeZoom() {
-    this.svg
-      .append("g")
-      .attr("transform", `translate(${this.margin.left}, ${this.margin.top})`)
-      .attr("class", "zoom-layer")
-      .append("rect")
-      .attr("width", this.width - this.margin.left - this.margin.right)
-      .attr("height", this.height - this.margin.top - this.margin.bottom)
-      .attr("fill", "transparent")
-      .call(
-        d3
-          .drag()
-          .on("start", (e) => {
-            this.positionCursor.hide();
-            d3.select(".zoom-layer")
-              .append("rect")
-              .attr("class", "zoom-region")
-              .attr("pointer-events", "none")
-              .attr("x", e.x)
-              .attr("width", 0)
-              .attr(
-                "height",
-                this.height - this.margin.bottom - this.margin.top
-              )
-              .attr("stroke-width", 0)
-              .attr("fill-opacity", 0.1);
-          })
-          .on("drag", (e) => {
-            let leftBound = Math.min(e.x, e.subject.x);
-            let width = Math.abs(Math.max(0, e.x) - e.subject.x);
-
-            if (leftBound + width > this.xScale.range()[1]) {
-              width = this.xScale.range()[1] - leftBound;
-            }
-
-            const genomeWidth =
-              this.xScale.invert(Math.max(e.x, e.subject.x)) -
-              this.xScale.invert(leftBound);
-
-            const zoomRegion = d3
-              .select(".zoom-region")
-              .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
-              .attr("width", width);
-
-            if (genomeWidth < this.minZoomRange) {
-              zoomRegion.attr("fill", "red");
-            } else {
-              zoomRegion.attr("fill", "#333");
-            }
-          })
-          .on("end", (e) => {
-            this.positionCursor.show();
-            d3.select(".zoom-region").remove();
-            let xMin = Math.max(0, Math.min(e.x, e.subject.x));
-            let xMax = Math.min(
-              this.xScale.range()[1],
-              Math.max(e.x, e.subject.x)
-            );
-            if (xMax - xMin < 3) {
-              return;
-            }
-            this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
-            this.update();
-          })
-      )
-      .on("click", (e) => {
-        let [xMin, xMax] = this.xScale.domain();
-        if (xMax - xMin !== this.length) {
-          // Only reset if something actually changed
-          this.resetZoom();
-          this.update();
-        }
-        this.positionCursor.set(d3.pointer(e)[0]);
-      });
-    // .on("mouseenter mousemove", (e) => {
-    //   this.positionCursor.set(d3.pointer(e)[0]);
-    // })
-    // .on("mouseleave", () => this.positionCursor.hide());
   }
 
   #setLabels() {
