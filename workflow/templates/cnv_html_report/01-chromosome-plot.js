@@ -1219,11 +1219,11 @@ class ChromosomePlot extends EventTarget {
               this.xScale.range()[1],
               Math.max(e.x, e.subject.x)
             );
+            isDragging = false;
             if (xMax - xMin < 3) {
               return;
             }
             this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
-            isDragging = false;
             this.update();
           })
       )
