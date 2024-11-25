@@ -300,151 +300,7 @@ class ChromosomePlot extends EventTarget {
       .append("g")
       .attr("class", "annotation-container");
 
-    this.mouseTrap = this.svg
-      .append("g")
-      .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
-    this.mouseTrap
-      .append("g")
-      .attr("id", "lr-mousetrap")
-      .append("rect")
-      .attr("class", "mousetrap")
-      .attr("width", this.width - this.margin.left - this.margin.right)
-      .attr("height", this.plotHeight)
-      .attr("fill", "none")
-      .attr("pointer-events", "all");
-    this.mouseTrap
-      .append("g")
-      .attr("transform", `translate(0,${this.plotHeight})`)
-      .attr("id", "zoom-mousetrap")
-      .append("rect")
-      .attr("class", "mousetrap")
-      .attr("width", this.width - this.margin.left - this.margin.right)
-      .attr("height", this.margin.between)
-      .attr("fill", "none")
-      .attr("pointer-events", "all");
-    this.mouseTrap
-      .append("g")
-      .attr(
-        "transform",
-        `translate(0,${this.plotHeight + this.margin.between})`
-      )
-      .attr("id", "vaf-mousetrap")
-      .append("rect")
-      .attr("class", "mousetrap")
-      .attr("width", this.width - this.margin.left - this.margin.right)
-      .attr("height", this.plotHeight)
-      .attr("fill", "none")
-      .attr("pointer-events", "all");
-
-    this.mouseTrap.select("#lr-mousetrap").on("mouseenter mousemove", (e) => {
-      let pos = d3.pointer(e);
-      this.ratioCursor.set(pos[1]);
-      this.positionCursor.set(pos[0]);
-    });
-
-    this.mouseTrap.select("#zoom-mousetrap").on("mouseenter mousemove", (e) => {
-      let pos = d3.pointer(e);
-      this.positionCursor.set(pos[0]);
-    });
-
-    this.mouseTrap.select("#vaf-mousetrap").on("mouseenter mousemove", (e) => {
-      let pos = d3.pointer(e);
-      this.vafCursor.set(pos[1]);
-      this.positionCursor.set(pos[0]);
-    });
-
-    // Where the zooming elements are drawn
-    this.zoomLayer = this.mouseTrap
-      .append("g")
-      .lower()
-      .attr("id", "zoom-layer");
-
-    this.mouseTrap
-      .selectAll(".mousetrap")
-      .on("mouseleave", () => {
-        this.positionCursor.hide();
-        this.ratioCursor.hide();
-        this.vafCursor.hide();
-      })
-      .call(
-        d3
-          .drag()
-          .on("start", (e) => {
-            this.zoomLayer
-              .append("rect")
-              .attr("id", "zoom-region")
-              .attr("x", e.x)
-              .attr(
-                "height",
-                this.height - this.margin.bottom - this.margin.top
-              )
-              .attr("stroke-width", 0)
-              .attr("fill-opacity", 0.1)
-              .attr("pointer-events", "none");
-          })
-          .on("drag", (e) => {
-            const leftBound = Math.min(e.x, e.subject.x);
-            let width = Math.abs(Math.max(0, e.x) - e.subject.x);
-
-            if (leftBound + width > this.xScale.range()[1]) {
-              width = this.xScale.range()[1] - leftBound;
-            }
-
-            const genomeWidth =
-              this.xScale.invert(Math.max(e.x, e.subject.x)) -
-              this.xScale.invert(leftBound);
-
-            const zoomRegion = this.zoomLayer
-              .select("#zoom-region")
-              .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
-              .attr("width", width);
-
-            if (genomeWidth < this.minZoomRange) {
-              zoomRegion.attr("fill", "red");
-            } else {
-              zoomRegion.attr("fill", "#333");
-            }
-          })
-          .on("end", (e) => {
-            this.zoomLayer.select("#zoom-region").remove();
-            const xMin = Math.max(0, Math.min(e.x, e.subject.x));
-            const xMax = Math.min(
-              this.xScale.range()[1],
-              Math.max(e.x, e.subject.x)
-            );
-            if (xMax - xMin < 3) {
-              return;
-            }
-            this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
-            this.update();
-          })
-      )
-      .on("click", (e) => {
-        const [xMin, xMax] = this.xScale.domain();
-        if (xMax - xMin !== this.length) {
-          this.resetZoom();
-          this.update();
-        }
-        this.positionCursor.set(d3.pointer(e)[0]);
-      });
-
-    this.positionCursor = new XCursor({
-      element: this.mouseTrap,
-      height: this.plotHeight * 2 + this.margin.between,
-      xScale: this.xScale,
-    });
-
-    this.ratioCursor = new YCursor({
-      element: this.mouseTrap.select("#lr-mousetrap"),
-      width: this.width - this.margin.left - this.margin.right,
-      yScale: this.ratioYScale,
-    });
-
-    this.vafCursor = new YCursor({
-      element: this.mouseTrap.select("#vaf-mousetrap"),
-      width: this.width - this.margin.left - this.margin.right,
-      yScale: this.vafYScale,
-    });
+    this.initialiseMousetrap();
 
     this.update();
   }
@@ -1238,6 +1094,152 @@ class ChromosomePlot extends EventTarget {
       .text("VAF")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
+  }
+
+  initialiseMousetrap() {
+    const mouseTrap = this.svg
+      .append("g")
+      .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
+    mouseTrap
+      .append("g")
+      .attr("id", "lr-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.plotHeight)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+    mouseTrap
+      .append("g")
+      .attr("transform", `translate(0,${this.plotHeight})`)
+      .attr("id", "zoom-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.margin.between)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+    mouseTrap
+      .append("g")
+      .attr(
+        "transform",
+        `translate(0,${this.plotHeight + this.margin.between})`
+      )
+      .attr("id", "vaf-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.plotHeight)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+
+    mouseTrap.select("#lr-mousetrap").on("mouseenter mousemove", (e) => {
+      let pos = d3.pointer(e);
+      ratioCursor.set(pos[1]);
+      positionCursor.set(pos[0]);
+    });
+
+    mouseTrap.select("#zoom-mousetrap").on("mouseenter mousemove", (e) => {
+      let pos = d3.pointer(e);
+      positionCursor.set(pos[0]);
+    });
+
+    mouseTrap.select("#vaf-mousetrap").on("mouseenter mousemove", (e) => {
+      let pos = d3.pointer(e);
+      vafCursor.set(pos[1]);
+      positionCursor.set(pos[0]);
+    });
+
+    // Where the zooming elements are drawn
+    const zoomLayer = mouseTrap.append("g").lower().attr("id", "zoom-layer");
+
+    // Handle zooming
+    mouseTrap
+      .selectAll(".mousetrap")
+      .on("mouseleave", () => {
+        positionCursor.hide();
+        ratioCursor.hide();
+        vafCursor.hide();
+      })
+      .call(
+        d3
+          .drag()
+          .on("start", (e) => {
+            zoomLayer
+              .append("rect")
+              .attr("id", "zoom-region")
+              .attr("x", e.x)
+              .attr(
+                "height",
+                this.height - this.margin.bottom - this.margin.top
+              )
+              .attr("stroke-width", 0)
+              .attr("fill-opacity", 0.1)
+              .attr("pointer-events", "none");
+          })
+          .on("drag", (e) => {
+            const leftBound = Math.min(e.x, e.subject.x);
+            let width = Math.abs(Math.max(0, e.x) - e.subject.x);
+
+            if (leftBound + width > this.xScale.range()[1]) {
+              width = this.xScale.range()[1] - leftBound;
+            }
+
+            const genomeWidth =
+              this.xScale.invert(Math.max(e.x, e.subject.x)) -
+              this.xScale.invert(leftBound);
+
+            const zoomRegion = zoomLayer
+              .select("#zoom-region")
+              .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
+              .attr("width", width);
+
+            if (genomeWidth < this.minZoomRange) {
+              zoomRegion.attr("fill", "red");
+            } else {
+              zoomRegion.attr("fill", "#333");
+            }
+          })
+          .on("end", (e) => {
+            zoomLayer.select("#zoom-region").remove();
+            const xMin = Math.max(0, Math.min(e.x, e.subject.x));
+            const xMax = Math.min(
+              this.xScale.range()[1],
+              Math.max(e.x, e.subject.x)
+            );
+            if (xMax - xMin < 3) {
+              return;
+            }
+            this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
+            this.update();
+          })
+      )
+      .on("click", (e) => {
+        const [xMin, xMax] = this.xScale.domain();
+        if (xMax - xMin !== this.length) {
+          this.resetZoom();
+          this.update();
+        }
+        positionCursor.set(d3.pointer(e)[0]);
+      });
+
+    const positionCursor = new XCursor({
+      element: mouseTrap,
+      height: this.plotHeight * 2 + this.margin.between,
+      xScale: this.xScale,
+    });
+
+    const ratioCursor = new YCursor({
+      element: mouseTrap.select("#lr-mousetrap"),
+      width: this.width - this.margin.left - this.margin.right,
+      yScale: this.ratioYScale,
+    });
+
+    const vafCursor = new YCursor({
+      element: mouseTrap.select("#vaf-mousetrap"),
+      width: this.width - this.margin.left - this.margin.right,
+      yScale: this.vafYScale,
+    });
   }
 
   #updateAxes() {
