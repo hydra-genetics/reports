@@ -1,34 +1,116 @@
-class PlotCursor {
+class YCursor {
   constructor(config) {
     this.parent = config?.element ? config.element : document.body;
     this.fontSize = config?.fontSize ? config.fontSize : "0.8rem";
     this.width = config?.width ? config.width : 100;
+    this.labelMargin = config?.labelMargin
+      ? config.labelMargin
+      : { top: 2, right: 5, bottom: 5, left: 5 };
+    this.textHeight = getTextDimensions("0,", this.fontSize)[1];
+    this.labelHeight =
+      this.textHeight + this.labelMargin.top + this.labelMargin.bottom;
+    this.yScale = config?.yScale ? config.yScale : null;
+    this.hidden = config?.hidden ? config.hidden : true;
+
+    if (this.yScale === null) {
+      throw Error("scale cannot be null");
+    }
+
+    this.cursor = this.parent
+      .append("g")
+      .lower()
+      .attr("class", "cursor")
+      .attr("opacity", this.hidden ? 0 : 1);
+
+    this.cursor
+      .append("line")
+      .attr("class", "cursor-line")
+      .attr("x1", 0)
+      .attr("x2", this.width)
+      .attr("stroke", "black");
+
+    this.cursor
+      .append("rect")
+      .attr("class", "cursor-label")
+      .attr("y", -this.labelHeight)
+      .attr("height", this.labelHeight)
+      .attr("rx", 3)
+      .attr("stroke", "black")
+      .attr("fill", "white");
+
+    this.cursor
+      .append("text")
+      .attr("x", 5)
+      .attr("fill", "black")
+      .attr("font-size", this.fontSize)
+      .attr("alignment-baseline", "baseline");
+  }
+
+  show() {
+    this.hidden = false;
+    this.cursor.attr("opacity", 1);
+  }
+
+  hide() {
+    this.hidden = true;
+    this.cursor.attr("opacity", 0);
+  }
+
+  set(y) {
+    let label = this.yScale.invert(y).toLocaleString();
+    let textWidth = getTextDimensions(label, this.fontSize)[0];
+    let labelWidth = textWidth + this.labelMargin.left + this.labelMargin.right;
+
+    this.cursor.attr("opacity", 1).attr("transform", `translate(0,${y})`);
+    this.cursor
+      .select(".cursor-label")
+      .attr("width", labelWidth)
+      .attr(
+        "transform",
+        `translate(${-(5 + labelWidth)}, ${this.labelHeight / 2})`
+      );
+    this.cursor
+      .select("text")
+      .attr(
+        "transform",
+        `translate(${-(5 + labelWidth)}, ${
+          this.labelHeight / 2 - this.labelMargin.bottom
+        })`
+      )
+      .text(label);
+  }
+}
+
+class XCursor {
+  constructor(config) {
+    this.parent = config?.element ? config.element : document.body;
+    this.fontSize = config?.fontSize ? config.fontSize : "0.8rem";
     this.height = config?.height ? config.height : 100;
     this.labelMargin = config?.labelMargin
       ? config.labelMargin
       : { top: 2, right: 5, bottom: 5, left: 5 };
     this.labelHeight = getTextDimensions("0,", this.fontSize)[1];
     this.xScale = config?.xScale ? config.xScale : null;
-    this.yScale = config?.yScale ? config.yScale : null;
     this.hidden = true;
 
-    if (this.xScale === null || this.yScale === null) {
+    if (this.xScale === null) {
       throw Error("scale cannot be null");
     }
 
-    this.verticalCursor = this.parent
+    this.cursor = this.parent
       .append("g")
+      .lower()
       .attr("class", "vertical-cursor cursor")
       .attr("opacity", this.hidden ? 0 : 1);
 
-    this.verticalCursor
+    this.cursor
       .append("line")
       .attr("class", "cursor-line")
       .attr("y1", 0)
       .attr("y2", this.height)
       .attr("stroke", "black");
 
-    this.verticalCursor
+    this.cursor
       .append("rect")
       .attr("class", "cursor-label")
       .attr("y", this.height + 5)
@@ -40,57 +122,41 @@ class PlotCursor {
       .attr("stroke", "black")
       .attr("fill", "white");
 
-    this.verticalCursor
+    this.cursor
       .append("text")
       .attr("x", 5)
       .attr("y", this.height + 5 + this.labelMargin.top + this.labelHeight)
       .attr("fill", "black")
       .attr("font-size", this.fontSize);
-
-    this.horizontalCursor = this.parent
-      .append("g")
-      .attr("class", "horizontal-cursor cursor")
-      .attr("opacity", this.hidden ? 0 : 1);
-
-    this.horizontalCursor
-      .append("line")
-      .attr("class", "cursor-line")
-      .attr("x1", 0)
-      .attr("x2", this.width);
   }
 
   show() {
     this.hidden = false;
-    this.verticalCursor.attr("opacity", 1);
-    this.horizontalCursor.attr("opacity", 1);
+    this.cursor.attr("opacity", 1);
   }
 
   hide() {
     this.hidden = true;
-    this.verticalCursor.attr("opacity", 0);
-    this.horizontalCursor.attr("opacity", 0);
+    this.cursor.attr("opacity", 0);
   }
 
-  set(x, y) {
-    let label = Math.floor(this.xScale.invert(x)).toLocaleString();
-    let labelWidth = getTextDimensions(label, this.fontSize)[0];
-    this.verticalCursor
-      .attr("opacity", 1)
-      .attr("transform", `translate(${x}, 0)`);
-    this.horizontalCursor
-      .attr("opacity", 1)
-      .attr("transform", `translate(0, ${y})`);
-    this.verticalCursor
+  set(x) {
+    let verticalLabel = Math.floor(this.xScale.invert(x)).toLocaleString();
+    let verticalLabelWidth = getTextDimensions(verticalLabel, this.fontSize)[0];
+
+    this.cursor.attr("opacity", 1).attr("transform", `translate(${x}, 0)`);
+
+    this.cursor
       .select(".cursor-label")
-      .attr("x", -labelWidth / 2 - this.labelMargin.left)
+      .attr("x", -verticalLabelWidth / 2 - this.labelMargin.left)
       .attr(
         "width",
-        labelWidth + this.labelMargin.left + this.labelMargin.right
+        verticalLabelWidth + this.labelMargin.left + this.labelMargin.right
       );
-    this.verticalCursor
+    this.cursor
       .select("text")
-      .attr("x", -labelWidth / 2)
-      .text(label);
+      .attr("x", -verticalLabelWidth / 2)
+      .text(verticalLabel);
   }
 }
 
@@ -234,11 +300,66 @@ class ChromosomePlot extends EventTarget {
       .append("g")
       .attr("class", "annotation-container");
 
-    this.cursor = new PlotCursor({
-      element: this.#plotArea,
+    this.mouseTrap = this.svg
+      .append("g")
+      .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
+    this.mouseTrap
+      .append("g")
+      .attr("id", "lr-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.plotHeight)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+    this.mouseTrap
+      .append("g")
+      .attr(
+        "transform",
+        `translate(0,${this.plotHeight + this.margin.between})`
+      )
+      .attr("id", "vaf-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.plotHeight)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+
+    this.mouseTrap.select("#lr-mousetrap").on("mouseenter mousemove", (e) => {
+      let pos = d3.pointer(e);
+      this.ratioCursor.set(pos[1]);
+      this.positionCursor.set(pos[0]);
+    });
+
+    this.mouseTrap.select("#vaf-mousetrap").on("mouseenter mousemove", (e) => {
+      let pos = d3.pointer(e);
+      this.vafCursor.set(pos[1]);
+      this.positionCursor.set(pos[0]);
+    });
+
+    this.mouseTrap.selectAll(".mousetrap").on("mouseleave", () => {
+      this.positionCursor.hide();
+      this.ratioCursor.hide();
+      this.vafCursor.hide();
+    });
+
+    this.positionCursor = new XCursor({
+      element: this.mouseTrap,
       height: this.plotHeight * 2 + this.margin.between,
-      width: this.width - this.margin.left - this.margin.right,
       xScale: this.xScale,
+    });
+
+    this.ratioCursor = new YCursor({
+      element: this.mouseTrap.select("#lr-mousetrap"),
+      width: this.width - this.margin.left - this.margin.right,
+      yScale: this.ratioYScale,
+    });
+
+    this.vafCursor = new YCursor({
+      element: this.mouseTrap.select("#vaf-mousetrap"),
+      width: this.width - this.margin.left - this.margin.right,
+      yScale: this.vafYScale,
     });
 
     this.update();
@@ -1015,7 +1136,7 @@ class ChromosomePlot extends EventTarget {
         d3
           .drag()
           .on("start", (e) => {
-            this.cursor.hide();
+            this.positionCursor.hide();
             d3.select(".zoom-layer")
               .append("rect")
               .attr("class", "zoom-region")
@@ -1053,7 +1174,7 @@ class ChromosomePlot extends EventTarget {
             }
           })
           .on("end", (e) => {
-            this.cursor.show();
+            this.positionCursor.show();
             d3.select(".zoom-region").remove();
             let xMin = Math.max(0, Math.min(e.x, e.subject.x));
             let xMax = Math.min(
@@ -1074,12 +1195,12 @@ class ChromosomePlot extends EventTarget {
           this.resetZoom();
           this.update();
         }
-        this.cursor.set(...d3.pointer(e));
-      })
-      .on("mouseenter mousemove", (e) => {
-        this.cursor.set(...d3.pointer(e));
-      })
-      .on("mouseleave", () => this.cursor.hide());
+        this.positionCursor.set(d3.pointer(e)[0]);
+      });
+    // .on("mouseenter mousemove", (e) => {
+    //   this.positionCursor.set(d3.pointer(e)[0]);
+    // })
+    // .on("mouseleave", () => this.positionCursor.hide());
   }
 
   #setLabels() {
