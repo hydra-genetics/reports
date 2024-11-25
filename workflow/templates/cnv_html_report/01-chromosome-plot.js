@@ -1176,6 +1176,8 @@ class ChromosomePlot extends EventTarget {
               .attr("stroke-width", 0)
               .attr("fill-opacity", 0.1)
               .attr("pointer-events", "none");
+            ratioCursor.hide();
+            vafCursor.hide();
           })
           .on("drag", (e) => {
             const leftBound = Math.min(e.x, e.subject.x);
@@ -1199,6 +1201,8 @@ class ChromosomePlot extends EventTarget {
             } else {
               zoomRegion.attr("fill", "#333");
             }
+
+            positionCursor.set(e.x);
           })
           .on("end", (e) => {
             zoomLayer.select("#zoom-region").remove();
