@@ -1097,6 +1097,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   initialiseMousetrap() {
+    let isDragging = false;
     const mouseTrap = this.svg
       .append("g")
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
@@ -1134,6 +1135,9 @@ class ChromosomePlot extends EventTarget {
       .attr("pointer-events", "all");
 
     mouseTrap.select("#lr-mousetrap").on("mouseenter mousemove", (e) => {
+      if (isDragging) {
+        return;
+      }
       let pos = d3.pointer(e);
       ratioCursor.set(pos[1]);
       positionCursor.set(pos[0]);
@@ -1145,6 +1149,9 @@ class ChromosomePlot extends EventTarget {
     });
 
     mouseTrap.select("#vaf-mousetrap").on("mouseenter mousemove", (e) => {
+      if (isDragging) {
+        return;
+      }
       let pos = d3.pointer(e);
       vafCursor.set(pos[1]);
       positionCursor.set(pos[0]);
@@ -1165,6 +1172,7 @@ class ChromosomePlot extends EventTarget {
         d3
           .drag()
           .on("start", (e) => {
+            isDragging = true;
             zoomLayer
               .append("rect")
               .attr("id", "zoom-region")
@@ -1215,6 +1223,7 @@ class ChromosomePlot extends EventTarget {
               return;
             }
             this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
+            isDragging = false;
             this.update();
           })
       )
