@@ -10,6 +10,9 @@ class YCursor {
     this.labelHeight =
       this.textHeight + this.labelMargin.top + this.labelMargin.bottom;
     this.yScale = config?.yScale ? config.yScale : null;
+    this.secondaryYScale = config?.secondaryYScale
+      ? config.secondaryYScale
+      : null;
     this.hidden = config?.hidden ? config.hidden : true;
 
     if (this.yScale === null) {
@@ -32,7 +35,7 @@ class YCursor {
 
     this.cursor
       .append("rect")
-      .attr("class", "cursor-label")
+      .attr("class", "cursor-label primary")
       .attr("y", -this.labelHeight)
       .attr("height", this.labelHeight)
       .attr("rx", 3)
@@ -41,10 +44,29 @@ class YCursor {
 
     this.cursor
       .append("text")
+      .attr("class", "primary")
       .attr("x", 5)
       .attr("fill", "black")
       .attr("font-size", this.fontSize)
       .attr("alignment-baseline", "baseline");
+
+    if (this.secondaryYScale !== null) {
+      this.cursor
+        .append("rect")
+        .attr("class", "cursor-label secondary")
+        .attr("y", -this.labelHeight)
+        .attr("height", this.labelHeight)
+        .attr("rx", 3)
+        .attr("stroke", "black")
+        .attr("fill", "white");
+
+      this.cursor
+        .append("text")
+        .attr("class", "secondary")
+        .attr("fill", "black")
+        .attr("font-size", this.fontSize)
+        .attr("alignment-baseline", "baseline");
+    }
   }
 
   show() {
@@ -63,15 +85,43 @@ class YCursor {
     let labelWidth = textWidth + this.labelMargin.left + this.labelMargin.right;
 
     this.cursor.attr("opacity", 1).attr("transform", `translate(0,${y})`);
+
+    if (this.secondaryYScale !== null) {
+      let secondaryLabel = this.secondaryYScale.invert(y).toLocaleString();
+      let secondaryTextWidth = getTextDimensions(
+        secondaryLabel,
+        this.fontSize
+      )[0];
+      let secondaryLabelWidth =
+        secondaryTextWidth + this.labelMargin.left + this.labelMargin.right;
+
+      this.cursor
+        .select(".cursor-label.secondary")
+        .attr("width", secondaryLabelWidth)
+        .attr(
+          "transform",
+          `translate(${this.width + 5}, ${this.labelHeight / 2})`
+        );
+      this.cursor
+        .select("text.secondary")
+        .attr(
+          "transform",
+          `translate(${this.width + 5 + this.labelMargin.left}, ${
+            this.labelHeight / 2 - this.labelMargin.bottom
+          })`
+        )
+        .text(secondaryLabel);
+    }
+
     this.cursor
-      .select(".cursor-label")
+      .select(".cursor-label.primary")
       .attr("width", labelWidth)
       .attr(
         "transform",
         `translate(${-(5 + labelWidth)}, ${this.labelHeight / 2})`
       );
     this.cursor
-      .select("text")
+      .select("text.primary")
       .attr(
         "transform",
         `translate(${-(5 + labelWidth)}, ${
@@ -1278,6 +1328,7 @@ class ChromosomePlot extends EventTarget {
       element: mouseTrap.select("#lr-mousetrap"),
       width: this.width - this.margin.left - this.margin.right,
       yScale: this.ratioYScale,
+      secondaryYScale: this.cnYScale,
     });
 
     const vafCursor = new YCursor({
