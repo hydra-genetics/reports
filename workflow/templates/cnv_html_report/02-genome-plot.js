@@ -69,7 +69,7 @@ class GenomePlot extends EventTarget {
       .select("#genome-view")
       .attr("preserveAspectRatio", "xMinYMin meet")
       .attr("viewBox", [0, 0, this.width, this.height])
-      .attr("style", "max-width: 100%; max-height: 500px; height: auto;");
+      .attr("style", "height: auto;");
 
     this.#plotArea = this.svg
       .append("g")

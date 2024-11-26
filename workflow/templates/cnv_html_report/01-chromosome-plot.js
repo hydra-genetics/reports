@@ -288,10 +288,7 @@ class ChromosomePlot extends EventTarget {
       .select(this.element)
       .attr("preserveAspectRatio", "xMinYMin meet")
       .attr("viewBox", [0, 0, this.width, this.height])
-      .attr(
-        "style",
-        "max-width: 100%; height: auto; max-height: 500px; height: intrinsic;"
-      );
+      .attr("style", "height: auto; height: intrinsic;");
 
     this.#drawAxes();
 
