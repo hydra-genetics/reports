@@ -217,6 +217,7 @@ class ChromosomePlot extends EventTarget {
       .domain([0, this.length])
       .range([0, this.width - this.margin.left - this.margin.right]);
     this.ratioYScale = d3.scaleLinear().range([this.plotHeight, 0]);
+    this.cnYScale = d3.scaleLog().base(2).range([this.plotHeight, 0]);
     this.vafYScale = d3
       .scaleLinear()
       .domain([0, 1])
@@ -230,6 +231,7 @@ class ChromosomePlot extends EventTarget {
           .ticks(8)
           .tickFormat((y, i) => (i % 2 == 0 ? y : ""))
       );
+    this.cnYAxis = (g) => g.call(d3.axisRight(this.cnYScale).ticks(5));
     this.vafYAxis = (g) => g.call(d3.axisLeft(this.vafYScale).ticks(5));
 
     this.svg = d3
@@ -1033,10 +1035,20 @@ class ChromosomePlot extends EventTarget {
     this.svg
       .insert("g", "#lr-area-clip")
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
-      .attr("class", "y-axis")
+      .attr("class", "y-axis primary-y-axis ratio-y-axis")
       .transition()
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.width - this.margin.right},${this.margin.top})`
+      )
+      .attr("class", "y-axis secondary-y-axis cn-y-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
     this.svg
       .insert("g", "#lr-area-clip")
       .attr(
@@ -1045,7 +1057,7 @@ class ChromosomePlot extends EventTarget {
           this.margin.top + this.plotHeight + this.margin.between
         })`
       )
-      .attr("class", "y-axis")
+      .attr("class", "y-axis primary-y-axis vaf-y-axis")
       .transition()
       .duration(this.animationDuration)
       .call(this.vafYAxis);
@@ -1307,6 +1319,10 @@ class ChromosomePlot extends EventTarget {
       );
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
+      this.cnYScale.domain([
+        cnFromRatio(yMin - padding),
+        cnFromRatio(yMax + padding),
+      ]);
     } else {
       this.dispatchEvent(
         new CustomEvent("zoom", {
@@ -1315,6 +1331,10 @@ class ChromosomePlot extends EventTarget {
       );
       const padding = (staticYMax - staticYMin) * 0.05;
       this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
+      this.cnYScale.domain([
+        cnFromRatio(staticYMin - padding),
+        cnFromRatio(staticYMax + padding),
+      ]);
     }
 
     this.svg
@@ -1324,13 +1344,18 @@ class ChromosomePlot extends EventTarget {
       .call(this.xAxis);
     this.svg
       .transition()
-      .select(".y-axis")
+      .select(".ratio-y-axis")
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+    this.svg
+      .transition()
+      .select(".cn-y-axis")
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
 
     this.svg.selectAll(".gridline").remove();
     this.svg
-      .selectAll(".y-axis .tick")
+      .selectAll(".primary-y-axis .tick")
       .lower()
       .append("line")
       .attr("class", (d) => {
