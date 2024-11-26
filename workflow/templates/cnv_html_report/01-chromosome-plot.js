@@ -194,7 +194,7 @@ class ChromosomePlot extends EventTarget {
       ? config.margin
       : {
           top: 10,
-          right: 30,
+          right: 60,
           bottom: 40,
           left: 60,
           between: 40,
@@ -1091,6 +1091,19 @@ class ChromosomePlot extends EventTarget {
       )
       .attr("class", "y-label")
       .text("log2 ratio")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
+
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(${this.width},${
+          this.margin.top + this.plotHeight / 2
+        }) rotate(90)`
+      )
+      .attr("class", "y-label")
+      .text("Copy number")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
 
