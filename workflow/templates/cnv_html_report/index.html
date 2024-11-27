@@ -89,13 +89,11 @@
             <details class="no-print">
               <summary>Caveats</summary>
               <p>
-                Ploidy is assumed to be 2 across all chromosomes for copy number
+                All chromosomes are assumed to be diploid for copy number
                 calculations, including sex chromosomes. {% if
-                metadata.show_table or extra_tables | length > 0 %} Copy numbers
-                in the plot are not directly connected to the values in the
-                results table. Values in the table represent copy numbers
-                corrected by tumor cell content while the values in the plot are
-                uncorrected. {% endif %}
+                metadata.show_table %} Copy numbers are different in the plot
+                and the table. The table shows tumor content corrected values
+                while the plot shows uncorrected values. {% endif %}
               </p>
             </details>
             <dialog id="chromosome-view-dialog">
