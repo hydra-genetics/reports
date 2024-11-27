@@ -10,6 +10,9 @@ class YCursor {
     this.labelHeight =
       this.textHeight + this.labelMargin.top + this.labelMargin.bottom;
     this.yScale = config?.yScale ? config.yScale : null;
+    this.secondaryYScale = config?.secondaryYScale
+      ? config.secondaryYScale
+      : null;
     this.hidden = config?.hidden ? config.hidden : true;
 
     if (this.yScale === null) {
@@ -32,7 +35,7 @@ class YCursor {
 
     this.cursor
       .append("rect")
-      .attr("class", "cursor-label")
+      .attr("class", "cursor-label primary")
       .attr("y", -this.labelHeight)
       .attr("height", this.labelHeight)
       .attr("rx", 3)
@@ -41,10 +44,29 @@ class YCursor {
 
     this.cursor
       .append("text")
+      .attr("class", "primary")
       .attr("x", 5)
       .attr("fill", "black")
       .attr("font-size", this.fontSize)
       .attr("alignment-baseline", "baseline");
+
+    if (this.secondaryYScale !== null) {
+      this.cursor
+        .append("rect")
+        .attr("class", "cursor-label secondary")
+        .attr("y", -this.labelHeight)
+        .attr("height", this.labelHeight)
+        .attr("rx", 3)
+        .attr("stroke", "black")
+        .attr("fill", "white");
+
+      this.cursor
+        .append("text")
+        .attr("class", "secondary")
+        .attr("fill", "black")
+        .attr("font-size", this.fontSize)
+        .attr("alignment-baseline", "baseline");
+    }
   }
 
   show() {
@@ -63,15 +85,43 @@ class YCursor {
     let labelWidth = textWidth + this.labelMargin.left + this.labelMargin.right;
 
     this.cursor.attr("opacity", 1).attr("transform", `translate(0,${y})`);
+
+    if (this.secondaryYScale !== null) {
+      let secondaryLabel = this.secondaryYScale.invert(y).toLocaleString();
+      let secondaryTextWidth = getTextDimensions(
+        secondaryLabel,
+        this.fontSize
+      )[0];
+      let secondaryLabelWidth =
+        secondaryTextWidth + this.labelMargin.left + this.labelMargin.right;
+
+      this.cursor
+        .select(".cursor-label.secondary")
+        .attr("width", secondaryLabelWidth)
+        .attr(
+          "transform",
+          `translate(${this.width + 5}, ${this.labelHeight / 2})`
+        );
+      this.cursor
+        .select("text.secondary")
+        .attr(
+          "transform",
+          `translate(${this.width + 5 + this.labelMargin.left}, ${
+            this.labelHeight / 2 - this.labelMargin.bottom
+          })`
+        )
+        .text(secondaryLabel);
+    }
+
     this.cursor
-      .select(".cursor-label")
+      .select(".cursor-label.primary")
       .attr("width", labelWidth)
       .attr(
         "transform",
         `translate(${-(5 + labelWidth)}, ${this.labelHeight / 2})`
       );
     this.cursor
-      .select("text")
+      .select("text.primary")
       .attr(
         "transform",
         `translate(${-(5 + labelWidth)}, ${
@@ -194,7 +244,7 @@ class ChromosomePlot extends EventTarget {
       ? config.margin
       : {
           top: 10,
-          right: 30,
+          right: 60,
           bottom: 40,
           left: 60,
           between: 40,
@@ -217,6 +267,7 @@ class ChromosomePlot extends EventTarget {
       .domain([0, this.length])
       .range([0, this.width - this.margin.left - this.margin.right]);
     this.ratioYScale = d3.scaleLinear().range([this.plotHeight, 0]);
+    this.cnYScale = d3.scaleLog().base(2).range([this.plotHeight, 0]);
     this.vafYScale = d3
       .scaleLinear()
       .domain([0, 1])
@@ -230,16 +281,14 @@ class ChromosomePlot extends EventTarget {
           .ticks(8)
           .tickFormat((y, i) => (i % 2 == 0 ? y : ""))
       );
+    this.cnYAxis = (g) => g.call(d3.axisRight(this.cnYScale).ticks(5));
     this.vafYAxis = (g) => g.call(d3.axisLeft(this.vafYScale).ticks(5));
 
     this.svg = d3
       .select(this.element)
       .attr("preserveAspectRatio", "xMinYMin meet")
       .attr("viewBox", [0, 0, this.width, this.height])
-      .attr(
-        "style",
-        "max-width: 100%; height: auto; max-height: 500px; height: intrinsic;"
-      );
+      .attr("style", "height: auto; height: intrinsic;");
 
     this.#drawAxes();
 
@@ -1033,10 +1082,20 @@ class ChromosomePlot extends EventTarget {
     this.svg
       .insert("g", "#lr-area-clip")
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
-      .attr("class", "y-axis")
+      .attr("class", "y-axis primary-y-axis ratio-y-axis")
       .transition()
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.width - this.margin.right},${this.margin.top})`
+      )
+      .attr("class", "y-axis secondary-y-axis cn-y-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
     this.svg
       .insert("g", "#lr-area-clip")
       .attr(
@@ -1045,7 +1104,7 @@ class ChromosomePlot extends EventTarget {
           this.margin.top + this.plotHeight + this.margin.between
         })`
       )
-      .attr("class", "y-axis")
+      .attr("class", "y-axis primary-y-axis vaf-y-axis")
       .transition()
       .duration(this.animationDuration)
       .call(this.vafYAxis);
@@ -1079,6 +1138,19 @@ class ChromosomePlot extends EventTarget {
       )
       .attr("class", "y-label")
       .text("log2 ratio")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
+
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(${this.width},${
+          this.margin.top + this.plotHeight / 2
+        }) rotate(90)`
+      )
+      .attr("class", "y-label")
+      .text("Copy number")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
 
@@ -1253,6 +1325,7 @@ class ChromosomePlot extends EventTarget {
       element: mouseTrap.select("#lr-mousetrap"),
       width: this.width - this.margin.left - this.margin.right,
       yScale: this.ratioYScale,
+      secondaryYScale: this.cnYScale,
     });
 
     const vafCursor = new YCursor({
@@ -1307,6 +1380,10 @@ class ChromosomePlot extends EventTarget {
       );
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
+      this.cnYScale.domain([
+        cnFromRatio(yMin - padding),
+        cnFromRatio(yMax + padding),
+      ]);
     } else {
       this.dispatchEvent(
         new CustomEvent("zoom", {
@@ -1315,6 +1392,10 @@ class ChromosomePlot extends EventTarget {
       );
       const padding = (staticYMax - staticYMin) * 0.05;
       this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
+      this.cnYScale.domain([
+        cnFromRatio(staticYMin - padding),
+        cnFromRatio(staticYMax + padding),
+      ]);
     }
 
     this.svg
@@ -1324,13 +1405,18 @@ class ChromosomePlot extends EventTarget {
       .call(this.xAxis);
     this.svg
       .transition()
-      .select(".y-axis")
+      .select(".ratio-y-axis")
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+    this.svg
+      .transition()
+      .select(".cn-y-axis")
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
 
     this.svg.selectAll(".gridline").remove();
     this.svg
-      .selectAll(".y-axis .tick")
+      .selectAll(".primary-y-axis .tick")
       .lower()
       .append("line")
       .attr("class", (d) => {

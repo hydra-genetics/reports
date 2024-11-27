@@ -11,6 +11,13 @@ const getTextDimensions = function (text, fontSize) {
   ];
 };
 
+const cnFromRatio = function (ratio, refPloidy) {
+  if (refPloidy === undefined) {
+    refPloidy = 2;
+  }
+  return refPloidy * 2 ** ratio;
+};
+
 d3.select("#dataset-picker")
   .selectAll("div")
   .data(cnvData[0].callers)
