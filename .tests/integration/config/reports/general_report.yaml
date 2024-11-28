@@ -9,7 +9,7 @@ files:
     description: plain text file
     input: config/plain_text.txt
     nav_header: File types
-  - name: file_table (txt, Tab-separated)
+  - name: file_table (txt Tab-separated)
     type: file_table
     description: A tab separated txt file
     input: config/table.txt
@@ -28,4 +28,10 @@ files:
     type: image
     input: config/image.png
     description: Image file
+    nav_header: File types
+  - name: MultiQC
+    type: multiqc
+    input: config/multiqc_data.json
+    sections: ["table"]
+    description: multiqc general stats for this sample
     nav_header: File types
