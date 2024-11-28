@@ -9,3 +9,4 @@ files:
     output: "results/dna/reports/{sample}_{type}.general_report.html"
     types:
       - T
+      - N
