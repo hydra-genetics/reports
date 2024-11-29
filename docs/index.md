@@ -8,4 +8,5 @@ We do this by providing [snakemake modules](https://snakemake.readthedocs.io/en/
 
 The reports module consists of a set of rules for creating various reports of results within the context of Hydra Genetics. The reports that currently are implemented are
 
+- General report
 - CNV report
