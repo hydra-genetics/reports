@@ -54,7 +54,7 @@ would be represented as
     {
         "column1": "row3",
         "column2": "value3",
-    },
+    }
 ]
 ```
 
