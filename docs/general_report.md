@@ -60,6 +60,48 @@ would be represented as
 ]
 ```
 
+## Example configuration
+
+```yaml
+files:
+  - name: file_table
+    type: file_table
+    description: Comma or tab separated file
+    input: path/to/file_table.csv
+    nav_header: File types
+  - name: plain_text
+    type: plain_text
+    description: plain text file
+    input: path/to/plain_text.txt
+    nav_header: File types
+  - name: file_table (txt Tab-separated)
+    type: file_table
+    description: A tab separated txt file
+    input: path/to/table.txt
+    nav_header: File types
+  - name: table
+    type: table
+    input: path/to/table.json
+    description: Json file with json representation of a table
+    nav_header: File types
+  - name: file_link
+    type: file_link
+    input: reports/cnv_html_report/{sample}_{type}.pathology.cnv_report.html
+    description: File link to other results
+    nav_header: File types
+  - name: image
+    type: image
+    input: path/to/image.png
+    description: Image file
+    nav_header: File types
+  - name: MultiQC
+    type: multiqc
+    input: qc/multiqc/multiqc_DNA_data/multiqc_data.json
+    sections: ["table"]
+    description: multiqc general stats for this sample
+    nav_header: File types
+```
+
 ## Ouput files
 
 - `reports/general_html_report/{sample}_{type}.general_report.html`
