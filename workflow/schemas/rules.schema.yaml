@@ -2,6 +2,74 @@ $schema: "http://json-schema.org/draft-04/schema#"
 description: snakemake rule input and output files description file
 type: object
 properties:
+  general_json_report:
+    type: object
+    description: input and output parameters for general_json_report
+    properties:
+      input:
+        type: object
+        description: list of inputs
+        properties:
+          files:
+            type: array
+            description: >
+              Files that should be compiled into JSON.
+            items:
+              type: string
+          output_files:
+            type: string
+            description: >
+              Path to yaml file with definitions of the input files.
+      output:
+        type: object
+        description: list of outputs
+        properties:
+          json:
+            type: string
+            description: >
+              JSON file with data to be presented in the general report.
+
+  general_html_report:
+    type: object
+    description: input and output parameters for general_html_report
+    properties:
+      input:
+        type: object
+        description: list of inputs
+        properties:
+          config_schema:
+            type: string
+            description: >
+              Validation schema for the JSON input.
+          html_template:
+            type: string
+            description: >
+              HTML template that the report should be based on.
+          json:
+            type: string
+            description: >
+              JSON that should be rendered in the report as produced by `general_json_report`.
+          css_files:
+            type: array
+            description: >
+              CSS files that should be included in the template.
+            items:
+              type: string
+              description: >
+                CSS file that should be included in the template.
+          additional_json:
+            type: string
+            description: >
+              Additional JSON that should be included in the report.
+      output:
+        type: object
+        description: list of outputs
+        properties:
+          html:
+            type: string
+            description: >
+              Interactive HTML report for a sample.
+
   cnv_html_report:
     type: object
     description: input and output parameters for cnv_html_report

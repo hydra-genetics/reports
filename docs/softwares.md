@@ -1,4 +1,44 @@
-# Softwares used in the reports module
+# Software used in the reports module
+
+## general_json_report
+
+Convert input files to JSON for the general report.
+
+### :snake: Rule
+
+#SNAKEMAKE_RULE_SOURCE__general_html_report__general_json_report#
+
+#### :left_right_arrow: input / output files
+
+#SNAKEMAKE_RULE_TABLE__general_html_report__general_json_report#
+
+### :wrench: Configuration
+
+#### Resources settings (`resources.yaml`)
+
+#RESOURCESSCHEMA__general_json_report#
+
+## general_html_report
+
+Generate a general HTML report for a sample.
+
+### :snake: Rule
+
+#SNAKEMAKE_RULE_SOURCE__general_html_report__general_html_report#
+
+#### :left_right_arrow: input / output files
+
+#SNAKEMAKE_RULE_TABLE__general_html_report__general_html_report#
+
+### :wrench: Configuration
+
+#### Software settings (`config.yaml`)
+
+#CONFIGSCHEMA__general_html_report#
+
+#### Resources settings (`resources.yaml`)
+
+#RESOURCESSCHEMA__general_html_report#
 
 ## cnv_html_report
 
