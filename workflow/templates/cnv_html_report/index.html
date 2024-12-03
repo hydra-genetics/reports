@@ -64,8 +64,38 @@
                   >Show all data points</label
                 >
               </div>
+              <div>
+                <label for="chromosome-baseline-offset">Baseline offset</label>
+                <input
+                  type="range"
+                  id="chromosome-baseline-offset"
+                  min="-2"
+                  max="2"
+                  step="0.05"
+                  value="0"
+                />
+                <input
+                  type="number"
+                  min="-2"
+                  max="2"
+                  step="0.05"
+                  id="current-baseline-offset"
+                  value="0.00"
+                />
+                <button id="reset-baseline-offset" disabled>Reset</button>
+              </div>
             </div>
             <svg id="chromosome-view"></svg>
+            <details class="no-print">
+              <summary>Caveats</summary>
+              <p>
+                All chromosomes are assumed to be diploid for copy number
+                calculations, including sex chromosomes. {% if
+                metadata.show_table %} Copy numbers are different in the plot
+                and the table. The table shows tumor content corrected values
+                while the plot shows uncorrected values. {% endif %}
+              </p>
+            </details>
             <dialog id="chromosome-view-dialog">
               <button class="close"><i class="bi bi-x-lg"></i></button>
             </dialog>
@@ -74,8 +104,7 @@
 
         {% if metadata.show_table or extra_tables | length > 0 %}
         <div class="table-container">
-        {% endif %}
-        {% if metadata.show_table %}
+          {% endif %} {% if metadata.show_table %}
           <section>
             <h2>Results table</h2>
             <p class="no-print">
@@ -100,9 +129,7 @@
             >
             <table id="cnv-table"></table>
           </section>
-        {% endif %}
-
-        {% if extra_tables | length > 0 %}
+          {% endif %} {% if extra_tables | length > 0 %}
           <section>
             <h2>Additional tables</h2>
 
@@ -119,15 +146,13 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% if table.data | length > 0 %}
-                  {% for row in table.data %}
+                  {% if table.data | length > 0 %} {% for row in table.data %}
                   <tr>
                     {% for h in table.header %}
                     <td>{{ row[h] }}</td>
                     {% endfor %}
                   </tr>
-                  {% endfor %}
-                  {% else %}
+                  {% endfor %} {% else %}
                   <tr>
                     <td colspan="{{ table.header | length }}">
                       No data available in table
@@ -139,8 +164,7 @@
             </section>
             {% endfor %}
           </section>
-        {% endif %}
-        {% if metadata.show_table or extra_tables | length > 0 %} 
+          {% endif %} {% if metadata.show_table or extra_tables | length > 0 %}
         </div>
         {% endif %}
       </div>

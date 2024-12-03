@@ -1,3 +1,216 @@
+class YCursor {
+  constructor(config) {
+    this.parent = config?.element ? config.element : document.body;
+    this.fontSize = config?.fontSize ? config.fontSize : "0.8rem";
+    this.width = config?.width ? config.width : 100;
+    this.labelMargin = config?.labelMargin
+      ? config.labelMargin
+      : { top: 2, right: 5, bottom: 5, left: 5 };
+    this.textHeight = getTextDimensions("0,", this.fontSize)[1];
+    this.labelHeight =
+      this.textHeight + this.labelMargin.top + this.labelMargin.bottom;
+    this.yScale = config?.yScale ? config.yScale : null;
+    this.secondaryYScale = config?.secondaryYScale
+      ? config.secondaryYScale
+      : null;
+    this.hidden = config?.hidden ? config.hidden : true;
+
+    if (this.yScale === null) {
+      throw Error("scale cannot be null");
+    }
+
+    this.cursor = this.parent
+      .append("g")
+      .lower()
+      .attr("class", "cursor")
+      .attr("pointer-events", "none")
+      .attr("opacity", this.hidden ? 0 : 1);
+
+    this.cursor
+      .append("line")
+      .attr("class", "cursor-line")
+      .attr("x1", 0)
+      .attr("x2", this.width)
+      .attr("stroke", "black");
+
+    this.cursor
+      .append("rect")
+      .attr("class", "cursor-label primary")
+      .attr("y", -this.labelHeight)
+      .attr("height", this.labelHeight)
+      .attr("rx", 3)
+      .attr("stroke", "black")
+      .attr("fill", "white");
+
+    this.cursor
+      .append("text")
+      .attr("class", "primary")
+      .attr("x", 5)
+      .attr("fill", "black")
+      .attr("font-size", this.fontSize)
+      .attr("alignment-baseline", "baseline");
+
+    if (this.secondaryYScale !== null) {
+      this.cursor
+        .append("rect")
+        .attr("class", "cursor-label secondary")
+        .attr("y", -this.labelHeight)
+        .attr("height", this.labelHeight)
+        .attr("rx", 3)
+        .attr("stroke", "black")
+        .attr("fill", "white");
+
+      this.cursor
+        .append("text")
+        .attr("class", "secondary")
+        .attr("fill", "black")
+        .attr("font-size", this.fontSize)
+        .attr("alignment-baseline", "baseline");
+    }
+  }
+
+  show() {
+    this.hidden = false;
+    this.cursor.attr("opacity", 1);
+  }
+
+  hide() {
+    this.hidden = true;
+    this.cursor.attr("opacity", 0);
+  }
+
+  set(y) {
+    let label = this.yScale.invert(y).toLocaleString();
+    let textWidth = getTextDimensions(label, this.fontSize)[0];
+    let labelWidth = textWidth + this.labelMargin.left + this.labelMargin.right;
+
+    this.cursor.attr("opacity", 1).attr("transform", `translate(0,${y})`);
+
+    if (this.secondaryYScale !== null) {
+      let secondaryLabel = this.secondaryYScale.invert(y).toLocaleString();
+      let secondaryTextWidth = getTextDimensions(
+        secondaryLabel,
+        this.fontSize
+      )[0];
+      let secondaryLabelWidth =
+        secondaryTextWidth + this.labelMargin.left + this.labelMargin.right;
+
+      this.cursor
+        .select(".cursor-label.secondary")
+        .attr("width", secondaryLabelWidth)
+        .attr(
+          "transform",
+          `translate(${this.width + 5}, ${this.labelHeight / 2})`
+        );
+      this.cursor
+        .select("text.secondary")
+        .attr(
+          "transform",
+          `translate(${this.width + 5 + this.labelMargin.left}, ${
+            this.labelHeight / 2 - this.labelMargin.bottom
+          })`
+        )
+        .text(secondaryLabel);
+    }
+
+    this.cursor
+      .select(".cursor-label.primary")
+      .attr("width", labelWidth)
+      .attr(
+        "transform",
+        `translate(${-(5 + labelWidth)}, ${this.labelHeight / 2})`
+      );
+    this.cursor
+      .select("text.primary")
+      .attr(
+        "transform",
+        `translate(${-(5 + labelWidth)}, ${
+          this.labelHeight / 2 - this.labelMargin.bottom
+        })`
+      )
+      .text(label);
+  }
+}
+
+class XCursor {
+  constructor(config) {
+    this.parent = config?.element ? config.element : document.body;
+    this.fontSize = config?.fontSize ? config.fontSize : "0.8rem";
+    this.height = config?.height ? config.height : 100;
+    this.labelMargin = config?.labelMargin
+      ? config.labelMargin
+      : { top: 2, right: 5, bottom: 5, left: 5 };
+    this.labelHeight = getTextDimensions("0,", this.fontSize)[1];
+    this.xScale = config?.xScale ? config.xScale : null;
+    this.hidden = true;
+
+    if (this.xScale === null) {
+      throw Error("scale cannot be null");
+    }
+
+    this.cursor = this.parent
+      .append("g")
+      .lower()
+      .attr("class", "vertical-cursor cursor")
+      .attr("opacity", this.hidden ? 0 : 1);
+
+    this.cursor
+      .append("line")
+      .attr("class", "cursor-line")
+      .attr("y1", 0)
+      .attr("y2", this.height)
+      .attr("stroke", "black");
+
+    this.cursor
+      .append("rect")
+      .attr("class", "cursor-label")
+      .attr("y", this.height + 5)
+      .attr(
+        "height",
+        this.labelHeight + this.labelMargin.top + this.labelMargin.bottom
+      )
+      .attr("rx", 3)
+      .attr("stroke", "black")
+      .attr("fill", "white");
+
+    this.cursor
+      .append("text")
+      .attr("x", 5)
+      .attr("y", this.height + 5 + this.labelMargin.top + this.labelHeight)
+      .attr("fill", "black")
+      .attr("font-size", this.fontSize);
+  }
+
+  show() {
+    this.hidden = false;
+    this.cursor.attr("opacity", 1);
+  }
+
+  hide() {
+    this.hidden = true;
+    this.cursor.attr("opacity", 0);
+  }
+
+  set(x) {
+    let verticalLabel = Math.floor(this.xScale.invert(x)).toLocaleString();
+    let verticalLabelWidth = getTextDimensions(verticalLabel, this.fontSize)[0];
+
+    this.cursor.attr("opacity", 1).attr("transform", `translate(${x}, 0)`);
+
+    this.cursor
+      .select(".cursor-label")
+      .attr("x", -verticalLabelWidth / 2 - this.labelMargin.left)
+      .attr(
+        "width",
+        verticalLabelWidth + this.labelMargin.left + this.labelMargin.right
+      );
+    this.cursor
+      .select("text")
+      .attr("x", -verticalLabelWidth / 2)
+      .text(verticalLabel);
+  }
+}
+
 class ChromosomePlot extends EventTarget {
   #data;
   #activeCaller;
@@ -21,6 +234,7 @@ class ChromosomePlot extends EventTarget {
     this.zoomRange = [0, this.length];
     this.minZoomRange = config?.minZoomRange ? config.minZoomRange : 20;
     this.#fitToData = config?.fitToData ? config.fitToData : false;
+    this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
     this.animationDuration = config?.animationDuration
       ? config.animationDuration
       : 500;
@@ -30,7 +244,7 @@ class ChromosomePlot extends EventTarget {
       ? config.margin
       : {
           top: 10,
-          right: 30,
+          right: 60,
           bottom: 40,
           left: 60,
           between: 40,
@@ -53,6 +267,7 @@ class ChromosomePlot extends EventTarget {
       .domain([0, this.length])
       .range([0, this.width - this.margin.left - this.margin.right]);
     this.ratioYScale = d3.scaleLinear().range([this.plotHeight, 0]);
+    this.cnYScale = d3.scaleLog().base(2).range([this.plotHeight, 0]);
     this.vafYScale = d3
       .scaleLinear()
       .domain([0, 1])
@@ -66,16 +281,14 @@ class ChromosomePlot extends EventTarget {
           .ticks(8)
           .tickFormat((y, i) => (i % 2 == 0 ? y : ""))
       );
+    this.cnYAxis = (g) => g.call(d3.axisRight(this.cnYScale).ticks(5));
     this.vafYAxis = (g) => g.call(d3.axisLeft(this.vafYScale).ticks(5));
 
     this.svg = d3
       .select(this.element)
       .attr("preserveAspectRatio", "xMinYMin meet")
       .attr("viewBox", [0, 0, this.width, this.height])
-      .attr(
-        "style",
-        "max-width: 100%; height: auto; max-height: 500px; height: intrinsic;"
-      );
+      .attr("style", "height: auto; height: intrinsic;");
 
     this.#drawAxes();
 
@@ -130,8 +343,14 @@ class ChromosomePlot extends EventTarget {
       .attr("data-chromosome", this.data.chromosome)
       .attr("data-caller", this.#activeCaller);
 
-    this.#initializeZoom();
     this.#setLabels();
+
+    this.annotations = this.#plotArea
+      .append("g")
+      .attr("class", "annotation-container");
+
+    this.initialiseMousetrap();
+
     this.update();
   }
 
@@ -449,7 +668,9 @@ class ChromosomePlot extends EventTarget {
                   .append("rect")
                   .attr("class", "variance-rect")
                   .attr("x", (d) => this.xScale(d.start))
-                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr("y", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset + d.sd)
+                  )
                   .attr(
                     "width",
                     (d) => this.xScale(d.end) - this.xScale(d.start)
@@ -466,8 +687,12 @@ class ChromosomePlot extends EventTarget {
                   .attr("class", "mean")
                   .attr("x1", (d) => this.xScale(d.start))
                   .attr("x2", (d) => this.xScale(d.end))
-                  .attr("y1", (d) => this.ratioYScale(d.mean))
-                  .attr("y2", (d) => this.ratioYScale(d.mean))
+                  .attr("y1", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset)
+                  )
+                  .attr("y2", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset)
+                  )
                   .attr("stroke", "#333")
                   .attr("opacity", 0.5)
               )
@@ -483,7 +708,7 @@ class ChromosomePlot extends EventTarget {
             .append("circle")
             .attr("class", "data-point")
             .attr("cx", (d) => this.xScale(d.start))
-            .attr("cy", (d) => this.ratioYScale(d.log2))
+            .attr("cy", (d) => this.ratioYScale(d.log2 - this.baselineOffset))
             .attr("r", 2)
             .attr("fill", "#333")
             .attr("opacity", 0)
@@ -505,8 +730,12 @@ class ChromosomePlot extends EventTarget {
                   .duration(this.animationDuration)
                   .attr("x1", (d) => this.xScale(d.start))
                   .attr("x2", (d) => this.xScale(d.end))
-                  .attr("y1", (d) => this.ratioYScale(d.mean))
-                  .attr("y2", (d) => this.ratioYScale(d.mean))
+                  .attr("y1", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset)
+                  )
+                  .attr("y2", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset)
+                  )
               )
               .call((update) =>
                 update
@@ -514,7 +743,9 @@ class ChromosomePlot extends EventTarget {
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x", (d) => this.xScale(d.start))
-                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+                  .attr("y", (d) =>
+                    this.ratioYScale(d.mean - this.baselineOffset + d.sd)
+                  )
                   .attr(
                     "width",
                     (d) => this.xScale(d.end) - this.xScale(d.start)
@@ -536,7 +767,7 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
-              .attr("cy", (d) => this.ratioYScale(d.log2))
+              .attr("cy", (d) => this.ratioYScale(d.log2 - this.baselineOffset))
               .attr("opacity", 0.3)
           );
         },
@@ -569,8 +800,10 @@ class ChromosomePlot extends EventTarget {
               "d",
               (d) =>
                 `M${this.xScale(d.start)} ${this.ratioYScale(
-                  d.log2
-                )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
+                  d.log2 - this.baselineOffset
+                )} L ${this.xScale(d.end)} ${this.ratioYScale(
+                  d.log2 - this.baselineOffset
+                )}`
             )
             .attr("stroke-width", 2)
             .attr("stroke-opacity", 0)
@@ -585,8 +818,10 @@ class ChromosomePlot extends EventTarget {
                 "d",
                 (d) =>
                   `M${this.xScale(d.start)} ${this.ratioYScale(
-                    d.log2
-                  )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
+                    d.log2 - this.baselineOffset
+                  )} L ${this.xScale(d.end)} ${this.ratioYScale(
+                    d.log2 - this.baselineOffset
+                  )}`
               )
           ),
         (exit) => exit.transition().attr("stroke-opacity", 0).remove()
@@ -720,7 +955,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   #plotAnnotations() {
-    this.#plotArea
+    this.annotations
       .selectAll(".annotation")
       .data(this.#data.annotations, (d) => [d.name, d.start, d.end])
       .join(
@@ -847,10 +1082,20 @@ class ChromosomePlot extends EventTarget {
     this.svg
       .insert("g", "#lr-area-clip")
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
-      .attr("class", "y-axis")
+      .attr("class", "y-axis primary-y-axis ratio-y-axis")
       .transition()
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.width - this.margin.right},${this.margin.top})`
+      )
+      .attr("class", "y-axis secondary-y-axis cn-y-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
     this.svg
       .insert("g", "#lr-area-clip")
       .attr(
@@ -859,7 +1104,7 @@ class ChromosomePlot extends EventTarget {
           this.margin.top + this.plotHeight + this.margin.between
         })`
       )
-      .attr("class", "y-axis")
+      .attr("class", "y-axis primary-y-axis vaf-y-axis")
       .transition()
       .duration(this.animationDuration)
       .call(this.vafYAxis);
@@ -875,79 +1120,6 @@ class ChromosomePlot extends EventTarget {
       .transition()
       .duration(this.animationDuration)
       .call(this.xAxis);
-  }
-
-  #initializeZoom() {
-    this.svg
-      .append("g")
-      .attr("transform", `translate(${this.margin.left}, ${this.margin.top})`)
-      .attr("class", "zoom-layer")
-      .append("rect")
-      .attr("width", this.width - this.margin.left - this.margin.right)
-      .attr("height", this.height - this.margin.top - this.margin.bottom)
-      .attr("fill", "transparent")
-      .call(
-        d3
-          .drag()
-          .on("start", (e) => {
-            d3.select(".zoom-layer")
-              .append("rect")
-              .attr("class", "zoom-region")
-              .attr("pointer-events", "none")
-              .attr("x", e.x)
-              .attr("width", 0)
-              .attr(
-                "height",
-                this.height - this.margin.bottom - this.margin.top
-              )
-              .attr("stroke-width", 0)
-              .attr("fill-opacity", 0.1);
-          })
-          .on("drag", (e) => {
-            let leftBound = Math.min(e.x, e.subject.x);
-            let width = Math.abs(Math.max(0, e.x) - e.subject.x);
-
-            if (leftBound + width > this.xScale.range()[1]) {
-              width = this.xScale.range()[1] - leftBound;
-            }
-
-            const genomeWidth =
-              this.xScale.invert(Math.max(e.x, e.subject.x)) -
-              this.xScale.invert(leftBound);
-
-            const zoomRegion = d3
-              .select(".zoom-region")
-              .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
-              .attr("width", width);
-
-            if (genomeWidth < this.minZoomRange) {
-              zoomRegion.attr("fill", "red");
-            } else {
-              zoomRegion.attr("fill", "#333");
-            }
-          })
-          .on("end", (e) => {
-            d3.select(".zoom-region").remove();
-            let xMin = Math.max(0, Math.min(e.x, e.subject.x));
-            let xMax = Math.min(
-              this.xScale.range()[1],
-              Math.max(e.x, e.subject.x)
-            );
-            if (xMax - xMin < 3) {
-              return;
-            }
-            this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
-            this.update();
-          })
-      )
-      .on("click", () => {
-        let [xMin, xMax] = this.xScale.domain();
-        if (xMax - xMin !== this.length) {
-          // Only reset if something actually changed
-          this.resetZoom();
-          this.update();
-        }
-      });
   }
 
   #setLabels() {
@@ -973,6 +1145,19 @@ class ChromosomePlot extends EventTarget {
       .append("text")
       .attr(
         "transform",
+        `translate(${this.width},${
+          this.margin.top + this.plotHeight / 2
+        }) rotate(90)`
+      )
+      .attr("class", "y-label")
+      .text("Copy number")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
+
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
         `translate(0,${
           this.height - this.margin.bottom - this.plotHeight / 2
         }) rotate(-90)`
@@ -981,6 +1166,173 @@ class ChromosomePlot extends EventTarget {
       .text("VAF")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
+  }
+
+  initialiseMousetrap() {
+    let isDragging = false;
+    const mouseTrap = this.svg
+      .append("g")
+      .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
+    mouseTrap
+      .append("g")
+      .attr("id", "lr-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.plotHeight)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+    mouseTrap
+      .append("g")
+      .attr("transform", `translate(0,${this.plotHeight})`)
+      .attr("id", "zoom-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.margin.between)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+    mouseTrap
+      .append("g")
+      .attr(
+        "transform",
+        `translate(0,${this.plotHeight + this.margin.between})`
+      )
+      .attr("id", "vaf-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.plotHeight)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+
+    mouseTrap.select("#lr-mousetrap").on("mouseenter mousemove", (e) => {
+      if (isDragging) {
+        return;
+      }
+      let pos = d3.pointer(e);
+      ratioCursor.set(pos[1]);
+      positionCursor.set(pos[0]);
+    });
+
+    mouseTrap.select("#zoom-mousetrap").on("mouseenter mousemove", (e) => {
+      let pos = d3.pointer(e);
+      positionCursor.set(pos[0]);
+    });
+
+    mouseTrap.select("#vaf-mousetrap").on("mouseenter mousemove", (e) => {
+      if (isDragging) {
+        return;
+      }
+      let pos = d3.pointer(e);
+      vafCursor.set(pos[1]);
+      positionCursor.set(pos[0]);
+    });
+
+    // Where the zooming elements are drawn
+    const zoomLayer = mouseTrap.append("g").lower().attr("id", "zoom-layer");
+
+    // Handle zooming
+    mouseTrap
+      .selectAll(".mousetrap")
+      .on("mouseleave", () => {
+        positionCursor.hide();
+        ratioCursor.hide();
+        vafCursor.hide();
+      })
+      .call(
+        d3
+          .drag()
+          .on("start", (e) => {
+            isDragging = true;
+            zoomLayer
+              .append("rect")
+              .attr("id", "zoom-region")
+              .attr("x", e.x)
+              .attr(
+                "height",
+                this.height - this.margin.bottom - this.margin.top
+              )
+              .attr("stroke-width", 0)
+              .attr("fill-opacity", 0.1)
+              .attr("pointer-events", "none");
+            ratioCursor.hide();
+            vafCursor.hide();
+          })
+          .on("drag", (e) => {
+            const leftBound = Math.min(e.x, e.subject.x);
+            let width = Math.abs(Math.max(0, e.x) - e.subject.x);
+
+            if (leftBound + width > this.xScale.range()[1]) {
+              width = this.xScale.range()[1] - leftBound;
+            }
+
+            const genomeWidth =
+              this.xScale.invert(Math.max(e.x, e.subject.x)) -
+              this.xScale.invert(leftBound);
+
+            const zoomRegion = zoomLayer
+              .select("#zoom-region")
+              .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
+              .attr("width", width);
+
+            if (genomeWidth < this.minZoomRange) {
+              zoomRegion.attr("fill", "red");
+            } else {
+              zoomRegion.attr("fill", "#333");
+            }
+
+            positionCursor.set(e.x);
+          })
+          .on("end", (e) => {
+            zoomLayer.select("#zoom-region").remove();
+            const xMin = Math.max(0, Math.min(e.x, e.subject.x));
+            const xMax = Math.min(
+              this.xScale.range()[1],
+              Math.max(e.x, e.subject.x)
+            );
+            isDragging = false;
+            if (xMax - xMin < 3) {
+              return;
+            }
+            this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
+            this.update();
+          })
+      )
+      .on("click", (e) => {
+        isDragging = false;
+        const [xMin, xMax] = this.xScale.domain();
+        if (xMax - xMin !== this.length) {
+          this.resetZoom();
+          this.update();
+        }
+        const pos = d3.pointer(e);
+        positionCursor.set(pos[0]);
+        if (e.target.parentElement.id === "lr-mousetrap") {
+          ratioCursor.set(pos[1]);
+        } else if (e.target.parentElement.id == "vaf-mousetrap") {
+          vafCursor.set(pos[1]);
+        }
+      });
+
+    const positionCursor = new XCursor({
+      element: mouseTrap,
+      height: this.plotHeight * 2 + this.margin.between,
+      xScale: this.xScale,
+    });
+
+    const ratioCursor = new YCursor({
+      element: mouseTrap.select("#lr-mousetrap"),
+      width: this.width - this.margin.left - this.margin.right,
+      yScale: this.ratioYScale,
+      secondaryYScale: this.cnYScale,
+    });
+
+    const vafCursor = new YCursor({
+      element: mouseTrap.select("#vaf-mousetrap"),
+      width: this.width - this.margin.left - this.margin.right,
+      yScale: this.vafYScale,
+    });
   }
 
   #updateAxes() {
@@ -1002,13 +1354,17 @@ class ChromosomePlot extends EventTarget {
         yMin = staticYMin;
         yMax = staticYMax;
       } else {
-        yMin = yValues.map((d) => d.log2).reduce((a, d) => (d < a ? d : a));
-        yMax = yValues.map((d) => d.log2).reduce((a, d) => (d > a ? d : a));
+        yMin = yValues
+          .map((d) => d.log2 - this.baselineOffset)
+          .reduce((a, d) => (d < a ? d : a));
+        yMax = yValues
+          .map((d) => d.log2 - this.baselineOffset)
+          .reduce((a, d) => (d > a ? d : a));
       }
     } else {
       [yMin, yMax] = d3.extent(
         this.#data.callers[this.#activeCaller].ratios,
-        (d) => d.log2
+        (d) => d.log2 - this.baselineOffset
       );
       if (!yMin && !yMax) {
         yMin = staticYMin;
@@ -1024,6 +1380,10 @@ class ChromosomePlot extends EventTarget {
       );
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
+      this.cnYScale.domain([
+        cnFromRatio(yMin - padding),
+        cnFromRatio(yMax + padding),
+      ]);
     } else {
       this.dispatchEvent(
         new CustomEvent("zoom", {
@@ -1032,6 +1392,10 @@ class ChromosomePlot extends EventTarget {
       );
       const padding = (staticYMax - staticYMin) * 0.05;
       this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
+      this.cnYScale.domain([
+        cnFromRatio(staticYMin - padding),
+        cnFromRatio(staticYMax + padding),
+      ]);
     }
 
     this.svg
@@ -1041,16 +1405,23 @@ class ChromosomePlot extends EventTarget {
       .call(this.xAxis);
     this.svg
       .transition()
-      .select(".y-axis")
+      .select(".ratio-y-axis")
       .duration(this.animationDuration)
       .call(this.ratioYAxis);
+    this.svg
+      .transition()
+      .select(".cn-y-axis")
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
 
     this.svg.selectAll(".gridline").remove();
     this.svg
-      .selectAll(".y-axis .tick")
+      .selectAll(".primary-y-axis .tick")
       .lower()
       .append("line")
-      .attr("class", "gridline")
+      .attr("class", (d) => {
+        return d == 0 ? "gridline baseline" : "gridline";
+      })
       .attr("x2", this.xScale.range()[1]);
 
     this.svg.select(".x-label").text(this.#data.label);
@@ -1072,6 +1443,11 @@ class ChromosomePlot extends EventTarget {
   resetZoom() {
     this.zoomRange = [0, this.length];
     this.xScale.domain(this.zoomRange);
+  }
+
+  setBaselineOffset(dy) {
+    this.baselineOffset = dy;
+    this.update();
   }
 
   update() {

@@ -1,8 +1,6 @@
-# Reports
+# CNV report
 
-## CNVs
-
-### Input files
+## Input files
 
 Required files are:
 
@@ -16,19 +14,19 @@ Optional input files are:
 - Germline VCF file for displaying VAF in plots
 - Cytoband definition for displaying in the chromosome plot
 
-### Output files
+## Output files
 
 - `reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html`
 
-### Configuration
+## Configuration
 
 There are a couple of things that can be customised using the config file.
 
-#### Results table
+### Results table
 
 The CNV results table contains CNVs that have been called by the pipeline. In order for the table to be included in the final report, `show_table` under [`cnv_html_report`](/softwares/#configuration) has to be `true`. If this is the case, then both `filtered_cnv_vcfs` and `unfiltered_cnv_vcfs` have to be defined under [`merge_cnv_json`](/softwares/#configuration_2).
 
-#### Additional tables
+### Additional tables
 
 Additional tables can be included in the final report by making use of `extra_tables` under [`cnv_html_report`](/softwares/#configuration). A table should be represented by a tsv file, and the first row will be used as a header for the table. The value of `extra_tables` in the config should be an array of objects, and the objects should look like this:
 
@@ -42,7 +40,7 @@ extra_tables:
 
 `name` is the name of the table, and will be used as a section heading. `description` is a description of the table and will be displayed as a single paragraph, and `path` is the path to the tsv file from which the table should be created. If the table file is completely empty, the execution will fail with an error. If the table is empty, but it contains a header, the table will be presented. It will however have a message clarifying that there is no data in the table, and that this is how it is meant to be. Wildcards are allowed in `path`, as long as the same wildcards are present in the output file name. By default these wildcards are `sample`, `type` and `tc_method`.
 
-#### Cytobands
+### Cytobands
 
 Cytobands can be represented in the chromosome plot. For these to be included, `cytobands` under [`cnv_html_report`](/softwares/#configuration) has to be `true`, and `cytobands` under [`merge_cnv_json`](/softwares/#configuration_2) should point to a file with cytoband definitions. The format of this file should follow the UCSC cytoband schema ([hg19](https://www.genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=map&hgta_track=cytoBand&hgta_table=cytoBand&hgta_doSchema=describe+table+schema), [hg38](https://genome.ucsc.edu/cgi-bin/hgTables?db=hg38&hgta_group=map&hgta_track=cytoBand&hgta_table=cytoBand&hgta_doSchema=describe+table+schema)). Currently, files for both hg19 and hg38 are included in the [config directory of the repo](https://github.com/hydra-genetics/reports/tree/develop/config).
 
@@ -64,11 +62,11 @@ merge_cnv_json:
 
 Only full-length hexadecimal colours (without alpha channel), as shown above, are supported.
 
-#### Custom annotations
+### Custom annotations
 
 Custom annotations can be added to the chromosome plot by specifying one or more bed-files in `annotations` under [`merge_cnv_json`](/softwares/#configuration_2). Only the four first columns of the file will be taken into account, and the value in the name column will be displayed in the plot.
 
-### Customising the template
+## Customising the template
 
 The template used can be found in [`workflow/templates/cnv_html_report`](https://github.com/hydra-genetics/reports/tree/develop/workflow/templates/cnv_html_report). This will be used by default. If you for some reason would like to customise the template, the input files will have to be redefined when importing the module. Below is an example where template files are redefined, while the input data remains the default:
 

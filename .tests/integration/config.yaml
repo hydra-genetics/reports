@@ -2,6 +2,8 @@ output: "../../config/output_files.yaml"
 resources: "resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
+default_container: "docker://hydragenetics/common:0.3.0"
+general_report: "config/reports/general_report.yaml"
 
 reference:
   fai: reference/ref.fai
@@ -26,6 +28,11 @@ cnv_html_report:
         A table that only has a header row, but no data. It should still
         be presented, but it should at the same time be clear that it is
         empty, and meant to be so.
+
+general_html_report:
+  final_directory_depth: 3
+  multiqc_config: "config/reports/multiqc_config_dna.yaml"
+
 
 merge_cnv_json:
   annotations:
