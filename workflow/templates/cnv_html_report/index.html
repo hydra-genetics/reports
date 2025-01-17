@@ -84,6 +84,26 @@
                 />
                 <button id="reset-baseline-offset" disabled>Reset</button>
               </div>
+              <div>
+                <label for="tc-adjuster">Tumor cell content</label>
+                <input
+                  type="range"
+                  id="tc-adjuster"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value="{{ metadata.tc if metadata.tc is not none else 1 }}"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  id="current-tc"
+                  value="{{ metadata.tc if metadata.tc is not none else 1 }}"
+                />
+                <button id="reset-tc" disabled>Reset</button>
+              </div>
             </div>
             <svg id="chromosome-view"></svg>
             <details class="no-print">
@@ -171,6 +191,7 @@
     </div>
     <script>
       let cnvData = {{ json | trim | indent(width=8) }};
+      const originalTc = {{ metadata.tc if tc is not none else 1 }};
     </script>
     <!-- prettier-ignore -->
     <script>

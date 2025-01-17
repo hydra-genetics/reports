@@ -190,6 +190,56 @@ baselineOffsetReset.on("click", () => {
   baselineOffsetSlider.node().dispatchEvent(new Event("change"));
 });
 
+const tcAdjustSlider = d3.select("#tc-adjuster");
+const currentTc = d3.select("#current-tc");
+const tcAdjustReset = d3.select("#reset-tc");
+
+tcAdjustSlider.on("change", () => {
+  currentTc.node().dispatchEvent(new Event("change"));
+});
+
+tcAdjustSlider.on("input", (e) => {
+  const dv = parseFloat(e.target.value);
+  const strdv = dv.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  currentTc.node().value = strdv;
+});
+
+currentTc.on("change", (e) => {
+  const minTc = e.target.min ? parseFloat(e.target.min) : 0;
+  const maxTc = e.target.max ? parseFloat(e.target.max) : 1;
+  const tc = parseFloat(e.target.value);
+
+  if (tc < minTc || tc > maxTc) {
+    e.target.classList.add("invalid");
+    e.target.title = `Value outside the valid range [${minTc}, ${maxTc}]`;
+    console.error(
+      `tumor cell content outside the valid range [${minTc}, ${maxTc}]`
+    );
+    return;
+  }
+
+  e.target.classList.remove("invalid");
+  e.target.title = "";
+
+  tcAdjustReset.property("disabled", true);
+  if (tc != originalTc) {
+    tcAdjustReset.property("disabled", false);
+  }
+
+  const strtc = tc.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  tcAdjustSlider.node().value = tc;
+  currentTc.node().value = strtc;
+  // chromosomePlot.setTc(tc);
+  // genomePlot.setTc(tc);
+});
+
+tcAdjustReset.on("click", () => {
+  tcAdjustSlider.node().value = originalTc;
+  tcAdjustReset.property("disabled", true);
+  currentTc.node().value = originalTc;
+  tcAdjustSlider.node().dispatchEvent(new Event("change"));
+});
+
 d3.selectAll("input[name=dataset]").on("change", (e) => {
   chromosomePlot.activeCaller = parseInt(e.target.value);
   genomePlot.activeCaller = parseInt(e.target.value);
