@@ -673,19 +673,22 @@ class ChromosomePlot extends EventTarget {
       .selectAll(".data-point")
       .data(
         () => {
-          if (this.#showAllData) {
-            return this.#data.callers[this.#activeCaller].ratios.filter(
-              (p) =>
-                p.start >= this.xScale.domain()[0] &&
-                p.start <= this.xScale.domain()[1]
-            );
-          }
-          return slidingPixelWindow(
-            this.#data.callers[this.#activeCaller].ratios,
-            this.xScale,
-            "start",
-            "log2"
+          let d = this.#data.callers[this.#activeCaller].ratios.filter(
+            (p) =>
+              p.start >= this.xScale.domain()[0] &&
+              p.start <= this.xScale.domain()[1]
           );
+
+          let td = d.map((p) => {
+            let tp = { ...p };
+            tp.log2 = self.transformLog2Ratio(tp.log2);
+            return tp;
+          });
+
+          if (this.#showAllData) {
+            return td;
+          }
+          return slidingPixelWindow(td, this.xScale, "start", "log2");
         },
         function (d) {
           if (this.dataset.chromosome && this.dataset.caller) {
@@ -707,9 +710,7 @@ class ChromosomePlot extends EventTarget {
                   .append("rect")
                   .attr("class", "variance-rect")
                   .attr("x", (d) => this.xScale(d.start))
-                  .attr("y", (d) =>
-                    this.ratioYScale(this.transformLog2Ratio(d.mean) + d.sd)
-                  )
+                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
                   .attr(
                     "width",
                     (d) => this.xScale(d.end) - this.xScale(d.start)
@@ -726,12 +727,8 @@ class ChromosomePlot extends EventTarget {
                   .attr("class", "mean")
                   .attr("x1", (d) => this.xScale(d.start))
                   .attr("x2", (d) => this.xScale(d.end))
-                  .attr("y1", (d) =>
-                    this.ratioYScale(this.transformLog2Ratio(d.mean))
-                  )
-                  .attr("y2", (d) =>
-                    this.ratioYScale(this.transformLog2Ratio(d.mean))
-                  )
+                  .attr("y1", (d) => this.ratioYScale(d.mean))
+                  .attr("y2", (d) => this.ratioYScale(d.mean))
                   .attr("stroke", "#333")
                   .attr("opacity", 0.5)
               )
@@ -747,9 +744,7 @@ class ChromosomePlot extends EventTarget {
             .append("circle")
             .attr("class", "data-point")
             .attr("cx", (d) => this.xScale(d.start))
-            .attr("cy", (d) =>
-              this.ratioYScale(this.transformLog2Ratio(d.log2))
-            )
+            .attr("cy", (d) => this.ratioYScale(d.log2))
             .attr("r", 2)
             .attr("fill", "#333")
             .attr("opacity", 0)
@@ -771,12 +766,8 @@ class ChromosomePlot extends EventTarget {
                   .duration(this.animationDuration)
                   .attr("x1", (d) => this.xScale(d.start))
                   .attr("x2", (d) => this.xScale(d.end))
-                  .attr("y1", (d) =>
-                    this.ratioYScale(this.transformLog2Ratio(d.mean))
-                  )
-                  .attr("y2", (d) =>
-                    this.ratioYScale(this.transformLog2Ratio(d.mean))
-                  )
+                  .attr("y1", (d) => this.ratioYScale(d.mean))
+                  .attr("y2", (d) => this.ratioYScale(d.mean))
               )
               .call((update) =>
                 update
@@ -784,9 +775,7 @@ class ChromosomePlot extends EventTarget {
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x", (d) => this.xScale(d.start))
-                  .attr("y", (d) =>
-                    this.ratioYScale(this.transformLog2Ratio(d.mean) + d.sd)
-                  )
+                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
                   .attr(
                     "width",
                     (d) => this.xScale(d.end) - this.xScale(d.start)
@@ -808,9 +797,7 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
-              .attr("cy", (d) =>
-                this.ratioYScale(this.transformLog2Ratio(d.log2))
-              )
+              .attr("cy", (d) => this.ratioYScale(d.log2))
               .attr("opacity", 0.3)
           );
         },
@@ -828,12 +815,19 @@ class ChromosomePlot extends EventTarget {
     const self = this;
     this.#segments
       .selectAll(".segment")
-      .data(this.#data.callers[this.#activeCaller].segments, function (d) {
-        if (this.dataset.caller && this.dataset.chromosome) {
-          return [this.dataset.caller, this.dataset.chromosome, d];
+      .data(
+        this.#data.callers[this.#activeCaller].segments.map((d) => {
+          let ts = { ...d };
+          ts.log2 = self.transformLog2Ratio(ts.log2);
+          return ts;
+        }),
+        function (d) {
+          if (this.dataset.caller && this.dataset.chromosome) {
+            return [this.dataset.caller, this.dataset.chromosome, d];
+          }
+          return [self.activeCaller, self.data.chromosome, d];
         }
-        return [self.activeCaller, self.data.chromosome, d];
-      })
+      )
       .join(
         (enter) =>
           enter
@@ -843,10 +837,8 @@ class ChromosomePlot extends EventTarget {
               "d",
               (d) =>
                 `M${this.xScale(d.start)} ${this.ratioYScale(
-                  this.transformLog2Ratio(d.log2)
-                )} L ${this.xScale(d.end)} ${this.ratioYScale(
-                  this.transformLog2Ratio(d.log2)
-                )}`
+                  d.log2
+                )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
             )
             .attr("stroke-width", 2)
             .attr("stroke-opacity", 0)
@@ -861,10 +853,8 @@ class ChromosomePlot extends EventTarget {
                 "d",
                 (d) =>
                   `M${this.xScale(d.start)} ${this.ratioYScale(
-                    this.transformLog2Ratio(d.log2)
-                  )} L ${this.xScale(d.end)} ${this.ratioYScale(
-                    this.transformLog2Ratio(d.log2)
-                  )}`
+                    d.log2
+                  )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
               )
           ),
         (exit) => exit.transition().attr("stroke-opacity", 0).remove()
