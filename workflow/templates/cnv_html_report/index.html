@@ -85,6 +85,8 @@
                 <button id="reset-baseline-offset" disabled>Reset</button>
               </div>
               <div>
+                <label for="simulate-purity">Simulate purity</label>
+                <input type="checkbox" id="simulate-purity" />
                 <label for="tc-adjuster">Tumor cell content</label>
                 <input
                   type="range"
@@ -93,6 +95,7 @@
                   max="1"
                   step="0.05"
                   value="{{ metadata.tc if metadata.tc is not none else 1 }}"
+                  disabled
                 />
                 <input
                   type="number"
@@ -101,6 +104,7 @@
                   step="0.05"
                   id="current-tc"
                   value="{{ metadata.tc if metadata.tc is not none else 1 }}"
+                  disabled
                 />
                 <button id="reset-tc" disabled>Reset</button>
               </div>

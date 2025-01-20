@@ -190,9 +190,21 @@ baselineOffsetReset.on("click", () => {
   baselineOffsetSlider.node().dispatchEvent(new Event("change"));
 });
 
+const simulatePurity = d3.select("#simulate-purity");
 const tcAdjustSlider = d3.select("#tc-adjuster");
 const currentTc = d3.select("#current-tc");
 const tcAdjustReset = d3.select("#reset-tc");
+
+simulatePurity.on("change", (e) => {
+  const checked = e.target.checked;
+  tcAdjustSlider.property("disabled", !checked);
+  currentTc.property("disabled", !checked);
+  currentTc.node().dispatchEvent(new Event("change"));
+  if (!checked) {
+    tcAdjustReset.property("disabled", true);
+  }
+  // chromosomePlot.setSimulatePurity(checked);
+});
 
 tcAdjustSlider.on("change", () => {
   currentTc.node().dispatchEvent(new Event("change"));
