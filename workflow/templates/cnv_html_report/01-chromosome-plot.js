@@ -433,6 +433,19 @@ class ChromosomePlot extends EventTarget {
     return tx - this.baselineOffset;
   }
 
+  transformVAF(x) {
+    let tx = x;
+    if (this.simulatePurity) {
+      tx = (tx - 0.5 * (1 - this.tc)) / this.tc;
+      if (tx < 0) {
+        tx = 0;
+      } else if (tx > 1) {
+        tx = 1;
+      }
+    }
+    return tx;
+  }
+
   get length() {
     return this.#data.length;
   }
@@ -863,14 +876,23 @@ class ChromosomePlot extends EventTarget {
       .selectAll(".data-point")
       .data(
         () => {
-          if (this.#showAllData) {
-            return this.#data.vaf.filter(
+          let fd = this.#data.vaf
+            .filter(
               (p) =>
                 p.pos > this.xScale.domain()[0] &&
                 p.pos < this.xScale.domain()[1]
-            );
+            )
+            .map((p) => {
+              let di = { ...p };
+              di.vaf = this.transformVAF(di.vaf);
+              return di;
+            });
+
+          if (this.#showAllData) {
+            return fd;
           }
-          return slidingPixelWindowVAF(this.#data.vaf, this.xScale);
+
+          return slidingPixelWindowVAF(fd, this.xScale);
         },
         (d) => [d.pos, d.start, d.end, d.mean, d.vaf]
       )
@@ -951,7 +973,7 @@ class ChromosomePlot extends EventTarget {
               )
               .call((update) =>
                 update
-                  .selectAll(".point")
+                  .selectAll(".mean")
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x1", (d) => this.xScale(d.start))
@@ -972,6 +994,7 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.pos))
+              .attr("cy", (d) => this.vafYScale(d.vaf))
               .attr("opacity", 0.3)
           );
         },
