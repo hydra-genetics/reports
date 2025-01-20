@@ -41,6 +41,7 @@ d3.select("#dataset-picker")
 const chromosomePlot = new ChromosomePlot({
   element: document.querySelector("#chromosome-view"),
   data: cnvData[0],
+  tc: originalTc,
 });
 
 const genomePlot = new GenomePlot({
@@ -203,7 +204,7 @@ simulatePurity.on("change", (e) => {
   if (!checked) {
     tcAdjustReset.property("disabled", true);
   }
-  // chromosomePlot.setSimulatePurity(checked);
+  chromosomePlot.setSimulatePurity(checked);
 });
 
 tcAdjustSlider.on("change", () => {
@@ -241,7 +242,7 @@ currentTc.on("change", (e) => {
   const strtc = tc.toLocaleString("en-US", { minimumFractionDigits: 2 });
   tcAdjustSlider.node().value = tc;
   currentTc.node().value = strtc;
-  // chromosomePlot.setTc(tc);
+  chromosomePlot.setTc(tc);
   // genomePlot.setTc(tc);
 });
 

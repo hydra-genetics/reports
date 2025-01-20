@@ -235,6 +235,10 @@ class ChromosomePlot extends EventTarget {
     this.minZoomRange = config?.minZoomRange ? config.minZoomRange : 20;
     this.#fitToData = config?.fitToData ? config.fitToData : false;
     this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
+    this.simulatePurity = config?.simulatePurity
+      ? config.simulatePurity
+      : false;
+    this.tc = config?.tc ? config.tc : 1;
     this.animationDuration = config?.animationDuration
       ? config.animationDuration
       : 500;
@@ -405,6 +409,28 @@ class ChromosomePlot extends EventTarget {
     this.#segments.attr("data-chromosome", this.data.chromosome);
 
     this.update();
+  }
+
+  setSimulatePurity(active) {
+    this.simulatePurity = active;
+    this.update();
+  }
+
+  setTc(tc) {
+    if (tc != this.tc) {
+      this.tc = tc;
+      this.update();
+    }
+  }
+
+  transformLog2Ratio(x) {
+    let tx = x;
+    if (this.simulatePurity) {
+      const minCopyNumber = 1e-3;
+      const adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
+      tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
+    }
+    return tx - this.baselineOffset;
   }
 
   get length() {
@@ -669,7 +695,7 @@ class ChromosomePlot extends EventTarget {
                   .attr("class", "variance-rect")
                   .attr("x", (d) => this.xScale(d.start))
                   .attr("y", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset + d.sd)
+                    this.ratioYScale(this.transformLog2Ratio(d.mean) + d.sd)
                   )
                   .attr(
                     "width",
@@ -688,10 +714,10 @@ class ChromosomePlot extends EventTarget {
                   .attr("x1", (d) => this.xScale(d.start))
                   .attr("x2", (d) => this.xScale(d.end))
                   .attr("y1", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
+                    this.ratioYScale(this.transformLog2Ratio(d.mean))
                   )
                   .attr("y2", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
+                    this.ratioYScale(this.transformLog2Ratio(d.mean))
                   )
                   .attr("stroke", "#333")
                   .attr("opacity", 0.5)
@@ -708,7 +734,9 @@ class ChromosomePlot extends EventTarget {
             .append("circle")
             .attr("class", "data-point")
             .attr("cx", (d) => this.xScale(d.start))
-            .attr("cy", (d) => this.ratioYScale(d.log2 - this.baselineOffset))
+            .attr("cy", (d) =>
+              this.ratioYScale(this.transformLog2Ratio(d.log2))
+            )
             .attr("r", 2)
             .attr("fill", "#333")
             .attr("opacity", 0)
@@ -731,10 +759,10 @@ class ChromosomePlot extends EventTarget {
                   .attr("x1", (d) => this.xScale(d.start))
                   .attr("x2", (d) => this.xScale(d.end))
                   .attr("y1", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
+                    this.ratioYScale(this.transformLog2Ratio(d.mean))
                   )
                   .attr("y2", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
+                    this.ratioYScale(this.transformLog2Ratio(d.mean))
                   )
               )
               .call((update) =>
@@ -744,7 +772,7 @@ class ChromosomePlot extends EventTarget {
                   .duration(this.animationDuration)
                   .attr("x", (d) => this.xScale(d.start))
                   .attr("y", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset + d.sd)
+                    this.ratioYScale(this.transformLog2Ratio(d.mean) + d.sd)
                   )
                   .attr(
                     "width",
@@ -767,7 +795,9 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
-              .attr("cy", (d) => this.ratioYScale(d.log2 - this.baselineOffset))
+              .attr("cy", (d) =>
+                this.ratioYScale(this.transformLog2Ratio(d.log2))
+              )
               .attr("opacity", 0.3)
           );
         },
@@ -800,9 +830,9 @@ class ChromosomePlot extends EventTarget {
               "d",
               (d) =>
                 `M${this.xScale(d.start)} ${this.ratioYScale(
-                  d.log2 - this.baselineOffset
+                  this.transformLog2Ratio(d.log2)
                 )} L ${this.xScale(d.end)} ${this.ratioYScale(
-                  d.log2 - this.baselineOffset
+                  this.transformLog2Ratio(d.log2)
                 )}`
             )
             .attr("stroke-width", 2)
@@ -818,9 +848,9 @@ class ChromosomePlot extends EventTarget {
                 "d",
                 (d) =>
                   `M${this.xScale(d.start)} ${this.ratioYScale(
-                    d.log2 - this.baselineOffset
+                    this.transformLog2Ratio(d.log2)
                   )} L ${this.xScale(d.end)} ${this.ratioYScale(
-                    d.log2 - this.baselineOffset
+                    this.transformLog2Ratio(d.log2)
                   )}`
               )
           ),
@@ -1355,16 +1385,16 @@ class ChromosomePlot extends EventTarget {
         yMax = staticYMax;
       } else {
         yMin = yValues
-          .map((d) => d.log2 - this.baselineOffset)
+          .map((d) => this.transformLog2Ratio(d.log2))
           .reduce((a, d) => (d < a ? d : a));
         yMax = yValues
-          .map((d) => d.log2 - this.baselineOffset)
+          .map((d) => this.transformLog2Ratio(d.log2))
           .reduce((a, d) => (d > a ? d : a));
       }
     } else {
       [yMin, yMax] = d3.extent(
         this.#data.callers[this.#activeCaller].ratios,
-        (d) => d.log2 - this.baselineOffset
+        (d) => this.transformLog2Ratio(d.log2)
       );
       if (!yMin && !yMax) {
         yMin = staticYMin;
