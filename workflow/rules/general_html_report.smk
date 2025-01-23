@@ -13,7 +13,6 @@ rule general_json_report:
     params:
         sample="{sample}_{type}",
         pipeline_version=pipeline_version,
-        analysis_date=date_string,
         tc=get_tc_general_report,
     log:
         "reports/general_json_report/{sample}_{type}.general_report.log",
