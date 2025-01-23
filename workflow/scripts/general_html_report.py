@@ -200,17 +200,17 @@ def generate_report(template_filename: str, config: dict,
             validate_table_data(d["value"])
         if d["type"] == "image":
             d["value"] = fix_relative_uri(d["value"], final_directory_depth)
-
         if d["type"] == "multiqc":
             sample = config['sample']
             d["data"] = parse_multiqc(d, multiqc_config, sample)
-
         if d["type"] == "file_table":
-            data = pd.read_csv(d['value'], sep='\t')
-            if len(data.columns) == 1:
-                data = pd.read_csv(d['value'], sep=',')
-            d["data"] = data.to_html(index=False).replace('border="1"', '')
-
+            try:
+                data = pd.read_csv(d['value'], sep='\t')
+                if len(data.columns) == 1:
+                    data = pd.read_csv(d['value'], sep=',')
+                d["data"] = data.to_html(index=False).replace('border="1"', '')
+            except pd.errors.EmptyDataError:
+                d["data"] = "Empty file"
     css_string = ""
     for css_filename in css_files:
         with open(css_filename) as f:

@@ -54,8 +54,8 @@ with open(config["output"]) as output:
 
 validate(output_spec, schema="../schemas/output_files.schema.yaml")
 
-pipeline_version = get_pipeline_version(workflow, pipeline_name="pipeline")
-date_string = datetime.now().strftime("%Y%m%d")
+pipeline_name = ""
+pipeline_version = get_pipeline_version(workflow, pipeline_name=pipeline_name)
 
 
 ### Set wildcard constraints
