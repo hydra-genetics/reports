@@ -36,7 +36,7 @@ class GenomePlot extends EventTarget {
 
     this.totalLength = d3.sum(this.#data.map((d) => d.length));
 
-    this.panelWidths = cnvData.map(
+    this.panelWidths = this.#data.map(
       (d) =>
         ((this.width - this.margin.left - this.margin.right) * d.length) /
         this.totalLength
@@ -155,8 +155,8 @@ class GenomePlot extends EventTarget {
     this.drawGridLines();
     this.setLabels();
     this.plotRatios();
-    this.plotVAF();
     this.plotSegments();
+    this.plotVAF();
   }
 
   set activeCaller(caller) {
@@ -170,6 +170,40 @@ class GenomePlot extends EventTarget {
     return this.#activeCaller;
   }
 
+  setSimulatePurity(active) {
+    this.simulatePurity = active;
+    this.update();
+  }
+
+  setTc(tc) {
+    if (tc != this.tc) {
+      this.tc = tc;
+      this.update();
+    }
+  }
+
+  transformLog2Ratio(x) {
+    let tx = x;
+    if (this.simulatePurity) {
+      const minCopyNumber = 1e-3;
+      const adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
+      tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
+    }
+    return tx - this.baselineOffset;
+  }
+
+  transformVAF(x) {
+    let tx = x;
+    if (this.simulatePurity) {
+      tx = (tx - 0.5 * (1 - this.tc)) / this.tc;
+      if (tx < 0) {
+        tx = 0;
+      } else if (tx > 1) {
+        tx = 1;
+      }
+    }
+    return tx;
+  }
   addPanels(g) {
     const panels = g
       .selectAll(".chromosome-panel")
@@ -302,387 +336,230 @@ class GenomePlot extends EventTarget {
   }
 
   plotRatios() {
-    const nRatioPoints = cnvData.map(
-      (d) => d.callers[this.#activeCaller].ratios.length
-    );
-    const ratioPointsPerChromosome =
-      nRatioPoints.reduce((a, b) => a + b, 0) / cnvData.length;
     const self = this;
 
-    this.ratioPanels
-      .selectAll(".data-point")
-      .data(
-        (d, i, g) => {
-          if (ratioPointsPerChromosome < MAX_POINTS) {
-            return d.callers[this.#activeCaller].ratios;
-          } else {
-            return slidingPixelWindow(
-              d.callers[this.#activeCaller].ratios,
-              this.xScales[g[i].parentNode.dataset.index],
-              "start",
-              "log2",
-              3,
-              true
-            );
-          }
-        },
-        function (d) {
-          if (this.dataset.caller) {
-            return [
-              this.dataset.caller,
-              d.start,
-              d.log2 - this.baselineOffset,
-              d.mean,
-            ];
-          }
-          return [
-            self.activeCaller,
-            d.start,
-            d.log2 - this.baselineOffset,
-            d.mean,
-          ];
-        }
-      )
-      .join(
-        (enter) => {
-          if (enter.data()[0]?.mean) {
-            return enter
-              .append("g")
-              .attr("class", "data-point")
-              .call((g) =>
-                g
-                  .append("line")
-                  .attr("class", "mean")
-                  .attr("x1", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.start
-                    )
-                  )
-                  .attr("x2", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.end
-                    )
-                  )
-                  .attr("y1", this.ratioYScale.range()[0])
-                  .attr("y2", this.ratioYScale.range()[0])
-                  .attr("stroke", "#333")
-                  .attr("opacity", 0.5)
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("y1", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
-                  )
-                  .attr("y2", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
-                  )
-              )
-              .call((g) =>
-                g
-                  .append("rect")
-                  .attr("class", "variance-rect")
-                  .attr("x", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.start
-                    )
-                  )
-                  .attr("y", this.ratioYScale.range()[0])
-                  .attr("width", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.end - d.start
-                    )
-                  )
-                  .attr("height", 0)
-                  .attr("fill", "#333")
-                  .attr("fill-opacity", 0.3)
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("y", (d) =>
-                    this.ratioYScale(d.mean + d.sd - this.baselineOffset)
-                  )
-                  .attr("height", (d) =>
-                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-                  )
-              )
-              .call((g) => g.transition().duration(this.animationDuration));
-          }
+    const ratioPointsPerChromosome =
+      self.#data
+        .map((d) => d.callers[self.activeCaller].ratios.length)
+        .reduce((a, b) => a + b, 0) / self.#data.length;
 
-          return enter
-            .append("circle")
-            .attr("class", "data-point")
-            .attr("cx", (d, i, g) =>
-              this.xScales[g[i].parentNode.dataset.index](d.start)
-            )
-            .attr("cy", this.ratioYScale.range()[0])
-            .attr("r", 2)
-            .attr("fill", "#333")
-            .attr("fill-opacity", 0.3)
-            .call((enter) =>
-              enter
-                .transition()
-                .duration(this.animationDuration)
-                .attr("cy", (d) =>
-                  this.ratioYScale(d.log2 - this.baselineOffset)
+    this.ratioPanels.each(function (panelData, i) {
+      let panelRatios = panelData.callers[self.activeCaller].ratios.map((d) => {
+        let td = { ...d };
+        td.log2 = self.transformLog2Ratio(td.log2);
+        return td;
+      });
+
+      if (ratioPointsPerChromosome > MAX_POINTS) {
+        panelRatios = slidingPixelWindow(
+          panelRatios,
+          self.xScales[i],
+          "start",
+          "log2",
+          3,
+          true
+        );
+      }
+
+      panelRatios = panelRatios.map((d) => {
+        let td = { ...d };
+        td.caller = panelData.callers[self.activeCaller].name;
+        return td;
+      });
+
+      d3.select(this)
+        .selectAll(".data-point")
+        .data(panelRatios, (d) => {
+          const suffix = d.mean ? "summary" : "point";
+          return `${d.caller}-${i}-${d.start}-${d.end}-${suffix}`;
+        })
+        .join(
+          (enter) => {
+            if (enter.data()[0]?.mean) {
+              let g = enter.append("g").attr("class", "data-point");
+
+              g.append("rect")
+                .attr("class", "variance-rect")
+                .attr("x", (d) => self.xScales[i](d.start))
+                .attr("y", (d) => self.ratioYScale(d.mean + d.sd))
+                .attr("width", (d) => self.xScales[i](d.end - d.start))
+                .attr("height", (d) =>
+                  self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
                 )
-            );
-        },
-        (update) => {
-          if (update.data()[0]?.mean) {
-            return update
-              .call((update) =>
-                update
-                  .selectAll(".mean")
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("x1", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.start
-                    )
-                  )
-                  .attr("x2", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.end
-                    )
-                  )
-                  .attr("y1", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
-                  )
-                  .attr("y2", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
-                  )
-              )
-              .call((update) =>
-                update
-                  .selectAll(".variance-rect")
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("x", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.start
-                    )
-                  )
-                  .attr("y", (d) =>
-                    this.ratioYScale(d.mean + d.sd - this.baselineOffset)
-                  )
-                  .attr("height", (d) =>
-                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-                  )
-              )
-              .transition()
-              .duration(this.animationDuration);
-          }
+                .attr("fill", "#333")
+                .attr("fill-opacity", 0.3);
 
-          return update.call((update) =>
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("cx", (d, i, g) =>
-                this.xScales[g[i].parentNode.dataset.index](d.start)
-              )
-              .attr("cy", (d) => this.ratioYScale(d.log2 - this.baselineOffset))
-          );
-        },
-        (exit) => {
-          if (exit.data()[0]?.mean) {
-            return exit
-              .call((exit) => {
-                exit
-                  .selectAll(".variance-rect")
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("y", this.ratioYScale.range()[1])
-                  .attr("height", 0);
-              })
-              .call((exit) => {
-                exit
-                  .selectAll(".mean")
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("y1", this.ratioYScale.range()[1])
-                  .attr("y2", this.ratioYScale.range()[1]);
-              })
-              .transition()
-              .delay(this.animationDuration)
-              .remove();
-          }
+              g.append("line")
+                .attr("class", "mean-line")
+                .attr("x1", (d) => self.xScales[i](d.start))
+                .attr("x2", (d) => self.xScales[i](d.end))
+                .attr("y1", (d) => self.ratioYScale(d.mean))
+                .attr("y2", (d) => self.ratioYScale(d.mean))
+                .attr("stroke", "#333")
+                .attr("stroke-width", 1)
+                .attr("opacity", 0.3);
+              return g;
+            } else {
+              return enter
+                .append("circle")
+                .attr("class", "data-point")
+                .attr("cx", (d) => self.xScales[i](d.start))
+                .attr("cy", (d) => self.ratioYScale(d.log2))
+                .attr("r", 2)
+                .attr("fill", "#333")
+                .attr("fill-opacity", 0.3);
+            }
+          },
+          (update) => {
+            if (update.data()[0]?.mean) {
+              update
+                .selectAll(".variance-rect")
+                .data((d) => [d])
+                .attr("y", (d) => self.ratioYScale(d.mean + d.sd))
+                .attr("height", (d) =>
+                  self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
+                );
 
-          return exit
-            .transition()
-            .duration(this.animationDuration)
-            .attr("cy", this.ratioYScale.range()[1])
-            .remove();
-        }
-      );
+              update
+                .selectAll(".mean-line")
+                .data((d) => [d])
+                .attr("y1", (d) => self.ratioYScale(d.mean))
+                .attr("y2", (d) => self.ratioYScale(d.mean));
+            } else {
+              return update.attr("cy", (d) => self.ratioYScale(d.log2));
+            }
+          },
+          (exit) => exit.remove()
+        );
+    });
   }
 
   plotSegments() {
     const self = this;
-    this.segmentPanels
-      .selectAll(".segment")
-      // Only draw segments that will actually be visible
-      .data(
-        (d) =>
-          d.callers[this.#activeCaller].segments.filter(
-            (s) => s.end - s.start > this.totalLength / this.width
-          ),
-        function (d) {
-          if (this.dataset.caller) {
-            return [this.dataset.caller, d.start, d.end, d.log2];
+
+    this.segmentPanels.each(function (panelData, i) {
+      let panelSegments = panelData.callers[self.activeCaller].segments
+        .filter((d) => d.end - d.start > self.totalLength / self.width)
+        .map((d) => {
+          let td = { ...d };
+          td.log2 = self.transformLog2Ratio(td.log2);
+          return td;
+        });
+
+      d3.select(this)
+        .selectAll(".segment")
+        .data(panelSegments)
+        .join(
+          (enter) => {
+            return enter
+              .append("line")
+              .attr("class", "segment")
+              .attr("x1", (d) => self.xScales[i](d.start))
+              .attr("x2", (d) => self.xScales[i](d.end))
+              .attr("y1", (d) => self.ratioYScale(d.log2))
+              .attr("y2", (d) => self.ratioYScale(d.log2))
+              .attr("stroke-width", 2);
+          },
+          (update) => {
+            return update
+              .attr("y1", (d) => self.ratioYScale(d.log2))
+              .attr("y2", (d) => self.ratioYScale(d.log2));
+          },
+          (exit) => {
+            exit.remove();
           }
-          return [self.activeCaller, d.start, d.end, d.log2];
-        }
-      )
-      .join(
-        (enter) =>
-          enter
-            .append("path")
-            .attr("class", "segment")
-            .attr("d", (d, i, g) => {
-              let j = g[i].parentNode.dataset.index;
-              let xScale = this.xScales[j];
-              return `M${xScale(d.start)} ${
-                this.ratioYScale.range()[0]
-              } L ${xScale(d.end)} ${this.ratioYScale.range()[0]}`;
-            })
-            .attr("stroke-width", 2)
-            .call((enter) =>
-              enter
-                .transition()
-                .duration(this.animationDuration)
-                .attr("d", (d, i, g) => {
-                  let j = g[i].parentNode.dataset.index;
-                  let xScale = this.xScales[j];
-                  return `M${xScale(d.start)} ${this.ratioYScale(
-                    d.log2 - this.baselineOffset
-                  )} L ${xScale(d.end)} ${this.ratioYScale(
-                    d.log2 - this.baselineOffset
-                  )}`;
-                })
-            ),
-        (update) =>
-          update.call((update) => {
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("d", (d, i, g) => {
-                let j = g[i].parentNode.dataset.index;
-                let xScale = this.xScales[j];
-                return `M${xScale(d.start)} ${this.ratioYScale(
-                  d.log2 - this.baselineOffset
-                )} L ${xScale(d.end)} ${this.ratioYScale(
-                  d.log2 - this.baselineOffset
-                )}`;
-              });
-          }),
-        (exit) =>
-          exit
-            .transition()
-            .duration(this.animationDuration)
-            .attr("d", (d, i, g) => {
-              let j = g[i].parentNode.dataset.index;
-              let xScale = this.xScales[j];
-              return `M${xScale(d.start)} ${this.ratioYScale(
-                this.ratioYScaleRange + 0.2
-              )} L ${xScale(d.end)} ${this.ratioYScale(
-                this.ratioYScaleRange + 0.2
-              )}`;
-            })
-            .remove()
-      );
+        );
+    });
   }
 
   plotVAF() {
-    const nVafPoints = this.#data.map((d) => d.vaf.length);
+    const self = this;
+
+    const nVafPoints = self.#data.map((d) => d.vaf.length);
     const vafPointsPerChromosome =
-      nVafPoints.reduce((a, b) => a + b, 0) / this.#data.length;
+      nVafPoints.reduce((a, b) => a + b, 0) / self.#data.length;
 
-    this.vafPanels
-      .append("g")
-      .attr("class", "vaf")
-      .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`)
-      .attr("data-index", (_, i) => i)
-      .selectAll(".data-point")
-      .data((d, i, g) => {
-        if (vafPointsPerChromosome < MAX_POINTS) {
-          return d.vaf;
-        } else {
-          return slidingPixelWindowVAF(
-            d.vaf,
-            this.xScales[g[i].parentNode.dataset.index],
-            3,
-            true
-          );
-        }
-      })
-      .join(
-        (enter) => {
-          if (enter.data()[0]?.mean) {
-            return enter
-              .append("g")
-              .attr("class", "data-point")
-              .call((g) =>
-                g
-                  .append("rect")
-                  .attr("class", "variance-rect")
-                  .attr("x", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.start
-                    )
-                  )
-                  .attr("y", this.vafYScale.range()[0])
-                  .attr("height", 0)
-                  .attr("width", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.end - d.start
-                    )
-                  )
-                  .attr("fill", "#333")
-                  .attr("fill-opacity", 0.3)
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("y", (d) => this.vafYScale(d.mean + d.sd))
-                  .attr("height", (d) =>
-                    this.vafYScale(this.vafYScale.domain()[1] - 2 * d.sd)
-                  )
-              )
-              .call((g) =>
-                g
-                  .append("line")
-                  .attr("class", "mean-line")
-                  .attr("x1", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.start
-                    )
-                  )
-                  .attr("x2", (d, i, g) =>
-                    this.xScales[g[i].parentNode.parentNode.dataset.index](
-                      d.end
-                    )
-                  )
-                  .attr("y1", this.vafYScale.range()[0])
-                  .attr("y2", this.vafYScale.range()[0])
-                  .attr("stroke", "#333")
-                  .attr("opacity", 0.5)
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("y1", (d) => this.vafYScale(d.mean))
-                  .attr("y2", (d) => this.vafYScale(d.mean))
-              );
+    this.vafPanels.each(function (panelData, i) {
+      let panelVaf = panelData.vaf.map((d) => {
+        let td = { ...d };
+        td.vaf = self.transformVAF(td.vaf);
+        return td;
+      });
+      let summarisedData = false;
+      if (vafPointsPerChromosome > MAX_POINTS) {
+        summarisedData = true;
+        panelVaf = slidingPixelWindowVAF(panelVaf, self.xScales[i], 3, true);
+      }
+
+      d3.select(this)
+        .selectAll(".data-point")
+        .data(panelVaf, (d) => {
+          if (summarisedData) {
+            return `${i}-${d.start}-${d.end}`;
           }
+          return `${i}-${d.pos}`;
+        })
+        .join(
+          (enter) => {
+            if (summarisedData) {
+              let g = enter.append("g").attr("class", "data-point");
 
-          return enter
-            .append("circle")
-            .attr("class", "data-point")
-            .attr("cx", (d, i, g) =>
-              this.xScales[g[i].parentNode.dataset.index](d.pos)
-            )
-            .attr("cy", (d) => this.vafYScale(d.vaf))
-            .attr("r", 2)
-            .attr("fill", "#333")
-            .attr("fill-opacity", 0.3);
-        },
-        (update) => update,
-        (exit) => exit.remove()
-      );
+              g.append("rect")
+                .attr("class", "variance-rect")
+                .attr("x", (d) => self.xScales[i](d.start))
+                .attr("y", (d) => self.vafYScale(d.mean + d.sd))
+                .attr("width", (d) => self.xScales[i](d.end - d.start))
+                .attr("height", (d) =>
+                  self.vafYScale(self.vafYScale.domain()[1] - 2 * d.sd)
+                )
+                .attr("fill", "#333")
+                .attr("fill-opacity", 0.3);
+
+              g.append("line")
+                .attr("class", "mean-line")
+                .attr("x1", (d) => self.xScales[i](d.start))
+                .attr("x2", (d) => self.xScales[i](d.end))
+                .attr("y1", (d) => self.vafYScale(d.mean))
+                .attr("y2", (d) => self.vafYScale(d.mean))
+                .attr("stroke", "#333")
+                .attr("opacity", 0.3);
+
+              return g;
+            } else {
+              return enter
+                .append("circle")
+                .attr("class", "data-point")
+                .attr("cx", (d) => self.xScales[i](d.pos))
+                .attr("cy", (d) => self.vafYScale(d.vaf))
+                .attr("r", 2)
+                .attr("fill", "#333")
+                .attr("fill-opacity", 0.3);
+            }
+          },
+          (update) => {
+            if (summarisedData) {
+              update
+                .selectAll(".variance-rect")
+                .data((d) => [d])
+                .attr("y", (d) => self.vafYScale(d.mean + d.sd))
+                .attr("height", (d) =>
+                  self.vafYScale(self.vafYScale.domain()[1] - 2 * d.sd)
+                );
+
+              update
+                .selectAll(".mean-line")
+                .data((d) => [d])
+                .attr("y1", (d) => self.vafYScale(d.mean))
+                .attr("y2", (d) => self.vafYScale(d.mean));
+
+              return update;
+            } else {
+              return update.attr("cy", (d) => self.vafYScale(d.vaf));
+            }
+          },
+          (exit) => exit.remove()
+        );
+    });
   }
 
   selectChromosome(chromosome, start, end) {
@@ -726,5 +603,6 @@ class GenomePlot extends EventTarget {
   update() {
     this.plotRatios();
     this.plotSegments();
+    this.plotVAF();
   }
 }

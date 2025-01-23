@@ -205,6 +205,7 @@ simulatePurity.on("change", (e) => {
     tcAdjustReset.property("disabled", true);
   }
   chromosomePlot.setSimulatePurity(checked);
+  genomePlot.setSimulatePurity(checked);
 });
 
 tcAdjustSlider.on("change", () => {
@@ -243,7 +244,7 @@ currentTc.on("change", (e) => {
   tcAdjustSlider.node().value = tc;
   currentTc.node().value = strtc;
   chromosomePlot.setTc(tc);
-  // genomePlot.setTc(tc);
+  genomePlot.setTc(tc);
 });
 
 tcAdjustReset.on("click", () => {
