@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/hydra-genetics/reports/compare/v0.6.0...v0.6.1) (2025-01-24)
+
+
+### Bug Fixes
+
+* General report bugfixes. Handle empty files, remove duplicate analysis date ([#97](https://github.com/hydra-genetics/reports/issues/97)) ([7afc54a](https://github.com/hydra-genetics/reports/commit/7afc54a6bbcb560776857a8db6f44feedec5cd5e))
+
 ## [0.5.0](https://github.com/hydra-genetics/reports/compare/v0.4.2...v0.5.0) (2024-09-19)
 
 
