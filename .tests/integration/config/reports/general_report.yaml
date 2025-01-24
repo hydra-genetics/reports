@@ -35,3 +35,8 @@ files:
     sections: ["table"]
     description: multiqc general stats for this sample
     nav_header: File types
+  - name: Empty file_table
+    type: file_table
+    description: A completely empty file with no headers
+    input: config/empty_table2.tsv
+    nav_header: File types

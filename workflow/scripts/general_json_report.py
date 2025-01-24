@@ -3,11 +3,13 @@
 
 import yaml
 import json
+import datetime
 
 
-def metadata(sample, analysis_date, pipeline, tc):
+def metadata(sample, pipeline, tc):
     # Uri Still in progress
-    analysis_date = analysis_date
+    analysis_date = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+    print(pipeline)
     pipeline_name = list(pipeline.keys())[0]
     pipeline = dict(name=pipeline_name, version=pipeline[pipeline_name]["version"], uri="")
 
@@ -68,7 +70,7 @@ def tmb(file, name, type, description, nav_header):
     return dict_
 
 
-def generate_json(output_files, sample, analysis_date, pipeline):
+def generate_json(output_files, sample, pipeline):
     with open(output_files, "r") as f:
         output_files = yaml.safe_load(f)
     results = []
@@ -92,7 +94,7 @@ def generate_json(output_files, sample, analysis_date, pipeline):
             if d["type"] == "plain_text":
                 results1 = plain_text(sample_path, d["name"], d["type"], d["description"], nav_header)
         results.append(results1)
-    meta_data = metadata(sample, analysis_date, pipeline, tc)
+    meta_data = metadata(sample, pipeline, tc)
     json_file = dict(meta_data, results=results)
     return json_file
 
@@ -103,8 +105,8 @@ if __name__ == "__main__":
     output_files = snakemake.input.output_files
     tc = snakemake.params.tc
     sample = snakemake.params.sample
-    analysis_date = snakemake.params.analysis_date
     pipeline = snakemake.params.pipeline_version
-    json_file = generate_json(output_files, sample, analysis_date, pipeline)
+    print(pipeline)
+    json_file = generate_json(output_files, sample, pipeline)
     with open(output, "w") as f:
         print(json.dumps(json_file), file=f)
