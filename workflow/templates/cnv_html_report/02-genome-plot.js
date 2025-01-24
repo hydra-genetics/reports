@@ -390,6 +390,9 @@ class GenomePlot extends EventTarget {
                   self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
                 )
                 .attr("fill", "#333")
+                .attr("fill-opacity", 0)
+                .transition()
+                .duration(self.animationDuration)
                 .attr("fill-opacity", 0.3);
 
               g.append("line")
@@ -400,6 +403,9 @@ class GenomePlot extends EventTarget {
                 .attr("y2", (d) => self.ratioYScale(d.mean))
                 .attr("stroke", "#333")
                 .attr("stroke-width", 1)
+                .attr("opacity", 0)
+                .transition()
+                .duration(self.animationDuration)
                 .attr("opacity", 0.3);
               return g;
             } else {
@@ -410,6 +416,9 @@ class GenomePlot extends EventTarget {
                 .attr("cy", (d) => self.ratioYScale(d.log2))
                 .attr("r", 2)
                 .attr("fill", "#333")
+                .attr("fill-opacity", 0)
+                .transition()
+                .duration(self.animationDuration)
                 .attr("fill-opacity", 0.3);
             }
           },
@@ -418,6 +427,8 @@ class GenomePlot extends EventTarget {
               update
                 .selectAll(".variance-rect")
                 .data((d) => [d])
+                .transition()
+                .duration(self.animationDuration)
                 .attr("y", (d) => self.ratioYScale(d.mean + d.sd))
                 .attr("height", (d) =>
                   self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
@@ -426,13 +437,43 @@ class GenomePlot extends EventTarget {
               update
                 .selectAll(".mean-line")
                 .data((d) => [d])
+                .transition()
+                .duration(self.animationDuration)
                 .attr("y1", (d) => self.ratioYScale(d.mean))
                 .attr("y2", (d) => self.ratioYScale(d.mean));
+              return update;
             } else {
-              return update.attr("cy", (d) => self.ratioYScale(d.log2));
+              return update
+                .transition()
+                .duration(self.animationDuration)
+                .attr("cy", (d) => self.ratioYScale(d.log2));
             }
           },
-          (exit) => exit.remove()
+          (exit) => {
+            if (exit.data()[0]?.mean) {
+              exit
+                .selectAll(".variance-rect")
+                .transition()
+                .duration(self.animationDuration)
+                .attr("fill-opacity", 0)
+                .remove();
+
+              exit
+                .selectAll(".mean-line")
+                .transition()
+                .duration(self.animationDuration)
+                .attr("opacity", 0)
+                .remove();
+
+              exit.transition().delay(self.animationDuration).remove();
+            } else {
+              exit
+                .transition()
+                .duration(self.animationDuration)
+                .attr("fill-opacity", 0)
+                .remove();
+            }
+          }
         );
     });
   }
@@ -446,12 +487,13 @@ class GenomePlot extends EventTarget {
         .map((d) => {
           let td = { ...d };
           td.log2 = self.transformLog2Ratio(td.log2);
+          td.caller = panelData.callers[self.activeCaller].name;
           return td;
         });
 
       d3.select(this)
         .selectAll(".segment")
-        .data(panelSegments)
+        .data(panelSegments, (d) => `${d.caller}-${i}-${d.start}-${d.end}`)
         .join(
           (enter) => {
             return enter
@@ -461,15 +503,25 @@ class GenomePlot extends EventTarget {
               .attr("x2", (d) => self.xScales[i](d.end))
               .attr("y1", (d) => self.ratioYScale(d.log2))
               .attr("y2", (d) => self.ratioYScale(d.log2))
-              .attr("stroke-width", 2);
+              .attr("stroke-width", 2)
+              .attr("opacity", 0)
+              .transition()
+              .duration(self.animationDuration)
+              .attr("opacity", 1);
           },
           (update) => {
             return update
+              .transition()
+              .duration(self.animationDuration)
               .attr("y1", (d) => self.ratioYScale(d.log2))
               .attr("y2", (d) => self.ratioYScale(d.log2));
           },
           (exit) => {
-            exit.remove();
+            exit
+              .transition()
+              .duration(self.animationDuration)
+              .attr("opacity", 0)
+              .remove();
           }
         );
     });
