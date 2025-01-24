@@ -85,7 +85,9 @@ class GenomePlot extends EventTarget {
       );
 
     this.lrPanels = this.addPanels(lrArea);
-    this.vafPanels = this.addPanels(vafArea);
+    this.vafPanels = this.addPanels(vafArea)
+      .append("g")
+      .attr("clip-path", (_, i) => `url(#panel-${i}-overlay-clip)`);
 
     this.ratioPanels = this.lrPanels
       .append("g")
@@ -296,7 +298,8 @@ class GenomePlot extends EventTarget {
 
   setLabels() {
     // Labels
-    this.vafPanels
+    d3.select(this.vafPanels.node().parentNode.parentNode)
+      .selectAll(".chromosome-panel")
       .append("text")
       .attr(
         "transform",
