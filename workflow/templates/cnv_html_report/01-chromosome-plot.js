@@ -669,34 +669,35 @@ class ChromosomePlot extends EventTarget {
 
   #plotRatios() {
     const self = this;
+
+    let ratioData = this.#data.callers[this.#activeCaller].ratios
+      .filter(
+        (p) =>
+          p.start >= this.xScale.domain()[0] &&
+          p.start <= this.xScale.domain()[1]
+      )
+      .map((p) => {
+        let tp = { ...p };
+        tp.log2 = self.transformLog2Ratio(tp.log2);
+        return tp;
+      });
+
+    if (ratioData.length > MAX_POINTS && !this.#showAllData) {
+      ratioData = slidingPixelWindow(ratioData, this.xScale, "start", "log2");
+    }
+
+    ratioData = ratioData.map((d) => {
+      let td = { ...d };
+      td.caller = self.activeCaller;
+      return td;
+    });
+
     this.#ratios
       .selectAll(".data-point")
-      .data(
-        () => {
-          let d = this.#data.callers[this.#activeCaller].ratios.filter(
-            (p) =>
-              p.start >= this.xScale.domain()[0] &&
-              p.start <= this.xScale.domain()[1]
-          );
-
-          let td = d.map((p) => {
-            let tp = { ...p };
-            tp.log2 = self.transformLog2Ratio(tp.log2);
-            return tp;
-          });
-
-          if (this.#showAllData) {
-            return td;
-          }
-          return slidingPixelWindow(td, this.xScale, "start", "log2");
-        },
-        function (d) {
-          if (this.dataset.chromosome && this.dataset.caller) {
-            return [this.dataset.caller, this.dataset.chromosome, d];
-          }
-          return [self.activeCaller, self.data.chromosome, d];
-        }
-      )
+      .data(ratioData, (d) => {
+        let suffix = d.mean ? "summary" : "point";
+        return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}-${suffix}`;
+      })
       .join(
         (enter) => {
           if (enter.data()[0]?.mean) {
@@ -762,6 +763,7 @@ class ChromosomePlot extends EventTarget {
               .call((update) =>
                 update
                   .selectAll(".mean")
+                  .data((d) => [d])
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x1", (d) => this.xScale(d.start))
@@ -772,6 +774,7 @@ class ChromosomePlot extends EventTarget {
               .call((update) =>
                 update
                   .selectAll(".variance-rect")
+                  .data((d) => [d])
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x", (d) => this.xScale(d.start))
@@ -819,13 +822,11 @@ class ChromosomePlot extends EventTarget {
         this.#data.callers[this.#activeCaller].segments.map((d) => {
           let ts = { ...d };
           ts.log2 = self.transformLog2Ratio(ts.log2);
+          ts.caller = self.activeCaller;
           return ts;
         }),
         function (d) {
-          if (this.dataset.caller && this.dataset.chromosome) {
-            return [this.dataset.caller, this.dataset.chromosome, d];
-          }
-          return [self.activeCaller, self.data.chromosome, d];
+          return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}`;
         }
       )
       .join(
