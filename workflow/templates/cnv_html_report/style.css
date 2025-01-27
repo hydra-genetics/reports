@@ -114,12 +114,13 @@ dialog.info p i {
   max-width: 60em;
 }
 
-#current-baseline-offset {
+#current-baseline-offset,
+#current-tc {
   width: 3rem;
   margin-right: 0.5rem;
 }
 
-#current-baseline-offset.invalid {
+input.invalid {
   background-color: #ff6762;
 }
 
