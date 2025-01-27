@@ -540,23 +540,21 @@ class GenomePlot extends EventTarget {
         td.vaf = self.transformVAF(td.vaf);
         return td;
       });
-      let summarisedData = false;
       if (vafPointsPerChromosome > MAX_POINTS) {
-        summarisedData = true;
         panelVaf = slidingPixelWindowVAF(panelVaf, self.xScales[i], 3, true);
       }
 
       d3.select(this)
         .selectAll(".data-point")
         .data(panelVaf, (d) => {
-          if (summarisedData) {
-            return `${i}-${d.start}-${d.end}`;
+          if (d.mean) {
+            return `${i}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`;
           }
           return `${i}-${d.pos}`;
         })
         .join(
           (enter) => {
-            if (summarisedData) {
+            if (enter.data()[0]?.mean) {
               let g = enter.append("g").attr("class", "data-point");
 
               g.append("rect")
@@ -568,6 +566,9 @@ class GenomePlot extends EventTarget {
                   self.vafYScale(self.vafYScale.domain()[1] - 2 * d.sd)
                 )
                 .attr("fill", "#333")
+                .attr("fill-opacity", 0)
+                .transition()
+                .duration(self.animationDuration)
                 .attr("fill-opacity", 0.3);
 
               g.append("line")
@@ -577,6 +578,9 @@ class GenomePlot extends EventTarget {
                 .attr("y1", (d) => self.vafYScale(d.mean))
                 .attr("y2", (d) => self.vafYScale(d.mean))
                 .attr("stroke", "#333")
+                .attr("opacity", 0)
+                .transition()
+                .duration(self.animationDuration)
                 .attr("opacity", 0.3);
 
               return g;
@@ -588,14 +592,19 @@ class GenomePlot extends EventTarget {
                 .attr("cy", (d) => self.vafYScale(d.vaf))
                 .attr("r", 2)
                 .attr("fill", "#333")
+                .attr("fill-opacity", 0)
+                .transition()
+                .duration(self.animationDuration)
                 .attr("fill-opacity", 0.3);
             }
           },
           (update) => {
-            if (summarisedData) {
+            if (update.data()[0]?.mean) {
               update
                 .selectAll(".variance-rect")
                 .data((d) => [d])
+                .transition()
+                .duration(self.animationDuration)
                 .attr("y", (d) => self.vafYScale(d.mean + d.sd))
                 .attr("height", (d) =>
                   self.vafYScale(self.vafYScale.domain()[1] - 2 * d.sd)
@@ -604,15 +613,44 @@ class GenomePlot extends EventTarget {
               update
                 .selectAll(".mean-line")
                 .data((d) => [d])
+                .transition()
+                .duration(self.animationDuration)
                 .attr("y1", (d) => self.vafYScale(d.mean))
                 .attr("y2", (d) => self.vafYScale(d.mean));
 
               return update;
             } else {
-              return update.attr("cy", (d) => self.vafYScale(d.vaf));
+              return update
+                .transition()
+                .duration(self.animationDuration)
+                .attr("cy", (d) => self.vafYScale(d.vaf));
             }
           },
-          (exit) => exit.remove()
+          (exit) => {
+            if (exit.data()[0]?.mean) {
+              exit
+                .select(".variance-rect")
+                .transition()
+                .duration(self.animationDuration)
+                .attr("fill-opacity", 0)
+                .remove();
+
+              exit
+                .select(".mean-line")
+                .transition()
+                .duration(self.animationDuration)
+                .attr("opacity", 0)
+                .remove();
+
+              exit.transition().delay(self.animationDuration).remove();
+            } else {
+              exit
+                .transition()
+                .duration(self.animationDuration)
+                .attr("opacity", 0)
+                .remove();
+            }
+          }
         );
     });
   }
