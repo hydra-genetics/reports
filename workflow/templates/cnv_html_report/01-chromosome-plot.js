@@ -863,30 +863,29 @@ class ChromosomePlot extends EventTarget {
   }
 
   #plotVAF() {
+    let vafData = this.#data.vaf
+      .filter(
+        (p) =>
+          p.pos > this.xScale.domain()[0] && p.pos < this.xScale.domain()[1]
+      )
+      .map((p) => {
+        let di = { ...p };
+        di.vaf = this.transformVAF(di.vaf);
+        return di;
+      });
+
+    if (vafData.length > MAX_POINTS && !this.#showAllData) {
+      vafData = slidingPixelWindowVAF(vafData, this.xScale);
+    }
+
     this.#vafArea
       .selectAll(".data-point")
-      .data(
-        () => {
-          let fd = this.#data.vaf
-            .filter(
-              (p) =>
-                p.pos > this.xScale.domain()[0] &&
-                p.pos < this.xScale.domain()[1]
-            )
-            .map((p) => {
-              let di = { ...p };
-              di.vaf = this.transformVAF(di.vaf);
-              return di;
-            });
-
-          if (this.#showAllData) {
-            return fd;
-          }
-
-          return slidingPixelWindowVAF(fd, this.xScale);
-        },
-        (d) => [d.pos, d.start, d.end, d.mean, d.vaf]
-      )
+      .data(vafData, (d) => {
+        if (d.mean) {
+          return `${d.pos}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`;
+        }
+        return `${this.data.chromosome}-${d.pos}`;
+      })
       .join(
         (enter) => {
           if (enter.data()[0]?.mean) {
@@ -950,6 +949,7 @@ class ChromosomePlot extends EventTarget {
               .call((update) =>
                 update
                   .selectAll(".variance-rect")
+                  .data((d) => [d])
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x", (d) => this.xScale(d.start))
@@ -965,6 +965,7 @@ class ChromosomePlot extends EventTarget {
               .call((update) =>
                 update
                   .selectAll(".mean")
+                  .data((d) => [d])
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x1", (d) => this.xScale(d.start))
