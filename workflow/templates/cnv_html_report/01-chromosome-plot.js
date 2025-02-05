@@ -683,7 +683,13 @@ class ChromosomePlot extends EventTarget {
       });
 
     if (ratioData.length > MAX_POINTS && !this.#showAllData) {
-      ratioData = slidingPixelWindow(ratioData, this.xScale, "start", "log2");
+      ratioData = slidingPixelWindow(
+        ratioData,
+        this.xScale,
+        "start",
+        "log2",
+        self.baselineOffset
+      );
     }
 
     ratioData = ratioData.map((d) => {
@@ -700,45 +706,53 @@ class ChromosomePlot extends EventTarget {
       })
       .join(
         (enter) => {
-          if (enter.data()[0]?.mean) {
+          if (enter.data()[0]?.hasOwnProperty("mean")) {
             // Summarised data
-            return enter
+            let g = enter
               .append("g")
               .attr("class", "data-point")
-              .attr("opacity", 0)
-              .call((g) =>
-                g
-                  .append("rect")
-                  .attr("class", "variance-rect")
-                  .attr("x", (d) => this.xScale(d.start))
-                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
-                  .attr(
-                    "width",
-                    (d) => this.xScale(d.end) - this.xScale(d.start)
-                  )
-                  .attr("height", (d) =>
-                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-                  )
-                  .attr("fill", "#333")
-                  .attr("opacity", 0.3)
+              .attr("opacity", 0);
+
+            g.append("rect")
+              .attr("class", "variance-rect")
+              .attr("x", (d) => this.xScale(d.start))
+              .attr("y", (d) => this.ratioYScale(d.mean ? d.mean + d.sd : 0))
+              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+              .attr("height", (d) =>
+                this.ratioYScale(
+                  d.sd ? this.ratioYScale.domain()[1] - 2 * d.sd : 0
+                )
               )
-              .call((g) =>
-                g
-                  .append("line")
-                  .attr("class", "mean")
-                  .attr("x1", (d) => this.xScale(d.start))
-                  .attr("x2", (d) => this.xScale(d.end))
-                  .attr("y1", (d) => this.ratioYScale(d.mean))
-                  .attr("y2", (d) => this.ratioYScale(d.mean))
-                  .attr("stroke", "#333")
-                  .attr("opacity", 0.5)
-              )
-              .call((g) =>
-                g
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("opacity", 1)
-              );
+              .attr("fill", "#333")
+              .attr("opacity", (d) => (d.mean ? 0.3 : 0));
+
+            g.append("line")
+              .attr("class", "mean")
+              .attr("x1", (d) => this.xScale(d.start))
+              .attr("x2", (d) => this.xScale(d.end))
+              .attr("y1", (d) => this.ratioYScale(d.mean ? d.mean : 0))
+              .attr("y2", (d) => this.ratioYScale(d.mean ? d.mean : 0))
+              .attr("stroke", "#333")
+              .attr("opacity", (d) => (d.mean ? 0.5 : 0));
+
+            g.append("polygon")
+              .attr("class", "outlier")
+              .attr("points", (d) => {
+                const start = self.xScale(d.start);
+                const x0 = start + (self.xScale(d.end) - start) / 2;
+                const x1 = x0 - 2;
+                const x2 = x0 + 2;
+                const y0 = self.ratioYScale.range()[0];
+                const y1 = self.ratioYScale.range()[0] - 3;
+                return `${x0},${y0},${x1},${y1},${x2},${y1}`;
+              })
+              .attr("fill", "red")
+              .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+
+            return g
+              .transition()
+              .duration(this.animationDuration)
+              .attr("opacity", 1);
           }
 
           return enter
@@ -757,42 +771,41 @@ class ChromosomePlot extends EventTarget {
             );
         },
         (update) => {
-          if (update.data()[0]?.mean) {
+          if (update.data()[0]?.hasOwnProperty("mean")) {
             // Summarised data
-            return update
-              .call((update) =>
-                update
-                  .selectAll(".mean")
-                  .data((d) => [d])
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("x1", (d) => this.xScale(d.start))
-                  .attr("x2", (d) => this.xScale(d.end))
-                  .attr("y1", (d) => this.ratioYScale(d.mean))
-                  .attr("y2", (d) => this.ratioYScale(d.mean))
-              )
-              .call((update) =>
-                update
-                  .selectAll(".variance-rect")
-                  .data((d) => [d])
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("x", (d) => this.xScale(d.start))
-                  .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
-                  .attr(
-                    "width",
-                    (d) => this.xScale(d.end) - this.xScale(d.start)
-                  )
-                  .attr("height", (d) =>
-                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-                  )
-              )
-              .call((update) =>
-                update
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("opacity", 1)
+            update
+              .selectAll(".mean")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("x1", (d) => this.xScale(d.start))
+              .attr("x2", (d) => this.xScale(d.end))
+              .attr("y1", (d) => this.ratioYScale(d.mean))
+              .attr("y2", (d) => this.ratioYScale(d.mean));
+
+            update
+              .selectAll(".variance-rect")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("x", (d) => this.xScale(d.start))
+              .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+              .attr("height", (d) =>
+                this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
               );
+
+            update
+              .selectAll(".outlier")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+
+            return update
+              .transition()
+              .duration(this.animationDuration)
+              .attr("opacity", 1);
           }
 
           return update.call((update) =>
