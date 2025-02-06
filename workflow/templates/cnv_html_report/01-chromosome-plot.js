@@ -915,7 +915,7 @@ class ChromosomePlot extends EventTarget {
     this.#vafArea
       .selectAll(".data-point")
       .data(vafData, (d) => {
-        if (d.mean) {
+        if (d.mean !== undefined) {
           return `${d.pos}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`;
         }
         return `${this.data.chromosome}-${d.pos}`;

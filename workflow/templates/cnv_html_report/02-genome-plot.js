@@ -567,7 +567,7 @@ class GenomePlot extends EventTarget {
       d3.select(this)
         .selectAll(".data-point")
         .data(panelVaf, (d) => {
-          if (d.mean) {
+          if (d.mean !== undefined) {
             return `${i}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`;
           }
           return `${i}-${d.pos}`;
