@@ -359,6 +359,7 @@ class GenomePlot extends EventTarget {
           self.xScales[i],
           "start",
           "log2",
+          self.baselineOffset,
           3,
           true
         );
@@ -373,12 +374,12 @@ class GenomePlot extends EventTarget {
       d3.select(this)
         .selectAll(".data-point")
         .data(panelRatios, (d) => {
-          const suffix = d.mean ? "summary" : "point";
+          const suffix = d.mean !== undefined ? "summary" : "point";
           return `${d.caller}-${i}-${d.start}-${d.end}-${suffix}`;
         })
         .join(
           (enter) => {
-            if (enter.data()[0]?.mean) {
+            if (enter.data()[0]?.hasOwnProperty("mean")) {
               let g = enter.append("g").attr("class", "data-point");
 
               g.append("rect")
@@ -393,20 +394,35 @@ class GenomePlot extends EventTarget {
                 .attr("fill-opacity", 0)
                 .transition()
                 .duration(self.animationDuration)
-                .attr("fill-opacity", 0.3);
+                .attr("fill-opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
               g.append("line")
                 .attr("class", "mean-line")
                 .attr("x1", (d) => self.xScales[i](d.start))
                 .attr("x2", (d) => self.xScales[i](d.end))
-                .attr("y1", (d) => self.ratioYScale(d.mean))
-                .attr("y2", (d) => self.ratioYScale(d.mean))
+                .attr("y1", (d) => self.ratioYScale(isNaN(d.mean) ? 0 : d.mean))
+                .attr("y2", (d) => self.ratioYScale(isNaN(d.mean) ? 0 : d.mean))
                 .attr("stroke", "#333")
                 .attr("stroke-width", 1)
                 .attr("opacity", 0)
                 .transition()
                 .duration(self.animationDuration)
-                .attr("opacity", 0.3);
+                .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
+
+              g.append("polygon")
+                .attr("class", "outlier")
+                .attr("points", (d) => {
+                  const start = self.xScales[i](d.start);
+                  const x0 = start + (self.xScales[i](d.end) - start) / 2;
+                  const x1 = x0 - 2;
+                  const x2 = x0 + 2;
+                  const y0 = self.ratioYScale.range()[0] - 3;
+                  const y1 = self.ratioYScale.range()[0] - 6;
+                  return `${x0},${y0},${x1},${y1},${x2},${y1}`;
+                })
+                .attr("fill", "red")
+                .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+
               return g;
             } else {
               return enter
@@ -423,15 +439,21 @@ class GenomePlot extends EventTarget {
             }
           },
           (update) => {
-            if (update.data()[0]?.mean) {
+            if (update.data()[0]?.hasOwnProperty("mean")) {
               update
                 .selectAll(".variance-rect")
                 .data((d) => [d])
                 .transition()
                 .duration(self.animationDuration)
-                .attr("y", (d) => self.ratioYScale(d.mean + d.sd))
+                .attr("y", (d) =>
+                  isNaN(d.mean)
+                    ? self.ratioYScale.range()[0]
+                    : self.ratioYScale(d.mean + d.sd)
+                )
                 .attr("height", (d) =>
-                  self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
+                  isNaN(d.sd)
+                    ? 0
+                    : self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
                 );
 
               update
@@ -439,8 +461,24 @@ class GenomePlot extends EventTarget {
                 .data((d) => [d])
                 .transition()
                 .duration(self.animationDuration)
-                .attr("y1", (d) => self.ratioYScale(d.mean))
-                .attr("y2", (d) => self.ratioYScale(d.mean));
+                .attr("y1", (d) =>
+                  isNaN(d.mean)
+                    ? self.ratioYScale.range()[0]
+                    : self.ratioYScale(d.mean)
+                )
+                .attr("y2", (d) =>
+                  isNaN(d.mean)
+                    ? self.ratioYScale.range()[0]
+                    : self.ratioYScale(d.mean)
+                );
+
+              update
+                .selectAll(".outlier")
+                .data((d) => [d])
+                .transition()
+                .duration(self.animationDuration)
+                .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+
               return update;
             } else {
               return update
@@ -450,29 +488,11 @@ class GenomePlot extends EventTarget {
             }
           },
           (exit) => {
-            if (exit.data()[0]?.mean) {
-              exit
-                .selectAll(".variance-rect")
-                .transition()
-                .duration(self.animationDuration)
-                .attr("fill-opacity", 0)
-                .remove();
-
-              exit
-                .selectAll(".mean-line")
-                .transition()
-                .duration(self.animationDuration)
-                .attr("opacity", 0)
-                .remove();
-
-              exit.transition().delay(self.animationDuration).remove();
-            } else {
-              exit
-                .transition()
-                .duration(self.animationDuration)
-                .attr("fill-opacity", 0)
-                .remove();
-            }
+            exit
+              .transition()
+              .duration(self.animationDuration)
+              .attr("opacity", 0)
+              .remove();
           }
         );
     });
