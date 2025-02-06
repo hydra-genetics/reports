@@ -701,7 +701,7 @@ class ChromosomePlot extends EventTarget {
     this.#ratios
       .selectAll(".data-point")
       .data(ratioData, (d) => {
-        let suffix = d.mean ? "summary" : "point";
+        let suffix = d.mean !== undefined ? "summary" : "point";
         return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}-${suffix}`;
       })
       .join(
@@ -719,21 +719,29 @@ class ChromosomePlot extends EventTarget {
               .attr("y", (d) => this.ratioYScale(d.mean ? d.mean + d.sd : 0))
               .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
               .attr("height", (d) =>
-                this.ratioYScale(
-                  d.sd ? this.ratioYScale.domain()[1] - 2 * d.sd : 0
-                )
+                isNaN(d.sd)
+                  ? 0
+                  : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
               )
               .attr("fill", "#333")
-              .attr("opacity", (d) => (d.mean ? 0.3 : 0));
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
             g.append("line")
               .attr("class", "mean")
               .attr("x1", (d) => this.xScale(d.start))
               .attr("x2", (d) => this.xScale(d.end))
-              .attr("y1", (d) => this.ratioYScale(d.mean ? d.mean : 0))
-              .attr("y2", (d) => this.ratioYScale(d.mean ? d.mean : 0))
+              .attr("y1", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
+              .attr("y2", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
               .attr("stroke", "#333")
-              .attr("opacity", (d) => (d.mean ? 0.5 : 0));
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
             g.append("polygon")
               .attr("class", "outlier")
@@ -780,8 +788,17 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("x1", (d) => this.xScale(d.start))
               .attr("x2", (d) => this.xScale(d.end))
-              .attr("y1", (d) => this.ratioYScale(d.mean))
-              .attr("y2", (d) => this.ratioYScale(d.mean));
+              .attr("y1", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
+              .attr("y2", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
             update
               .selectAll(".variance-rect")
@@ -789,11 +806,18 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("x", (d) => this.xScale(d.start))
-              .attr("y", (d) => this.ratioYScale(d.mean + d.sd))
+              .attr("y", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean + d.sd)
+              )
               .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
               .attr("height", (d) =>
-                this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-              );
+                isNaN(d.sd)
+                  ? 0
+                  : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+              )
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
             update
               .selectAll(".outlier")
@@ -802,10 +826,7 @@ class ChromosomePlot extends EventTarget {
               .duration(this.animationDuration)
               .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
 
-            return update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("opacity", 1);
+            return update;
           }
 
           return update.call((update) =>
