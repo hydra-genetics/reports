@@ -11,6 +11,56 @@ const getTextDimensions = function (text, fontSize) {
   ];
 };
 
+// Modal handling start
+function hideModalOnClick(evt) {
+  const dimensions = this.getBoundingClientRect();
+  if (
+    evt.clientX < dimensions.left ||
+    evt.clientX > dimensions.right ||
+    evt.clientY < dimensions.top ||
+    evt.clientY > dimensions.bottom
+  ) {
+    this.close();
+  }
+}
+
+document.querySelector("dialog .close").addEventListener("click", (e) => {
+  e.currentTarget.parentNode.close();
+});
+
+const messageModal = document.getElementById("chromosome-view-dialog");
+messageModal.addEventListener("click", hideModalOnClick);
+
+function setModalMessage(msg, className) {
+  let message = document.createElement("p");
+  const messageText = document.createTextNode(msg);
+
+  let icon = document.createElement("i");
+
+  if (className === "error") {
+    icon.className = "bi-exclamation-circle-fill";
+  } else if (className === "warning") {
+    icon.className = "bi-exclamation-circle-fill";
+  } else if (className === "info") {
+    icon.className = "bi-info-circle-fill";
+  }
+
+  message.appendChild(icon);
+  message.appendChild(messageText);
+
+  messageModal.className = className ? className : "";
+  messageModal.firstChild?.remove();
+  messageModal.prepend(message);
+}
+
+const helpModal = document.getElementById("help-modal");
+helpModal.addEventListener("click", hideModalOnClick);
+
+function showHelp() {
+  helpModal.showModal();
+}
+// Modal handling end
+
 const cnFromRatio = function (ratio, refPloidy) {
   if (refPloidy === undefined) {
     refPloidy = 2;
@@ -53,45 +103,6 @@ const resultsTable = new ResultsTable(d3.select("#cnv-table"), {
   data: cnvData,
   filter: d3.select("#table-filter-toggle").node().checked,
 });
-
-const messageModal = document.querySelector("dialog");
-messageModal.addEventListener("click", (e) => {
-  const modalDimensions = messageModal.getBoundingClientRect();
-  if (
-    e.clientX < modalDimensions.left ||
-    e.clientX > modalDimensions.right ||
-    e.clientY < modalDimensions.top ||
-    e.clientY > modalDimensions.bottom
-  ) {
-    messageModal.close();
-  }
-});
-
-document.querySelector("dialog button.close").addEventListener("click", (e) => {
-  e.currentTarget.parentNode.close();
-});
-
-function setModalMessage(msg, className) {
-  let message = document.createElement("p");
-  const messageText = document.createTextNode(msg);
-
-  let icon = document.createElement("i");
-
-  if (className === "error") {
-    icon.className = "bi-exclamation-circle-fill";
-  } else if (className === "warning") {
-    icon.className = "bi-exclamation-circle-fill";
-  } else if (className === "info") {
-    icon.className = "bi-info-circle-fill";
-  }
-
-  message.appendChild(icon);
-  message.appendChild(messageText);
-
-  messageModal.className = className ? className : "";
-  messageModal.firstChild?.remove();
-  messageModal.prepend(message);
-}
 
 chromosomePlot.addEventListener("zoom", (e) => {
   d3.selectAll(".data-range-warning").classed(

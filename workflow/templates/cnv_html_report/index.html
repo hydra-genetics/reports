@@ -11,6 +11,33 @@
   </head>
   <body>
     <div class="container">
+      <dialog id="help-modal" class="help-contents">
+        <a href="#" class="close"
+          ><i title="Close" class="bi bi-x"></i> Close</a
+        >
+        <header>
+          <h1>CNV report &mdash; Help</h1>
+        </header>
+        <section>
+          <header>
+            <h2>Plotting caveats</h2>
+            <p>
+              All chromosomes are assumed to be diploid for copy number
+              calculations, including sex chromosomes. {% if metadata.show_table
+              %} Copy numbers are different in the plot and the table. The table
+              shows tumor content corrected values while the plot shows
+              uncorrected values. {% endif %}
+            </p>
+
+            <h3>Tumor purity adjustment</h3>
+            <p>
+              Similar as for the copy number calculations in the plots, the
+              tumor purity adjustment also assumes that all chromosomes are
+              diploid.
+            </p>
+          </header>
+        </section>
+      </dialog>
       <header>
         <h1>CNV report</h1>
         <ul>
@@ -30,6 +57,9 @@
           </small>
         </p>
         <!-- x-release-please-end-version -->
+        <a onclick="showHelp();" class="help-link"
+          ><i class="bi bi-question-circle-fill"></i> Help</a
+        >
       </header>
 
       <div class="app-container">
@@ -121,7 +151,7 @@
               </p>
             </details>
             <dialog id="chromosome-view-dialog">
-              <button class="close"><i class="bi bi-x-lg"></i></button>
+              <a href="#" class="close"><i class="bi bi-x"></i> Close</a>
             </dialog>
           </section>
         </div>
