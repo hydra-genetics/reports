@@ -24,9 +24,12 @@ function hideModalOnClick(evt) {
   }
 }
 
-document.querySelector("dialog .close").addEventListener("click", (e) => {
-  e.currentTarget.parentNode.close();
-});
+for (const dialog of document.querySelectorAll("dialog .close")) {
+  dialog.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.currentTarget.parentNode.close();
+  });
+}
 
 const messageModal = document.getElementById("chromosome-view-dialog");
 messageModal.addEventListener("click", hideModalOnClick);
