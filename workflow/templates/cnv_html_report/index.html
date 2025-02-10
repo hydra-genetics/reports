@@ -46,6 +46,7 @@
             number is lower than the real copy number.
           </p>
 
+          {% if metadata.show_table %}
           <h2 id="help-results-table">Results table</h2>
           <p>
             The results table presents copy number variants that have been
@@ -70,6 +71,7 @@
             BAF values outside the range 0&ndash;1 might indicate that the tumor
             cell content is underestimated.
           </p>
+          {% endif %}
         </section>
       </dialog>
       <header>
