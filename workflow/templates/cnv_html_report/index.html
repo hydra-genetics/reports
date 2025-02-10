@@ -19,23 +19,52 @@
           <h1>CNV report &mdash; Help</h1>
         </header>
         <section>
-          <header>
-            <h2>Plotting caveats</h2>
-            <p>
-              All chromosomes are assumed to be diploid for copy number
-              calculations, including sex chromosomes. {% if metadata.show_table
-              %} Copy numbers are different in the plot and the table. The table
-              shows tumor content corrected values while the plot shows
-              uncorrected values. {% endif %}
-            </p>
+          <h2 id="help-copy-number-plots">Copy number plots</h2>
 
-            <h3>Tumor purity adjustment</h3>
-            <p>
-              Similar as for the copy number calculations in the plots, the
-              tumor purity adjustment also assumes that all chromosomes are
-              diploid.
-            </p>
-          </header>
+          <h3 id="help-plotting-caveats">Plotting caveats</h3>
+          <p>
+            All chromosomes are assumed to be diploid for copy number
+            calculations, including sex chromosomes. {% if metadata.show_table
+            %} Copy numbers are different in the plot and the table. The table
+            shows tumor content corrected values while the plot shows
+            uncorrected values. {% endif %}
+          </p>
+
+          <h3 id="help-tumor-purity-adjustment">Tumor purity adjustment</h3>
+          <p>
+            Similar as for the copy number calculations in the plots, the tumor
+            purity adjustment also assumes that all chromosomes are diploid.
+          </p>
+          <p>
+            The smallest possible copy number is limited to 0.001 copies. When
+            displaying all points this will show as points lining up at that
+            copy number. For summarised data, the rectangles will represent the
+            mean and standard deviation for all points that do not end up below
+            this threshold. If there are points in a summarised window that fall
+            under the threshold, this will be indicated with a red triangle at
+            the bottom of the plot. This might be an indication that the copy
+            number is lower than the real copy number.
+          </p>
+
+          <h2 id="help-results-table">Results table</h2>
+          <p>
+            The results table presents copy number variants that have been
+            called by the selected caller.
+          </p>
+          <p>
+            Note that variants labelled as COPY_NORMAL can be present in the
+            filtered table. This indicates that there is a variant covering the
+            same gene that has been called by a different caller.
+          </p>
+          <p>
+            Click the magnifying glass to zoom in on the region in question.
+            Hover over the copy number to see what results other callers got for
+            this gene.
+          </p>
+          <p>
+            BAF values outside the range 0&ndash;1 might indicate that the tumor
+            cell content is underestimated.
+          </p>
         </section>
       </dialog>
       <header>
@@ -70,13 +99,29 @@
           </fieldset>
 
           <section class="genome-view plot-section">
-            <h2>Genome view</h2>
+            <h2>
+              Genome view
+              <a
+                class="help-link"
+                href="#help-copy-number-plots"
+                onclick="showHelp()"
+                ><i class="bi bi-question-circle-fill"></i
+              ></a>
+            </h2>
             <p class="no-print">Click a chromosome to visualise it below.</p>
             <svg id="genome-view"></svg>
           </section>
 
           <section class="chromosome-view plot-section">
-            <h2>Chromosome view</h2>
+            <h2>
+              Chromosome view
+              <a
+                class="help-link"
+                href="#help-copy-number-plots"
+                onclick="showHelp()"
+                ><i class="bi bi-question-circle-fill"></i
+              ></a>
+            </h2>
             <p class="no-print">
               Click and drag to zoom along x-axis. Click the plot to reset zoom.
             </p>
@@ -151,21 +196,15 @@
         <div class="table-container">
           {% endif %} {% if metadata.show_table %}
           <section>
-            <h2>Results table</h2>
-            <p class="no-print">
-              Click the magnifying glass to zoom in on the region in question.
-              Hover over the copy number to see what results other callers got
-              for this gene.
-            </p>
-            <p>
-              BAF values outside the range 0&ndash;1 might indicate that the
-              tumor cell content is underestimated.
-            </p>
-            <p>
-              Note that variants labelled as COPY_NORMAL can be present in the
-              filtered table. This indicates that there is a variant covering
-              the same gene that has been called by a different caller.
-            </p>
+            <h2>
+              Results table
+              <a
+                class="help-link"
+                href="#help-results-table"
+                onclick="showHelp()"
+                ><i class="bi bi-question-circle-fill"></i
+              ></a>
+            </h2>
             <input type="checkbox" id="table-filter-toggle" checked />
             <label
               for="table-filter-toggle"
