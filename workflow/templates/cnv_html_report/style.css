@@ -10,6 +10,7 @@ header {
 
 header .fix-right {
   position: absolute;
+  text-align: right;
   top: 0;
   right: 1em;
 }
@@ -36,21 +37,31 @@ details p {
   margin: 1rem 1rem 0.5rem 1rem;
 }
 
-dialog {
+.help-link {
+  text-decoration: none;
+  color: steelblue;
+  cursor: pointer;
+}
+
+.help-contents {
+  position: fixed;
+  top: 50px;
+  background-color: white;
+  width: 60%;
+  margin: 0 auto;
+  max-height: 70%;
+}
+
+dialog .close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  text-decoration: none;
   user-select: none;
 }
 
-dialog button.close {
-  position: absolute;
-  top: 0;
-  right: 0;
-  height: 1rem;
-  width: 1rem;
-  overflow: hidden;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
+#chromosome-view-dialog {
+  user-select: none;
 }
 
 dialog p i {
