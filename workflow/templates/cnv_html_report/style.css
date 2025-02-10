@@ -10,6 +10,7 @@ header {
 
 header .fix-right {
   position: absolute;
+  text-align: right;
   top: 0;
   right: 1em;
 }
@@ -39,7 +40,6 @@ details p {
 .help-link {
   text-decoration: none;
   color: steelblue;
-  font-size: 2rem;
   cursor: pointer;
 }
 
