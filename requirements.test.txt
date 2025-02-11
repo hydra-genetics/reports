@@ -1,5 +1,4 @@
 fonttools
-brotli
 networkx==2.7
 pre-commit>=3.3
 pycodestyle==2.8.0
