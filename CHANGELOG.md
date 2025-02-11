@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/hydra-genetics/reports/compare/v0.6.1...v0.7.0) (2025-02-11)
+
+
+### Features
+
+* **cnv:** ability to manually adjust tumor cell content in plots ([#96](https://github.com/hydra-genetics/reports/issues/96)) ([fbeec94](https://github.com/hydra-genetics/reports/commit/fbeec94cc83815d08155ba1887c30948d083495d))
+* **cnv:** better help section ([#100](https://github.com/hydra-genetics/reports/issues/100)) ([088911a](https://github.com/hydra-genetics/reports/commit/088911adce16dbb6d5230bd06c5fa4174e9bbe00))
+
 ## [0.6.1](https://github.com/hydra-genetics/reports/compare/v0.6.0...v0.6.1) (2025-01-24)
 
 
