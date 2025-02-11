@@ -235,6 +235,10 @@ class ChromosomePlot extends EventTarget {
     this.minZoomRange = config?.minZoomRange ? config.minZoomRange : 20;
     this.#fitToData = config?.fitToData ? config.fitToData : false;
     this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
+    this.simulatePurity = config?.simulatePurity
+      ? config.simulatePurity
+      : false;
+    this.tc = config?.tc ? config.tc : 1;
     this.animationDuration = config?.animationDuration
       ? config.animationDuration
       : 500;
@@ -405,6 +409,41 @@ class ChromosomePlot extends EventTarget {
     this.#segments.attr("data-chromosome", this.data.chromosome);
 
     this.update();
+  }
+
+  setSimulatePurity(active) {
+    this.simulatePurity = active;
+    this.update();
+  }
+
+  setTc(tc) {
+    if (tc != this.tc) {
+      this.tc = tc;
+      this.update();
+    }
+  }
+
+  transformLog2Ratio(x) {
+    let tx = x;
+    if (this.simulatePurity) {
+      const minCopyNumber = 1e-3;
+      const adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
+      tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
+    }
+    return tx - this.baselineOffset;
+  }
+
+  transformVAF(x) {
+    let tx = x;
+    if (this.simulatePurity) {
+      tx = (tx - 0.5 * (1 - this.tc)) / this.tc;
+      if (tx < 0) {
+        tx = 0;
+      } else if (tx > 1) {
+        tx = 1;
+      }
+    }
+    return tx;
   }
 
   get length() {
@@ -630,85 +669,105 @@ class ChromosomePlot extends EventTarget {
 
   #plotRatios() {
     const self = this;
+
+    let ratioData = this.#data.callers[this.#activeCaller].ratios
+      .filter(
+        (p) =>
+          p.start >= this.xScale.domain()[0] &&
+          p.start <= this.xScale.domain()[1]
+      )
+      .map((p) => {
+        let tp = { ...p };
+        tp.log2 = self.transformLog2Ratio(tp.log2);
+        return tp;
+      });
+
+    if (ratioData.length > MAX_POINTS && !this.#showAllData) {
+      ratioData = slidingPixelWindow(
+        ratioData,
+        this.xScale,
+        "start",
+        "log2",
+        self.baselineOffset
+      );
+    }
+
+    ratioData = ratioData.map((d) => {
+      let td = { ...d };
+      td.caller = self.activeCaller;
+      return td;
+    });
+
     this.#ratios
       .selectAll(".data-point")
-      .data(
-        () => {
-          if (this.#showAllData) {
-            return this.#data.callers[this.#activeCaller].ratios.filter(
-              (p) =>
-                p.start >= this.xScale.domain()[0] &&
-                p.start <= this.xScale.domain()[1]
-            );
-          }
-          return slidingPixelWindow(
-            this.#data.callers[this.#activeCaller].ratios,
-            this.xScale,
-            "start",
-            "log2"
-          );
-        },
-        function (d) {
-          if (this.dataset.chromosome && this.dataset.caller) {
-            return [this.dataset.caller, this.dataset.chromosome, d];
-          }
-          return [self.activeCaller, self.data.chromosome, d];
-        }
-      )
+      .data(ratioData, (d) => {
+        let suffix = d.mean !== undefined ? "summary" : "point";
+        return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}-${suffix}`;
+      })
       .join(
         (enter) => {
-          if (enter.data()[0]?.mean) {
+          if (enter.data()[0]?.hasOwnProperty("mean")) {
             // Summarised data
-            return enter
+            let g = enter
               .append("g")
               .attr("class", "data-point")
-              .attr("opacity", 0)
-              .call((g) =>
-                g
-                  .append("rect")
-                  .attr("class", "variance-rect")
-                  .attr("x", (d) => this.xScale(d.start))
-                  .attr("y", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset + d.sd)
-                  )
-                  .attr(
-                    "width",
-                    (d) => this.xScale(d.end) - this.xScale(d.start)
-                  )
-                  .attr("height", (d) =>
-                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-                  )
-                  .attr("fill", "#333")
-                  .attr("opacity", 0.3)
+              .attr("opacity", 0);
+
+            g.append("rect")
+              .attr("class", "variance-rect")
+              .attr("x", (d) => this.xScale(d.start))
+              .attr("y", (d) => this.ratioYScale(d.mean ? d.mean + d.sd : 0))
+              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+              .attr("height", (d) =>
+                isNaN(d.sd)
+                  ? 0
+                  : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
               )
-              .call((g) =>
-                g
-                  .append("line")
-                  .attr("class", "mean")
-                  .attr("x1", (d) => this.xScale(d.start))
-                  .attr("x2", (d) => this.xScale(d.end))
-                  .attr("y1", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
-                  )
-                  .attr("y2", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
-                  )
-                  .attr("stroke", "#333")
-                  .attr("opacity", 0.5)
+              .attr("fill", "#333")
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
+
+            g.append("line")
+              .attr("class", "mean")
+              .attr("x1", (d) => this.xScale(d.start))
+              .attr("x2", (d) => this.xScale(d.end))
+              .attr("y1", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
               )
-              .call((g) =>
-                g
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("opacity", 1)
-              );
+              .attr("y2", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
+              .attr("stroke", "#333")
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
+
+            g.append("polygon")
+              .attr("class", "outlier")
+              .attr("points", (d) => {
+                const start = self.xScale(d.start);
+                const x0 = start + (self.xScale(d.end) - start) / 2;
+                const x1 = x0 - 2;
+                const x2 = x0 + 2;
+                const y0 = self.ratioYScale.range()[0];
+                const y1 = self.ratioYScale.range()[0] - 3;
+                return `${x0},${y0},${x1},${y1},${x2},${y1}`;
+              })
+              .attr("fill", "red")
+              .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+
+            return g
+              .transition()
+              .duration(this.animationDuration)
+              .attr("opacity", 1);
           }
 
           return enter
             .append("circle")
             .attr("class", "data-point")
             .attr("cx", (d) => this.xScale(d.start))
-            .attr("cy", (d) => this.ratioYScale(d.log2 - this.baselineOffset))
+            .attr("cy", (d) => this.ratioYScale(d.log2))
             .attr("r", 2)
             .attr("fill", "#333")
             .attr("opacity", 0)
@@ -720,46 +779,54 @@ class ChromosomePlot extends EventTarget {
             );
         },
         (update) => {
-          if (update.data()[0]?.mean) {
+          if (update.data()[0]?.hasOwnProperty("mean")) {
             // Summarised data
-            return update
-              .call((update) =>
-                update
-                  .selectAll(".mean")
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("x1", (d) => this.xScale(d.start))
-                  .attr("x2", (d) => this.xScale(d.end))
-                  .attr("y1", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
-                  )
-                  .attr("y2", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset)
-                  )
+            update
+              .selectAll(".mean")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("x1", (d) => this.xScale(d.start))
+              .attr("x2", (d) => this.xScale(d.end))
+              .attr("y1", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
               )
-              .call((update) =>
-                update
-                  .selectAll(".variance-rect")
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("x", (d) => this.xScale(d.start))
-                  .attr("y", (d) =>
-                    this.ratioYScale(d.mean - this.baselineOffset + d.sd)
-                  )
-                  .attr(
-                    "width",
-                    (d) => this.xScale(d.end) - this.xScale(d.start)
-                  )
-                  .attr("height", (d) =>
-                    this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-                  )
+              .attr("y2", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
               )
-              .call((update) =>
-                update
-                  .transition()
-                  .duration(this.animationDuration)
-                  .attr("opacity", 1)
-              );
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
+
+            update
+              .selectAll(".variance-rect")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("x", (d) => this.xScale(d.start))
+              .attr("y", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean + d.sd)
+              )
+              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+              .attr("height", (d) =>
+                isNaN(d.sd)
+                  ? 0
+                  : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+              )
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
+
+            update
+              .selectAll(".outlier")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+
+            return update;
           }
 
           return update.call((update) =>
@@ -767,7 +834,7 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.start))
-              .attr("cy", (d) => this.ratioYScale(d.log2 - this.baselineOffset))
+              .attr("cy", (d) => this.ratioYScale(d.log2))
               .attr("opacity", 0.3)
           );
         },
@@ -785,12 +852,17 @@ class ChromosomePlot extends EventTarget {
     const self = this;
     this.#segments
       .selectAll(".segment")
-      .data(this.#data.callers[this.#activeCaller].segments, function (d) {
-        if (this.dataset.caller && this.dataset.chromosome) {
-          return [this.dataset.caller, this.dataset.chromosome, d];
+      .data(
+        this.#data.callers[this.#activeCaller].segments.map((d) => {
+          let ts = { ...d };
+          ts.log2 = self.transformLog2Ratio(ts.log2);
+          ts.caller = self.activeCaller;
+          return ts;
+        }),
+        function (d) {
+          return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}`;
         }
-        return [self.activeCaller, self.data.chromosome, d];
-      })
+      )
       .join(
         (enter) =>
           enter
@@ -800,10 +872,8 @@ class ChromosomePlot extends EventTarget {
               "d",
               (d) =>
                 `M${this.xScale(d.start)} ${this.ratioYScale(
-                  d.log2 - this.baselineOffset
-                )} L ${this.xScale(d.end)} ${this.ratioYScale(
-                  d.log2 - this.baselineOffset
-                )}`
+                  d.log2
+                )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
             )
             .attr("stroke-width", 2)
             .attr("stroke-opacity", 0)
@@ -818,10 +888,8 @@ class ChromosomePlot extends EventTarget {
                 "d",
                 (d) =>
                   `M${this.xScale(d.start)} ${this.ratioYScale(
-                    d.log2 - this.baselineOffset
-                  )} L ${this.xScale(d.end)} ${this.ratioYScale(
-                    d.log2 - this.baselineOffset
-                  )}`
+                    d.log2
+                  )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
               )
           ),
         (exit) => exit.transition().attr("stroke-opacity", 0).remove()
@@ -829,21 +897,29 @@ class ChromosomePlot extends EventTarget {
   }
 
   #plotVAF() {
+    let vafData = this.#data.vaf
+      .filter(
+        (p) =>
+          p.pos > this.xScale.domain()[0] && p.pos < this.xScale.domain()[1]
+      )
+      .map((p) => {
+        let di = { ...p };
+        di.vaf = this.transformVAF(di.vaf);
+        return di;
+      });
+
+    if (vafData.length > MAX_POINTS && !this.#showAllData) {
+      vafData = slidingPixelWindowVAF(vafData, this.xScale);
+    }
+
     this.#vafArea
       .selectAll(".data-point")
-      .data(
-        () => {
-          if (this.#showAllData) {
-            return this.#data.vaf.filter(
-              (p) =>
-                p.pos > this.xScale.domain()[0] &&
-                p.pos < this.xScale.domain()[1]
-            );
-          }
-          return slidingPixelWindowVAF(this.#data.vaf, this.xScale);
-        },
-        (d) => [d.pos, d.start, d.end, d.mean, d.vaf]
-      )
+      .data(vafData, (d) => {
+        if (d.mean !== undefined) {
+          return `${d.pos}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`;
+        }
+        return `${this.data.chromosome}-${d.pos}`;
+      })
       .join(
         (enter) => {
           if (enter.data()[0]?.mean) {
@@ -907,6 +983,7 @@ class ChromosomePlot extends EventTarget {
               .call((update) =>
                 update
                   .selectAll(".variance-rect")
+                  .data((d) => [d])
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x", (d) => this.xScale(d.start))
@@ -921,7 +998,8 @@ class ChromosomePlot extends EventTarget {
               )
               .call((update) =>
                 update
-                  .selectAll(".point")
+                  .selectAll(".mean")
+                  .data((d) => [d])
                   .transition()
                   .duration(this.animationDuration)
                   .attr("x1", (d) => this.xScale(d.start))
@@ -942,6 +1020,7 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("cx", (d) => this.xScale(d.pos))
+              .attr("cy", (d) => this.vafYScale(d.vaf))
               .attr("opacity", 0.3)
           );
         },
@@ -1355,16 +1434,16 @@ class ChromosomePlot extends EventTarget {
         yMax = staticYMax;
       } else {
         yMin = yValues
-          .map((d) => d.log2 - this.baselineOffset)
+          .map((d) => this.transformLog2Ratio(d.log2))
           .reduce((a, d) => (d < a ? d : a));
         yMax = yValues
-          .map((d) => d.log2 - this.baselineOffset)
+          .map((d) => this.transformLog2Ratio(d.log2))
           .reduce((a, d) => (d > a ? d : a));
       }
     } else {
       [yMin, yMax] = d3.extent(
         this.#data.callers[this.#activeCaller].ratios,
-        (d) => d.log2 - this.baselineOffset
+        (d) => this.transformLog2Ratio(d.log2)
       );
       if (!yMin && !yMax) {
         yMin = staticYMin;

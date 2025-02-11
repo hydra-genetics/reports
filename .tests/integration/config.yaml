@@ -10,6 +10,7 @@ reference:
 
 cnv_html_report:
   cytobands: true
+  show_table: true
   extra_tables:
     - path: config/extra_table1.tsv
       name: Extra table
@@ -32,7 +33,6 @@ cnv_html_report:
 general_html_report:
   final_directory_depth: 3
   multiqc_config: "config/reports/multiqc_config_dna.yaml"
-
 
 merge_cnv_json:
   annotations:

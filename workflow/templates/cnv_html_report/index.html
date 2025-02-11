@@ -11,6 +11,69 @@
   </head>
   <body>
     <div class="container">
+      <dialog id="help-modal" class="help-contents">
+        <a href="#" class="close"
+          ><i title="Close" class="bi bi-x"></i> Close</a
+        >
+        <header>
+          <h1>CNV report &mdash; Help</h1>
+        </header>
+        <section>
+          <h2 id="help-copy-number-plots">Copy number plots</h2>
+
+          <h3 id="help-plotting-caveats">Plotting caveats</h3>
+          <p>
+            All chromosomes are assumed to be diploid for copy number
+            calculations, including sex chromosomes. {% if metadata.show_table
+            %} Copy numbers are different in the plot and the table. The table
+            shows tumor content corrected values while the plot shows
+            uncorrected values. {% endif %}
+          </p>
+
+          <h3 id="help-tumor-purity-adjustment">Tumor purity adjustment</h3>
+          <p>
+            Similar as for the copy number calculations in the plots, the tumor
+            purity adjustment also assumes that all chromosomes are diploid.
+          </p>
+          <p>
+            The smallest possible copy number is limited to 0.001 copies. When
+            displaying all points this will show as points lining up at that
+            copy number. For summarised data, the rectangles will represent the
+            mean and standard deviation for all points that do not end up below
+            this threshold. If there are points in a summarised window that fall
+            under the threshold, this will be indicated with a red triangle at
+            the bottom of the plot. This might be an indication that the copy
+            number is lower than the real copy number.
+          </p>
+
+          {% if metadata.show_table %}
+          <h2 id="help-results-table">Results table</h2>
+          <p>
+            The results table presents copy number variants that have been
+            called by the selected caller.
+          </p>
+          <p>
+            Note that variants labelled as COPY_NORMAL can be present in the
+            filtered table. This indicates that there is a variant covering the
+            same gene that has been called by a different caller.
+          </p>
+          <p>
+            By checking the "Filter table" checkbox (checked by default), only
+            copy number variants in the filtered callset will be presented.
+            Unchecking it will show all variants.
+          </p>
+          <p>
+            Click the magnifying glass to zoom in on the region in question.
+            Hover over the copy number to see what results other callers got for
+            this gene.
+          </p>
+          <p>
+            BAF values outside the range 0&ndash;1 might indicate that the tumor
+            cell content is underestimated.
+          </p>
+          {% endif %}
+        </section>
+      </dialog>
       <header>
         <h1>CNV report</h1>
         <ul>
@@ -28,6 +91,10 @@
               >hydra-genetics/reports v0.6.1</a
             >
           </small>
+          <br />
+          <a href="#" onclick="showHelp();" class="no-print help-link"
+            ><i class="bi bi-question-circle-fill"></i> Help</a
+          >
         </p>
         <!-- x-release-please-end-version -->
       </header>
@@ -39,13 +106,29 @@
           </fieldset>
 
           <section class="genome-view plot-section">
-            <h2>Genome view</h2>
+            <h2>
+              Genome view
+              <a
+                class="no-print help-link"
+                href="#help-copy-number-plots"
+                onclick="showHelp()"
+                ><i class="bi bi-question-circle-fill"></i
+              ></a>
+            </h2>
             <p class="no-print">Click a chromosome to visualise it below.</p>
             <svg id="genome-view"></svg>
           </section>
 
           <section class="chromosome-view plot-section">
-            <h2>Chromosome view</h2>
+            <h2>
+              Chromosome view
+              <a
+                class="no-print help-link"
+                href="#help-copy-number-plots"
+                onclick="showHelp()"
+                ><i class="bi bi-question-circle-fill"></i
+              ></a>
+            </h2>
             <p class="no-print">
               Click and drag to zoom along x-axis. Click the plot to reset zoom.
             </p>
@@ -84,20 +167,36 @@
                 />
                 <button id="reset-baseline-offset" disabled>Reset</button>
               </div>
+              <div>
+                <label for="simulate-purity">Simulate purity</label>
+                <input type="checkbox" id="simulate-purity" />
+                <label for="tc-adjuster">Tumor cell content</label>
+                <input
+                  type="range"
+                  id="tc-adjuster"
+                  min="0.05"
+                  max="1"
+                  step="0.05"
+                  value="{{ metadata.tc if metadata.tc is not none else 1 }}"
+                  disabled
+                />
+                <input
+                  type="number"
+                  min="0.05"
+                  max="1"
+                  step="0.05"
+                  id="current-tc"
+                  value="{{ metadata.tc if metadata.tc is not none else 1 }}"
+                  disabled
+                />
+                <button id="reset-tc" disabled>Reset</button>
+              </div>
             </div>
             <svg id="chromosome-view"></svg>
-            <details class="no-print">
-              <summary>Caveats</summary>
-              <p>
-                All chromosomes are assumed to be diploid for copy number
-                calculations, including sex chromosomes. {% if
-                metadata.show_table %} Copy numbers are different in the plot
-                and the table. The table shows tumor content corrected values
-                while the plot shows uncorrected values. {% endif %}
-              </p>
-            </details>
             <dialog id="chromosome-view-dialog">
-              <button class="close"><i class="bi bi-x-lg"></i></button>
+              <a href="#" class="close"
+                ><i title="Close" class="bi bi-x"></i> Close</a
+              >
             </dialog>
           </section>
         </div>
@@ -106,21 +205,15 @@
         <div class="table-container">
           {% endif %} {% if metadata.show_table %}
           <section>
-            <h2>Results table</h2>
-            <p class="no-print">
-              Click the magnifying glass to zoom in on the region in question.
-              Hover over the copy number to see what results other callers got
-              for this gene.
-            </p>
-            <p>
-              BAF values outside the range 0&ndash;1 might indicate that the
-              tumor cell content is underestimated.
-            </p>
-            <p>
-              Note that variants labelled as COPY_NORMAL can be present in the
-              filtered table. This indicates that there is a variant covering
-              the same gene that has been called by a different caller.
-            </p>
+            <h2>
+              Results table
+              <a
+                class="no-print help-link"
+                href="#help-results-table"
+                onclick="showHelp()"
+                ><i class="bi bi-question-circle-fill"></i
+              ></a>
+            </h2>
             <input type="checkbox" id="table-filter-toggle" checked />
             <label
               for="table-filter-toggle"
@@ -171,6 +264,7 @@
     </div>
     <script>
       let cnvData = {{ json | trim | indent(width=8) }};
+      const originalTc = {{ metadata.tc if tc is not none else 1 }};
     </script>
     <!-- prettier-ignore -->
     <script>
