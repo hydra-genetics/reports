@@ -1,6 +1,4 @@
 const MAX_POINTS = 300;
-const MIN_COPY_NUMBER = 0.001;
-const MIN_LOG2_RATIO = Math.log2(MIN_COPY_NUMBER / 2);
 
 function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
   let offset = scale.domain()[0];
@@ -28,19 +26,7 @@ function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
   }
 }
 
-function summariseWindow(
-  points,
-  windowStart,
-  windowSize,
-  valAttr,
-  minValue = undefined,
-  offset = 0
-) {
-  let hasOutliers = false;
-  if (minValue !== undefined) {
-    hasOutliers = points.some((x) => x[valAttr] + offset <= minValue);
-    points = points.filter((x) => x[valAttr] + offset > minValue);
-  }
+function summariseWindow(points, windowStart, windowSize, valAttr) {
   let sum = points.reduce((a, b) => a + b[valAttr], 0);
   let mean = sum / points.length;
   let sd = Math.sqrt(
@@ -52,7 +38,6 @@ function summariseWindow(
     end: windowStart + windowSize,
     mean: mean,
     sd: sd,
-    hasOutliers: hasOutliers,
   };
 }
 
@@ -125,7 +110,6 @@ function slidingPixelWindow(
   scale,
   posAttr,
   valAttr,
-  offset = 0,
   pixelWindowSize = 5,
   force = false
 ) {
@@ -146,14 +130,7 @@ function slidingPixelWindow(
       continue;
     }
     reducedPoints.push(
-      summariseWindow(
-        window,
-        windowStart,
-        windowSize,
-        valAttr,
-        MIN_LOG2_RATIO,
-        offset
-      )
+      summariseWindow(window, windowStart, windowSize, valAttr)
     );
     windowStart += windowSize;
   }
