@@ -189,7 +189,7 @@ class ResultsTable extends EventTarget {
           )
           .map((di) => {
             const cols = { view: "", chromosome: d.chromosome, ...di };
-            const end = (di.start + di.length).toLocaleString();
+            const end = (di.start + di.length - 1).toLocaleString();
             cols.position = `${
               d.chromosome
             }:${di.start.toLocaleString()}-${end}`;
