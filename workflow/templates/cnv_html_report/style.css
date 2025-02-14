@@ -356,7 +356,7 @@ tbody tr:hover {
   cursor: pointer;
 }
 
-td.clipboard-copy {
+.clipboard-copy {
   cursor: copy;
 }
 

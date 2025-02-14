@@ -100,8 +100,9 @@ class ResultsTable extends EventTarget {
 
       case "position":
         return {
-          class: "left clipboard-copy",
-          format: (x) => x,
+          class: "left",
+          format: (x) =>
+            `<span class="clipboard-copy" title="Copy to clipboard">${x}</span>`,
         };
 
       // Strings
