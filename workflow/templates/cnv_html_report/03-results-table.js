@@ -24,6 +24,18 @@ class ResultsTable extends EventTarget {
       throw Error("no data supplied");
     }
 
+    // This array controls what columns are displayed in the table,
+    // and in what order.
+    this.visibleColumns = [
+      "view",
+      "position",
+      "length",
+      "genes",
+      "type",
+      "cn",
+      "baf",
+    ];
+
     this.#data = config?.data;
     this.#activeCaller = config?.caller ? config.caller : 0;
 
@@ -89,6 +101,7 @@ class ResultsTable extends EventTarget {
       // Strings
       case "caller":
       case "chromosome":
+      case "position":
       default:
         return {
           class: "left",
@@ -106,6 +119,7 @@ class ResultsTable extends EventTarget {
       start: "Start",
       end: "End",
       length: "Length",
+      position: "Position",
       type: "Type",
       cn: "CN",
       baf: "BAF",
@@ -168,9 +182,9 @@ class ResultsTable extends EventTarget {
             (di) => !this.#isFiltered || (this.#isFiltered && di.passed_filter)
           )
           .map((di) => {
-            const allCols = { view: "", chromosome: d.chromosome, ...di };
-            // Don't display caller and filter status in table
-            const { caller, passed_filter, ...cols } = allCols;
+            const cols = { view: "", chromosome: d.chromosome, ...di };
+            const end = di.start + di.length;
+            cols.position = `${d.chromosome}:${di.start}-${end}`;
             return cols;
           })
       )
@@ -207,10 +221,7 @@ class ResultsTable extends EventTarget {
 
     this.#header
       .selectAll("th")
-      .data(
-        Object.keys(tableData[0]).filter((k) => k !== "others"),
-        (d) => d
-      )
+      .data(this.visibleColumns)
       .join("th")
       .text(this.columnLabel)
       .attr("class", (d) => this.columnDef(d).class);
@@ -224,10 +235,14 @@ class ResultsTable extends EventTarget {
       .attr("data-length", (d) => d.length)
       .attr("data-index", (_, i) => i)
       .selectAll("td")
-      .data((d) => Object.entries(d).filter(([k, _]) => k !== "others"))
+      .data((d) =>
+        this.visibleColumns.map((c) => {
+          return { column: c, value: d[c] };
+        })
+      )
       .join("td")
-      .html(([key, value]) => this.columnDef(key).format(value))
-      .attr("class", ([key, _]) => this.columnDef(key).class);
+      .html((d) => this.columnDef(d.column).format(d.value))
+      .attr("class", (d) => this.columnDef(d.column).class);
 
     this.#body.selectAll(".view-region-link").on("click", (e) => {
       const rowData = e.target.parentNode.parentElement.dataset;
