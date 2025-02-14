@@ -98,10 +98,15 @@ class ResultsTable extends EventTarget {
           format: (x) => x.join(", "),
         };
 
+      case "position":
+        return {
+          class: "left clipboard-copy",
+          format: (x) => x,
+        };
+
       // Strings
       case "caller":
       case "chromosome":
-      case "position":
       default:
         return {
           class: "left",
@@ -245,6 +250,23 @@ class ResultsTable extends EventTarget {
       .join("td")
       .html((d) => this.columnDef(d.column).format(d.value))
       .attr("class", (d) => this.columnDef(d.column).class);
+
+    this.#body.selectAll(".clipboard-copy").on("click", (e) => {
+      const text = e.target.innerHTML;
+      navigator.permissions
+        .query({ name: "clipboard-write" })
+        .then((result) => {
+          if (result.state == "granted" || result.state == "prompt") {
+            navigator.clipboard
+              .writeText(text)
+              .catch((res) =>
+                console.error("failed to write to clipboard: ", res)
+              );
+          } else {
+            console.warn("permission denied: writing to clipboard");
+          }
+        });
+    });
 
     this.#body.selectAll(".view-region-link").on("click", (e) => {
       const rowData = e.target.parentNode.parentElement.dataset;
