@@ -183,8 +183,10 @@ class ResultsTable extends EventTarget {
           )
           .map((di) => {
             const cols = { view: "", chromosome: d.chromosome, ...di };
-            const end = di.start + di.length;
-            cols.position = `${d.chromosome}:${di.start}-${end}`;
+            const end = (di.start + di.length).toLocaleString();
+            cols.position = `${
+              d.chromosome
+            }:${di.start.toLocaleString()}-${end}`;
             return cols;
           })
       )
