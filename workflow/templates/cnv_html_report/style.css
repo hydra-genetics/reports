@@ -304,30 +304,26 @@ th {
 }
 
 #cnv-table th:nth-child(2) {
-  width: 15%;
+  width: 25%;
 }
 
 #cnv-table th:nth-child(3) {
-  width: 15%;
-}
-
-#cnv-table th:nth-child(4) {
-  width: 15%;
-}
-
-#cnv-table th:nth-child(5) {
-  width: 20%;
-}
-
-#cnv-table th:nth-child(6) {
-  width: 20%;
-}
-
-#cnv-table th:nth-child(7) {
   width: 10%;
 }
 
-#cnv-table th:nth-child(8) {
+#cnv-table th:nth-child(4) {
+  width: 30%;
+}
+
+#cnv-table th:nth-child(5) {
+  width: 10%;
+}
+
+#cnv-table th:nth-child(6) {
+  width: 10%;
+}
+
+#cnv-table th:nth-child(7) {
   width: 10%;
 }
 
@@ -354,6 +350,10 @@ tbody tr:hover {
 
 .view-region-link {
   cursor: pointer;
+}
+
+.clipboard-copy {
+  cursor: copy;
 }
 
 .panel-overlay {
