@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/hydra-genetics/reports/compare/v0.7.0...v0.8.0) (2025-02-14)
+
+
+### Features
+
+* **cnv:** replace chromosome and start with position ([#105](https://github.com/hydra-genetics/reports/issues/105)) ([#106](https://github.com/hydra-genetics/reports/issues/106)) ([118d62e](https://github.com/hydra-genetics/reports/commit/118d62ead0e3c3cbd42d4be9680b024248b29adc))
+
 ## [0.7.0](https://github.com/hydra-genetics/reports/compare/v0.6.1...v0.7.0) (2025-02-11)
 
 
