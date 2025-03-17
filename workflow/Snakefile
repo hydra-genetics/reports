@@ -15,4 +15,3 @@ include: "rules/general_html_report.smk"
 rule all:
     input:
         compile_output_file_list,
-
