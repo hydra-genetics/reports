@@ -1,3 +1,6 @@
+<link rel="stylesheet" href="/home/lauri/Desktop/hydra-genetics/reports/workflow/templates/assets/css/datatables.min.css" />
+<script src="/home/lauri/Desktop/hydra-genetics/reports/workflow/templates/assets/js/datatables.min.js"></script>
+
 <!DOCTYPE html>
 <html lang="en">
   <style>
@@ -21,8 +24,8 @@
     <div class="center">
       <div id = "Metadata" class="tabcontent">
         <h1>{{ pipeline.name }} General report</h1>
-
       <h3> Sample information </h3>
+      <div class="dataframe">
       <table>
         <thead>
           <tr>
@@ -55,7 +58,9 @@
 
         </thead>
       </table>
+    </div>
       <h3>Pipeline</h3>
+      <div class="dataframe">
       <table>
         <thead>
           <tr>
@@ -76,7 +81,7 @@
         <!-- x-release-please-end-version -->
       </div>
     </div>
-
+  </div>
         {% for k in nav_header %}
           <div id = "{{ k }}" class="tabcontent">
             <h1>{{ pipeline.name }} General report</h1>
@@ -89,6 +94,7 @@
               <h3>{{ r.name }}</h3>
               <p>{{ r.description }}</p>
               {% if r.type == "table" %}
+              <div class="dataframe">
               <table>
                 <thead>
                   <tr>
@@ -107,7 +113,7 @@
                   {% endfor %}
                 </tbody>
               </table>
-
+            </div>
               {% elif r.type == "file_link" %}
               <a href="{{ r.value}}">{{ r.value }} </a>
 
@@ -126,13 +132,14 @@
               <div class="scroll">
               {{ r.data }}
               </div>
+              {% elif r.type == "large_file_table" %}
+              {{ r.data }}
               {% elif r.type == "multiqc" %}
               {% for t in r.data %}
               {% if "table" in t %}
               <div class="scroll">
-
-
-              <table>
+                <div class="dataframe">
+                <table>
                 <thead>
                   <tr>
                     <th title="Sample name">Sample</th>
@@ -155,6 +162,7 @@
                 </tbody>
               </table>
               </div>
+            </div>
             </hr>
               {% endif %}
               {% endfor %}
@@ -166,12 +174,7 @@
         </div>
 
           {% endfor %}
-
-
-
       </div>
-
-
 
 
       <script>
@@ -197,6 +200,11 @@
         evt.currentTarget.className += " active";
       }
       document.getElementById("defaultOpen").click();
+      
+      new DataTable('table.display', {
+        scrollX: true
+      }
+      );
       </script>
 
     </div>

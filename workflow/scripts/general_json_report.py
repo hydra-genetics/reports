@@ -46,7 +46,6 @@ def file_table(file, name, type, description, nav_header):
     dict_ = dict(name=name, type=type, description=description, value=file, nav_header=nav_header)
     return dict_
 
-
 def multiqc(file, name, type, description, sections, nav_header):
     dict_ = dict(name=name, type=type, description=description, value=file, sections=sections, nav_header=nav_header)
     return dict_
@@ -84,6 +83,8 @@ def generate_json(output_files, sample, pipeline):
             if d["type"] == "table":
                 results1 = table(sample_path, d["name"], d["type"], d["description"], nav_header)
             if d["type"] == "file_table":
+                results1 = file_table(sample_path, d["name"], d["type"], d["description"], nav_header)
+            if d["type"] == "large_file_table":
                 results1 = file_table(sample_path, d["name"], d["type"], d["description"], nav_header)
             if d["type"] == "file_link":
                 results1 = file_table(sample_path, d["name"], d["type"], d["description"], nav_header)

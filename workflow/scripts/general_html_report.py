@@ -196,6 +196,14 @@ def generate_report(
                 d["data"] = data.to_html(index=False).replace('border="1"', "")
             except pd.errors.EmptyDataError:
                 d["data"] = "Empty file"
+        if d["type"] == "large_file_table":
+            try:
+                data = pd.read_csv(d["value"], sep="\t")
+                if len(data.columns) == 1:
+                    data = pd.read_csv(d["value"], sep=",")
+                d["data"] = data.to_html(index=False).replace('border="1"', "").replace('class="dataframe"', 'class="display" style="width:100%"')
+            except pd.errors.EmptyDataError:
+                d["data"] = "Empty file"
     css_string = ""
     for css_filename in css_files:
         with open(css_filename) as f:
