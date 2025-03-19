@@ -173,7 +173,7 @@ def merge_json(config: dict, extra_config: dict):
 
 
 def generate_report(
-    template_filename: str, config: dict, final_directory_depth: int, css_files: list, navigation_bar: list, multiqc_config: list
+    template_filename: str, config: dict, final_directory_depth: int, css_files: list, navigation_bar: list, multiqc_config: list,
 ) -> str:
     with open(template_filename) as f:
         template = Template(source=f.read())
@@ -223,6 +223,7 @@ def generate_report(
                     analysis_date=config["analysis_date"],
                     report_date=time.strftime("%Y-%m-%d %H:%M", time.localtime()),
                     sample=config["sample"],
+                    units = config["units"]
                 ),
                 pipeline=config["pipeline"],
                 results=config["results"],
@@ -240,6 +241,7 @@ def generate_report(
                     tc_pathology=config["tc_pathology"],
                     tc_purecn=config["tc_purecn"],
                     sample=config["sample"],
+                    units = config["units"]
                 ),
                 pipeline=config["pipeline"],
                 results=config["results"],
@@ -258,6 +260,7 @@ def main():
     config_schema = snakemake.input.config_schema
     final_directory_depth = snakemake.params.final_directory_depth
     multiqc_config = snakemake.params.multiqc_config
+    
     if multiqc_config == "":
         general_stats_to_keep = []
     else:

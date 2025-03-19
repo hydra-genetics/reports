@@ -55,9 +55,29 @@
             <td>{{ metadata.tc_purecn }} </td>
             {% endif %}
             </tr>
-
         </thead>
       </table>
+      <h3>Units</h3>
+    <div class="dataframe">
+        <table>
+          <thead>
+            <tr>
+              {% for c in metadata.units[0].keys() %}
+              <th>{{ c }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in metadata.units %}
+            <tr>
+              {% for k in metadata.units[0].keys() %}
+              <td>{{ row[k] }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+    </div>
     </div>
       <h3>Pipeline</h3>
       <div class="dataframe">

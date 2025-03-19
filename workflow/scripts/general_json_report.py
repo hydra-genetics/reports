@@ -6,19 +6,28 @@ import json
 import datetime
 
 
-def metadata(sample, pipeline, tc):
+def metadata(sample, pipeline, tc, units):
     # Uri Still in progress
     analysis_date = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
-    print(pipeline)
     pipeline_name = list(pipeline.keys())[0]
     pipeline = dict(name=pipeline_name, version=pipeline[pipeline_name]["version"], uri="")
 
     tc_pathology = tc[0]
     tc_purecn = tc[1]
-
-    dict_ = dict(sample=sample, analysis_date=analysis_date, pipeline=pipeline, tc_pathology=tc_pathology, tc_purecn=tc_purecn)
+    
+    units = extract_sample_from_units(units, sample)
+    
+    dict_ = dict(sample=sample, analysis_date=analysis_date, pipeline=pipeline, tc_pathology=tc_pathology, tc_purecn=tc_purecn, units=units)
     return dict_
 
+def extract_sample_from_units(units, sample):
+    sample = sample.split('_')[0]
+    units = units.reset_index(drop=True)
+    units = units[units['sample'] == sample]
+    units_json = units.to_dict(orient='records')
+    return units_json
+
+    
 
 def plain_text(file, name, type, description, nav_header):
     with open(file, "r") as f:
@@ -95,7 +104,7 @@ def generate_json(output_files, sample, pipeline):
             if d["type"] == "plain_text":
                 results1 = plain_text(sample_path, d["name"], d["type"], d["description"], nav_header)
         results.append(results1)
-    meta_data = metadata(sample, pipeline, tc)
+    meta_data = metadata(sample, pipeline, tc, units)
     json_file = dict(meta_data, results=results)
     return json_file
 
@@ -107,7 +116,8 @@ if __name__ == "__main__":
     tc = snakemake.params.tc
     sample = snakemake.params.sample
     pipeline = snakemake.params.pipeline_version
-    print(pipeline)
+    units = snakemake.params.units
     json_file = generate_json(output_files, sample, pipeline)
+        
     with open(output, "w") as f:
         print(json.dumps(json_file), file=f)

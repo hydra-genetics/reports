@@ -14,6 +14,7 @@ rule general_json_report:
         sample="{sample}_{type}",
         pipeline_version=pipeline_version,
         tc=get_tc_general_report,
+        units=units,
     log:
         "reports/general_json_report/{sample}_{type}.general_report.log",
     benchmark:
@@ -50,6 +51,7 @@ rule general_html_report:
     params:
         final_directory_depth=config.get("general_html_report", {}).get("final_directory_depth", 1),
         multiqc_config=config.get("general_html_report", {}).get("multiqc_config", ""),
+        units=units,
         extra=config.get("general_html_report", {}).get("extra", ""),
     log:
         "reports/general_html_report/{sample}_{type}.general_report.log",
