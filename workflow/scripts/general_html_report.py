@@ -8,6 +8,7 @@ import time
 import yaml
 import pandas as pd
 import numpy as np
+from pyaml_env import parse_config
 
 
 def validate_dict(d: dict, schema_path: str):
@@ -15,7 +16,8 @@ def validate_dict(d: dict, schema_path: str):
         try:
             validate(instance=d, schema=yaml.safe_load(f))
         except ValidationError as ve:
-            print(f"error: failed to validate general report config:", file=sys.stderr)
+            print(f"error: failed to validate general report config:",
+                  file=sys.stderr)
             print(ve, file=sys.stderr)
             sys.exit(1)
 
@@ -29,12 +31,12 @@ def validate_table_data(table: list) -> bool:
 
     for i, row in enumerate(table, start=1):
         if len(row) != n_cols:
-            raise ValueError(f"expected {n_cols} columns in row {i}, found {len(row)}")
+            raise ValueError(
+                f"expected {n_cols} columns in row {i}, found {len(row)}")
         if set(row.keys()) != set(cols):
             raise ValueError(
                 f"expected columns {', '.join(repr(x) for x in cols)} "
-                f"in row {i}, found {', '.join(repr(x) for x in row.keys())}"
-            )
+                f"in row {i}, found {', '.join(repr(x) for x in row.keys())}")
     return True
 
 
@@ -45,14 +47,16 @@ def fix_relative_uri(uri: str, depth: int) -> str:
 
 
 def parse_multiqc_config(multiqc_config: str):
-    with open(multiqc_config) as f:
-        config = yaml.safe_load(f)
+    config = parse_config(multiqc_config)
 
     general_stats_to_keep = []
     if config["table_columns_placement"]:
         for k in config["table_columns_placement"]:
-            general_stats_to_keep.append(list(config["table_columns_placement"][k].keys()))
-    flattened_general_stats_to_keep = [x for val in general_stats_to_keep for x in val]
+            general_stats_to_keep.append(
+                list(config["table_columns_placement"][k].keys()))
+    flattened_general_stats_to_keep = [
+        x for val in general_stats_to_keep for x in val
+    ]
 
     if config["custom_data"]:
         for k in config["custom_data"]:
@@ -94,8 +98,8 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
             multiqc_res[s]["header"] = {}
 
             for h_section, d_section in zip(
-                multiqc_dict["report_general_stats_headers"], multiqc_dict["report_general_stats_data"]
-            ):
+                    multiqc_dict["report_general_stats_headers"],
+                    multiqc_dict["report_general_stats_data"]):
                 for k, v in h_section.items():
                     multiqc_res[s]["header"][k] = v
                 for sample, cols in d_section.items():
@@ -126,9 +130,11 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                                     max_ = float(max_)
 
                                     ranged = list(np.linspace(min_, max_, 9))
-                                    closest_number = min(ranged, key=lambda x: abs(x - value))
+                                    closest_number = min(
+                                        ranged, key=lambda x: abs(x - value))
                                     index = ranged.index(closest_number)
-                                    if "-rev" in multiqc_res[s]["header"][k]["scale"]:
+                                    if "-rev" in multiqc_res[s]["header"][k][
+                                            "scale"]:
                                         color = rev_colors[index]
                                     else:
                                         max_ = float(max_)
@@ -137,7 +143,8 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                                     color = "55,126,184"
                                 multiqc_res[s]["header"][k]["colour"] = color
                                 format_ = multiqc_res[s]["header"][k]["format"]
-                                multiqc_res[s]["data"][sample][k] = format_.format(value)
+                                multiqc_res[s]["data"][sample][
+                                    k] = format_.format(value)
 
     multiqc_tables = []
     for table in multiqc_res["table"]["data"]:
@@ -151,9 +158,23 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                 header_check.append(val)
         if len(header_check) != 0:
             custom_header = {k: old_header[k] for k in header_check}
-            multiqc_tables.append({"table": {"data": {table: multiqc_res["table"]["data"][table]}, "header": custom_header}})
+            multiqc_tables.append({
+                "table": {
+                    "data": {
+                        table: multiqc_res["table"]["data"][table]
+                    },
+                    "header": custom_header
+                }
+            })
         else:
-            multiqc_tables.append({"table": {"data": {table: multiqc_res["table"]["data"][table]}, "header": new_header}})
+            multiqc_tables.append({
+                "table": {
+                    "data": {
+                        table: multiqc_res["table"]["data"][table]
+                    },
+                    "header": new_header
+                }
+            })
 
     return multiqc_tables
 
@@ -172,9 +193,9 @@ def merge_json(config: dict, extra_config: dict):
     return config
 
 
-def generate_report(
-    template_filename: str, config: dict, final_directory_depth: int, css_files: list, navigation_bar: list, multiqc_config: list
-) -> str:
+def generate_report(template_filename: str, config: dict,
+                    final_directory_depth: int, css_files: list,
+                    navigation_bar: list, multiqc_config: list) -> str:
     with open(template_filename) as f:
         template = Template(source=f.read())
 
@@ -213,7 +234,8 @@ def generate_report(
             dict(
                 metadata=dict(
                     analysis_date=config["analysis_date"],
-                    report_date=time.strftime("%Y-%m-%d %H:%M", time.localtime()),
+                    report_date=time.strftime("%Y-%m-%d %H:%M",
+                                              time.localtime()),
                     sample=config["sample"],
                 ),
                 pipeline=config["pipeline"],
@@ -221,14 +243,14 @@ def generate_report(
                 css=css_string,
                 nav_bar=nav_bar_html,
                 nav_header=navigation_bar,
-            )
-        )
+            ))
     else:
         return template.render(
             dict(
                 metadata=dict(
                     analysis_date=config["analysis_date"],
-                    report_date=time.strftime("%Y-%m-%d %H:%M", time.localtime()),
+                    report_date=time.strftime("%Y-%m-%d %H:%M",
+                                              time.localtime()),
                     tc_pathology=config["tc_pathology"],
                     tc_purecn=config["tc_purecn"],
                     sample=config["sample"],
@@ -238,8 +260,7 @@ def generate_report(
                 css=css_string,
                 nav_bar=nav_bar_html,
                 nav_header=navigation_bar,
-            )
-        )
+            ))
 
 
 def main():
@@ -267,7 +288,9 @@ def main():
 
     nav_bar = navigation_bar(config)
     validate_dict(config, schema_path=config_schema)
-    report_content = generate_report(html_template, config, final_directory_depth, css, nav_bar, general_stats_to_keep)
+    report_content = generate_report(html_template, config,
+                                     final_directory_depth, css, nav_bar,
+                                     general_stats_to_keep)
 
     with open(snakemake.output.html, "w") as f:
         f.write(report_content)
