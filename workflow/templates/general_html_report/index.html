@@ -86,11 +86,13 @@
           <tr>
             <td><b>Name</b></td>
             <td><b>Version</b></td>
+            <td><b>Reference genome</b></td>
             <td><b>Source</b></td>
           </tr>
           <tr>
             <td>{{ pipeline.name }}</td>
             <td>  {{ pipeline.version }}</td>
+            <td> {{pipeline.ref }}</td>
             <td><a href="{{ pipeline.uri }}">{{ pipeline.uri }}</a></td>
           </tr>
       </thead>
@@ -135,7 +137,7 @@
               </table>
             </div>
               {% elif r.type == "file_link" %}
-              <a href="{{ r.value}}">{{ r.value }} </a>
+              <a href="{{ r.value}}" target="_blank">{{ r.value }} </a>
 
               {% elif r.type == "single_value" %}
               <div class="single">
