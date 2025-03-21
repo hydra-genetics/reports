@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/hydra-genetics/reports/compare/v0.8.0...v0.9.0) (2025-03-21)
+
+
+### Features
+
+* resolve environment variables when parsing multiqc config ([50311b2](https://github.com/hydra-genetics/reports/commit/50311b2b571f6c33e1399301c5c2dfd0992351b8))
+
+
+### Bug Fixes
+
+* **Snakemake:** remove trailing comment that breaks local git ([#111](https://github.com/hydra-genetics/reports/issues/111)) ([ba1edef](https://github.com/hydra-genetics/reports/commit/ba1edef1a916b4820e76bf8edb07c4f201562c49))
+
 ## [0.8.0](https://github.com/hydra-genetics/reports/compare/v0.7.0...v0.8.0) (2025-02-14)
 
 
