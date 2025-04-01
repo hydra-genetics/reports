@@ -8,7 +8,7 @@ TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_DIR = os.path.abspath(os.path.join(TEST_DIR, "../../workflow/scripts"))
 sys.path.insert(0, SCRIPT_DIR)
 
-from merge_cnv_json import CNV, filter_chr_cnvs, merge_cnv_dicts  # noqa
+from merge_cnv_json import CNV, filter_chr_cnvs, merge_cnv_dicts, get_cnvs, merge_cnv_calls  # noqa
 
 
 class TestCNV(unittest.TestCase):
@@ -356,3 +356,45 @@ class TestMergeCnvJson(unittest.TestCase):
 
                     n_pass_filter = sum(x.passed_filter for x in callerdata[0]["cnvs"])
                     assert n_pass_filter == case.expected_cnvs[chromosome][caller]["pass_filter_count"]
+
+    def test_merge_cnv_calls(self):
+        unfiltered_files = [
+            os.path.join(
+                TEST_DIR,
+                "../integration/cnv_sv/svdb_query/sample1_T.pathology.svdb_query.annotate_cnv.cnv_amp_genes.vcf",
+            ),
+            os.path.join(
+                TEST_DIR,
+                "../integration/cnv_sv/svdb_query/sample1_T.pathology.svdb_query.annotate_cnv.cnv_loh_genes.vcf",
+            ),
+        ]
+        filtered_files = [
+            os.path.join(
+                TEST_DIR,
+                "../integration/cnv_sv/svdb_query/sample1_T.pathology.svdb_query.annotate_cnv.cnv_amp_genes.filter.cnv_hard_filter_amp.vcf",
+            ),
+            os.path.join(
+                TEST_DIR,
+                "../integration/cnv_sv/svdb_query/sample1_T.pathology.svdb_query.annotate_cnv.cnv_loh_genes.filter.cnv_hard_filter_loh.vcf",
+            ),
+        ]
+
+        uf_cnv = []
+        f_cnv = []
+        for uf_file, f_file in zip(unfiltered_files, filtered_files):
+            uf_cnv.append(get_cnvs(uf_file))
+            f_cnv.append(get_cnvs(f_file))
+
+        merged = merge_cnv_calls(uf_cnv, f_cnv)
+
+        cnvkit_cnvs = [x for x in merged if x.caller == "cnvkit"]
+        gatk_cnvs = [x for x in merged if x.caller == "gatk"]
+        jumble_cnvs = [x for x in merged if x.caller == "jumble"]
+
+        assert len(cnvkit_cnvs) == 7 + 1  # amp + loh
+        assert len(gatk_cnvs) == 2
+        assert len(jumble_cnvs) == 1
+
+        assert sum(x.passed_filter for x in cnvkit_cnvs) == 4 + 1  # 3 amp + 1 del + 1 overlap with gatk
+        assert sum(x.passed_filter for x in gatk_cnvs) == 1 + 1  # 1 amp + 1 for overlap with cnvkit
+        assert sum(x.passed_filter for x in jumble_cnvs) == 1  # 1 amp
