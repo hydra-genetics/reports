@@ -15,8 +15,9 @@ class CNV:
     start: int
     length: int
     type: str
-    copy_number: float
+    cn: float
     baf: float
+    passed_filter: bool = False
 
     def end(self):
         return self.start + self.length - 1
@@ -34,7 +35,7 @@ class CNV:
         )
 
     def __hash__(self):
-        return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.copy_number}")
+        return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.cn}")
 
 
 def parse_fai(filename, skip=None):
@@ -119,7 +120,7 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
                 yield chrom, variant.pos, f
 
 
-def get_cnvs(vcf_filename, skip=None):
+def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
     for variant in vcf.fetch():
@@ -190,17 +191,21 @@ def filter_chr_cnvs(unfiltered_cnvs: Dict[str, List[CNV]], filtered_cnvs: Dict[s
 
     cnvs = defaultdict(list)
     for c, pass_filter in added_cnvs.items():
-        cnvs[c.caller].append(
-            dict(
-                genes=c.genes,
-                start=c.start,
-                length=c.length,
-                type=c.type,
-                cn=c.copy_number,
-                baf=c.baf,
-                passed_filter=pass_filter,
-            )
-        )
+        c.passed_filter = pass_filter
+        cnvs[c.caller].append(c)
+    return cnvs
+
+
+def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
+    cnvs = []
+    # Iterate over the filtered and unfiltered CNVs and pair them according to overlap.
+    for uf_cnvs, f_cnvs in zip(unfiltered_cnvs, filtered_cnvs):
+        for chrom in uf_cnvs.keys():
+            merged_cnvs = filter_chr_cnvs(uf_cnvs[chrom], f_cnvs[chrom])
+            for caller, m_cnvs in merged_cnvs.items():
+                for c in m_cnvs:
+                    if c not in cnvs:
+                        cnvs.append(c)
     return cnvs
 
 
@@ -244,14 +249,8 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                 )
             )
 
-    # Iterate over the filtered and unfiltered CNVs and pair them according to overlap.
-    for uf_cnvs, f_cnvs in zip(unfiltered_cnvs, filtered_cnvs):
-        for chrom in uf_cnvs.keys():
-            merged_cnvs = filter_chr_cnvs(uf_cnvs[chrom], f_cnvs[chrom])
-            for caller, m_cnvs in merged_cnvs.items():
-                for c in m_cnvs:
-                    if c not in cnvs[chrom]["callers"][caller]["cnvs"]:
-                        cnvs[chrom]["callers"][caller]["cnvs"].append(c)
+    for cnv in merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
+        cnvs[cnv.chromosome]["callers"][cnv.caller]["cnvs"].append(cnv)
 
     for d in dicts:
         for r in sorted(d["ratios"], key=lambda x: x["start"]):
@@ -339,7 +338,7 @@ def main():
     cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs)
 
     with open(output_file, "w") as f:
-        print(json.dumps(cnvs), file=f)
+        print(json.dumps(cnvs, default=vars), file=f)
 
 
 if __name__ == "__main__":
