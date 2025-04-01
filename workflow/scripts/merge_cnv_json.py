@@ -329,6 +329,13 @@ def main():
     if cytoband_file and show_cytobands:
         cytobands = parse_cytobands(cytoband_file, cytoband_colors, cytoband_centromere, skip_chromosomes)
 
+    if len(filtered_cnv_vcf_files) != len(cnv_vcf_files):
+        print(
+            f"error: the number of unfiltered vcf files ({len(filtered_cnv_vcf_files)}) "
+            f"must match the number of filtered vcf files ({len(cnv_vcf_files)})"
+        )
+        sys.exit(1)
+
     filtered_cnv_vcfs = []
     unfiltered_cnv_vcfs = []
     for f_vcf, uf_vcf in zip(filtered_cnv_vcf_files, cnv_vcf_files):
