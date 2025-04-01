@@ -198,8 +198,10 @@ class ResultsTable extends EventTarget {
       )
       .flat();
 
+    let hasData = true;
+
     if (tableData.length === 0) {
-      tableData = [{ "No data to display": [] }];
+      hasData = false;
     } else {
       // Find the corresponding copy numbers from the other caller(s)
       for (let cnv of tableData) {
@@ -233,6 +235,17 @@ class ResultsTable extends EventTarget {
       .join("th")
       .text(this.columnLabel)
       .attr("class", (d) => this.columnDef(d).class);
+
+    this.#body.selectAll("tr").remove();
+
+    if (!hasData) {
+      this.#body
+        .append("tr")
+        .append("td")
+        .text("No data to display")
+        .attr("colspan", this.visibleColumns.length);
+      return;
+    }
 
     this.#body
       .selectAll("tr")
