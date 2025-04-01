@@ -199,6 +199,16 @@ def filter_chr_cnvs(unfiltered_cnvs: Dict[str, List[CNV]], filtered_cnvs: Dict[s
     return cnvs
 
 
+def sort_cnvs(cnvs: List[CNV]) -> List[CNV]:
+    def cnv_key_func(x):
+        chrom_id = x.chromosome.removeprefix("chr")
+        if chrom_id.isdigit():
+            chrom_id = int(chrom_id)
+        return [chrom_id, x.start]
+
+    return sorted(cnvs, key=cnv_key_func)
+
+
 def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
     cnvs = []
     # Iterate over the filtered and unfiltered CNVs and pair them according to overlap.
@@ -209,7 +219,7 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
                 for c in m_cnvs:
                     if c not in cnvs:
                         cnvs.append(c)
-    return cnvs
+    return sort_cnvs(cnvs)
 
 
 def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs):

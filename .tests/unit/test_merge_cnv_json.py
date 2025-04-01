@@ -8,7 +8,7 @@ TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_DIR = os.path.abspath(os.path.join(TEST_DIR, "../../workflow/scripts"))
 sys.path.insert(0, SCRIPT_DIR)
 
-from merge_cnv_json import CNV, filter_chr_cnvs, merge_cnv_dicts, get_cnvs, merge_cnv_calls  # noqa
+from merge_cnv_json import CNV, filter_chr_cnvs, merge_cnv_dicts, get_cnvs, merge_cnv_calls, sort_cnvs  # noqa
 
 
 class TestCNV(unittest.TestCase):
@@ -398,3 +398,22 @@ class TestMergeCnvJson(unittest.TestCase):
         assert sum(x.passed_filter for x in cnvkit_cnvs) == 4 + 1  # 3 amp + 1 del + 1 overlap with gatk
         assert sum(x.passed_filter for x in gatk_cnvs) == 1 + 1  # 1 amp + 1 for overlap with cnvkit
         assert sum(x.passed_filter for x in jumble_cnvs) == 1  # 1 amp
+
+    def test_cnv_sorting(self):
+        """
+        Make sure that numerical chromosome names are sorted properly.
+        """
+        cnvs = [
+            CNV(caller="cnvkit", chromosome="chr10", genes=[], start=100, length=200, cn=2, baf=0.5, type="COPY_NORMAL"),
+            CNV(caller="cnvkit", chromosome="chr2", genes=[], start=500, length=200, cn=2, baf=0.5, type="COPY_NORMAL"),
+            CNV(caller="cnvkit", chromosome="chr1", genes=[], start=500, length=200, cn=2, baf=0.5, type="COPY_NORMAL"),
+            CNV(caller="cnvkit", chromosome="chr1", genes=[], start=100, length=200, cn=2, baf=0.5, type="COPY_NORMAL"),
+        ]
+
+        sorted_cnvs = sort_cnvs(cnvs)
+
+        assert len(sorted_cnvs) == len(cnvs)
+        assert sorted_cnvs[0] == cnvs[3]
+        assert sorted_cnvs[1] == cnvs[2]
+        assert sorted_cnvs[2] == cnvs[1]
+        assert sorted_cnvs[3] == cnvs[0]
