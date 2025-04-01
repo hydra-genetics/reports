@@ -226,6 +226,18 @@ class TestMergeCnvJson(unittest.TestCase):
                     {
                         "chr1": {
                             "cnvkit": [
+                                # This variant is present in the other file too,
+                                # but we don't want duplicates in the final data.
+                                CNV(
+                                    caller="cnvkit",
+                                    chromosome="chr1",
+                                    genes=["gene2"],
+                                    start=500,
+                                    length=100,
+                                    type="COPY_NORMAL",
+                                    copy_number=2,
+                                    baf=0.5,
+                                ),
                                 CNV(
                                     caller="cnvkit",
                                     chromosome="chr1",
