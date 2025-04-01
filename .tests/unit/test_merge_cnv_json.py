@@ -51,7 +51,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=1000,
                             length=2500,
                             type="COPY_NORMAL",
-                            copy_number=2,
+                            cn=2,
                             baf=0.5,
                         ),
                         CNV(
@@ -61,7 +61,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=4000,
                             length=1000,
                             type="DUP",
-                            copy_number=9,
+                            cn=9,
                             baf=0.5,
                         ),
                         CNV(
@@ -71,7 +71,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=5800,
                             length=400,
                             type="COPY_NORMAL",
-                            copy_number=2,
+                            cn=2,
                             baf=0.6,
                         ),
                     ],
@@ -83,7 +83,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=10,
                             length=7190,
                             type="COPY_NORMAL",
-                            copy_number=2,
+                            cn=2,
                             baf=0.6,
                         )
                     ],
@@ -103,7 +103,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=132_309,
                             length=3_598_391,
                             type="DEL",
-                            copy_number=1.41,
+                            cn=1.41,
                             baf=0.5,
                         ),
                         CNV(
@@ -113,7 +113,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=3_731_199,
                             length=31_683_311,
                             type="COPY_NORMAL",
-                            copy_number=1.85,
+                            cn=1.85,
                             baf=0.5,
                         ),
                         CNV(
@@ -123,7 +123,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=66_483_605,
                             length=4_031_951,
                             type="DEL",
-                            copy_number=1.28,
+                            cn=1.28,
                             baf=0.5,
                         ),
                         CNV(
@@ -133,7 +133,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=87_570_960,
                             length=2_524_518,
                             type="DEL",
-                            copy_number=1.20,
+                            cn=1.20,
                             baf=0.5,
                         ),
                     ],
@@ -145,7 +145,7 @@ class TestMergeCnvJson(unittest.TestCase):
                             start=132_060,
                             length=89_963_668,
                             type="COPY_NORMAL",
-                            copy_number=0.99,
+                            cn=0.99,
                             baf=0.5,
                         )
                     ],
@@ -173,7 +173,7 @@ class TestMergeCnvJson(unittest.TestCase):
             for caller, cnvs in m.items():
                 assert len(cnvs) == case.expected_lens[caller]
                 for cnv, expected_filter in zip(cnvs, case.expected_filter[caller]):
-                    assert cnv["passed_filter"] == expected_filter
+                    assert cnv.passed_filter == expected_filter
 
     def test_merge_cnv_dicts(self):
         @dataclass
@@ -206,7 +206,7 @@ class TestMergeCnvJson(unittest.TestCase):
                                     start=100,
                                     length=100,
                                     type="DUP",
-                                    copy_number=6,
+                                    cn=6,
                                     baf=0.3,
                                 ),
                                 CNV(
@@ -216,7 +216,7 @@ class TestMergeCnvJson(unittest.TestCase):
                                     start=500,
                                     length=100,
                                     type="COPY_NORMAL",
-                                    copy_number=2,
+                                    cn=2,
                                     baf=0.5,
                                 ),
                             ],
@@ -235,7 +235,7 @@ class TestMergeCnvJson(unittest.TestCase):
                                     start=500,
                                     length=100,
                                     type="COPY_NORMAL",
-                                    copy_number=2,
+                                    cn=2,
                                     baf=0.5,
                                 ),
                                 CNV(
@@ -245,7 +245,7 @@ class TestMergeCnvJson(unittest.TestCase):
                                     start=200,
                                     length=100,
                                     type="COPY_NORMAL",
-                                    copy_number=1,
+                                    cn=1,
                                     baf=0.5,
                                 ),
                                 CNV(
@@ -255,7 +255,7 @@ class TestMergeCnvJson(unittest.TestCase):
                                     start=600,
                                     length=100,
                                     type="DEL",
-                                    copy_number=1,
+                                    cn=1,
                                     baf=0.3,
                                 ),
                             ],
@@ -274,7 +274,7 @@ class TestMergeCnvJson(unittest.TestCase):
                                     start=100,
                                     length=100,
                                     type="DUP",
-                                    copy_number=6,
+                                    cn=6,
                                     baf=0.3,
                                 ),
                             ],
@@ -291,7 +291,7 @@ class TestMergeCnvJson(unittest.TestCase):
                                     start=600,
                                     length=100,
                                     type="DEL",
-                                    copy_number=1,
+                                    cn=1,
                                     baf=0.3,
                                 ),
                             ],
@@ -324,5 +324,5 @@ class TestMergeCnvJson(unittest.TestCase):
 
                     assert case.expected_cnvs[chromosome][caller]["all_count"] == len(callerdata[0]["cnvs"])
 
-                    n_pass_filter = sum(x["passed_filter"] for x in callerdata[0]["cnvs"])
+                    n_pass_filter = sum(x.passed_filter for x in callerdata[0]["cnvs"])
                     assert n_pass_filter == case.expected_cnvs[chromosome][caller]["pass_filter_count"]
