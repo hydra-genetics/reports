@@ -11,6 +11,36 @@ sys.path.insert(0, SCRIPT_DIR)
 from merge_cnv_json import CNV, filter_chr_cnvs, merge_cnv_dicts  # noqa
 
 
+class TestCNV(unittest.TestCase):
+    def test_membership(self):
+        cnv = CNV(
+            caller="cnvkit",
+            chromosome="chr1",
+            start=100,
+            length=100,
+            type="COPY_NORMAL",
+            genes=[],
+            cn=2,
+            baf=0.5,
+            passed_filter=True,
+        )
+
+        cnv_collection = [
+            CNV(
+                caller="cnvkit",
+                chromosome="chr1",
+                start=100,
+                length=100,
+                type="COPY_NORMAL",
+                genes=[],
+                cn=2,
+                baf=0.5,
+            ),
+        ]
+
+        assert cnv in cnv_collection
+
+
 class TestMergeCnvJson(unittest.TestCase):
     def test_cnv_filter(self):
         """

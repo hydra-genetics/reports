@@ -37,6 +37,9 @@ class CNV:
     def __hash__(self):
         return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.cn}")
 
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
 
 def parse_fai(filename, skip=None):
     with open(filename) as f:
