@@ -201,7 +201,9 @@ def filter_chr_cnvs(unfiltered_cnvs: Dict[str, List[CNV]], filtered_cnvs: Dict[s
 
 def sort_cnvs(cnvs: List[CNV]) -> List[CNV]:
     def cnv_key_func(x):
-        chrom_id = x.chromosome.removeprefix("chr")
+        chrom_id = x.chromosome
+        if x.chromosome.startswith("chr"):
+            chrom_id = x.chromosome[3:]
         if chrom_id.isdigit():
             chrom_id = int(chrom_id)
         return [chrom_id, x.start]
