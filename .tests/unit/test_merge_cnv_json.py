@@ -37,9 +37,9 @@ class TestMergeCnvJson(unittest.TestCase):
             #
             # n: copy normal, ^: duplication
             #
-            # cnvkit:           nnnnnnnnnn          ^^^^^^^^^^
-            # gatk:   nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
-            # chr1:   __________________________________________________
+            # cnvkit:          nnnnnnnnnnnnnnnnnnnnnnnnn     ^^^^^^^^^^^       nnnn
+            # gatk:    nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn
+            # chr1:   ________________________________________________________________________
             TestCase(
                 name="table filter bug",
                 input={
