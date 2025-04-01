@@ -249,7 +249,9 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
         for chrom in uf_cnvs.keys():
             merged_cnvs = filter_chr_cnvs(uf_cnvs[chrom], f_cnvs[chrom])
             for caller, m_cnvs in merged_cnvs.items():
-                cnvs[chrom]["callers"][caller]["cnvs"] = m_cnvs
+                for c in m_cnvs:
+                    if c not in cnvs[chrom]["callers"][caller]["cnvs"]:
+                        cnvs[chrom]["callers"][caller]["cnvs"].append(c)
 
     for d in dicts:
         for r in sorted(d["ratios"], key=lambda x: x["start"]):
