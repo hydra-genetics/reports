@@ -205,7 +205,7 @@ def sort_cnvs(cnvs: List[CNV]) -> List[CNV]:
         if x.chromosome.startswith("chr"):
             chrom_id = x.chromosome[3:]
         if chrom_id.isdigit():
-            chrom_id = int(chrom_id)
+            chrom_id = f"{int(chrom_id):0>5}"
         return [chrom_id, x.start]
 
     return sorted(cnvs, key=cnv_key_func)

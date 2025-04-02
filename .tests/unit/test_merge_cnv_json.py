@@ -408,6 +408,7 @@ class TestMergeCnvJson(unittest.TestCase):
             CNV(caller="cnvkit", chromosome="chr2", genes=[], start=500, length=200, cn=2, baf=0.5, type="COPY_NORMAL"),
             CNV(caller="cnvkit", chromosome="chr1", genes=[], start=500, length=200, cn=2, baf=0.5, type="COPY_NORMAL"),
             CNV(caller="cnvkit", chromosome="chr1", genes=[], start=100, length=200, cn=2, baf=0.5, type="COPY_NORMAL"),
+            CNV(caller="cnvkit", chromosome="chrM", genes=[], start=100, length=200, cn=2, baf=0.5, type="COPY_NORMAL"),
         ]
 
         sorted_cnvs = sort_cnvs(cnvs)
@@ -417,3 +418,4 @@ class TestMergeCnvJson(unittest.TestCase):
         assert sorted_cnvs[1] == cnvs[2]
         assert sorted_cnvs[2] == cnvs[1]
         assert sorted_cnvs[3] == cnvs[0]
+        assert sorted_cnvs[4] == cnvs[4]
