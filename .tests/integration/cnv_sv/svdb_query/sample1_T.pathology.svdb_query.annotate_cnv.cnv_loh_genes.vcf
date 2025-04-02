@@ -1,0 +1,9 @@
+##fileformat=VCFv4.1
+##contig=<ID=chrA>
+##contig=<ID=chrB>
+##contig=<ID=chrM>
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=CORR_CN,Number=1,Type=Integer,Description="Corrected copy number">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878_N
+chrA	800	.	N	<DEL>	.	.	Genes=gene1;SVTYPE=DEL;END=1100;SVLEN=300;BAF=0.3;CALLER=cnvkit;CORR_CN=1	GT:CN	0/1:1
