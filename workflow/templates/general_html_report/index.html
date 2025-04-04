@@ -58,36 +58,38 @@
         </thead>
       </table>
       <h3>Units</h3>
-    <div class="dataframe">
-        <table>
-          <thead>
-            <tr>
-              {% for c in metadata.units[0].keys() %}
-              <th>{{ c }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in metadata.units %}
-            <tr>
-              {% for k in metadata.units[0].keys() %}
-              <td>{{ row[k] }}</td>
-              {% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-    </div>
+      <div class="scroll">
+        <div class="dataframe">
+            <table>
+              <thead>
+                <tr>
+                  {% for c in metadata.units[0].keys() %}
+                  <th>{{ c }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in metadata.units %}
+                <tr>
+                  {% for k in metadata.units[0].keys() %}
+                  <td>{{ row[k] }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+        </div>
+      </div>
     </div>
       <h3>Pipeline</h3>
       <div class="dataframe">
       <table>
         <thead>
           <tr>
-            <td><b>Name</b></td>
-            <td><b>Version</b></td>
-            <td><b>Reference genome</b></td>
-            <td><b>Source</b></td>
+            <th><b>Name</b></th>
+            <th><b>Version</b></th>
+            <th><b>Reference genome</b></th>
+            <th><b>Source</b></th>
           </tr>
           <tr>
             <td>{{ pipeline.name }}</td>
@@ -224,7 +226,8 @@
       document.getElementById("defaultOpen").click();
       
       new DataTable('table.display', {
-        scrollX: true
+        scrollX: true,
+        pageLength: 50
       }
       );
       </script>
