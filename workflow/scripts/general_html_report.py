@@ -192,10 +192,11 @@ def merge_json(config: dict, extra_config: dict):
         config["results"].append(d)
     return config
 
+
 def generate_report(template_filename: str, config: dict,
                     final_directory_depth: int, css_files: list,
                     navigation_bar: list, multiqc_config: list) -> str:
-  
+
     with open(template_filename) as f:
         template = Template(source=f.read())
 
@@ -222,7 +223,10 @@ def generate_report(template_filename: str, config: dict,
                 data = pd.read_csv(d["value"], sep="\t")
                 if len(data.columns) == 1:
                     data = pd.read_csv(d["value"], sep=",")
-                d["data"] = data.to_html(index=False).replace('border="1"', "").replace('class="dataframe"', 'class="display" style="width:100%"')
+                d["data"] = data.to_html(index=False).replace(
+                    'border="1"',
+                    "").replace('class="dataframe"',
+                                'class="display" style="width:100%"')
             except pd.errors.EmptyDataError:
                 d["data"] = "Empty file"
     css_string = ""
@@ -240,13 +244,11 @@ def generate_report(template_filename: str, config: dict,
     if (config["tc_pathology"] == "NA") and (config["tc_purecn"] == "NA"):
         return template.render(
             dict(
-                metadata=dict(
-                    analysis_date=config["analysis_date"],
-                    report_date=time.strftime("%Y-%m-%d %H:%M",
-                                              time.localtime()),
-                    sample=config["sample"],
-                    units = config["units"]
-                ),
+                metadata=dict(analysis_date=config["analysis_date"],
+                              report_date=time.strftime(
+                                  "%Y-%m-%d %H:%M", time.localtime()),
+                              sample=config["sample"],
+                              units=config["units"]),
                 pipeline=config["pipeline"],
                 results=config["results"],
                 css=css_string,
@@ -256,15 +258,13 @@ def generate_report(template_filename: str, config: dict,
     else:
         return template.render(
             dict(
-                metadata=dict(
-                    analysis_date=config["analysis_date"],
-                    report_date=time.strftime("%Y-%m-%d %H:%M",
-                                              time.localtime()),
-                    tc_pathology=config["tc_pathology"],
-                    tc_purecn=config["tc_purecn"],
-                    sample=config["sample"],
-                    units = config["units"]
-                ),
+                metadata=dict(analysis_date=config["analysis_date"],
+                              report_date=time.strftime(
+                                  "%Y-%m-%d %H:%M", time.localtime()),
+                              tc_pathology=config["tc_pathology"],
+                              tc_purecn=config["tc_purecn"],
+                              sample=config["sample"],
+                              units=config["units"]),
                 pipeline=config["pipeline"],
                 results=config["results"],
                 css=css_string,
@@ -281,7 +281,7 @@ def main():
     config_schema = snakemake.input.config_schema
     final_directory_depth = snakemake.params.final_directory_depth
     multiqc_config = snakemake.params.multiqc_config
-    
+
     if multiqc_config == "":
         general_stats_to_keep = []
     else:
