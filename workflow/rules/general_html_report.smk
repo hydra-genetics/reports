@@ -13,7 +13,10 @@ rule general_json_report:
     params:
         sample="{sample}_{type}",
         pipeline_version=pipeline_version,
+        pipeline_name=pipeline_name,
         tc=get_tc_general_report,
+        units=units,
+        reference_genome=config.get("reference", {}).get("fasta", ""),
     log:
         "reports/general_json_report/{sample}_{type}.general_report.log",
     benchmark:
@@ -43,13 +46,16 @@ rule general_html_report:
         json="reports/general_json_report/{sample}_{type}.general.json",
         css_files=[
             workflow.source_path("../templates/general_html_report/style.css"),
+            workflow.source_path("../templates/assets/css/datatables.min.css"),
         ],
+        js_files=[workflow.source_path("../templates/assets/js/datatables.min.js")],
         additional_json={},
     output:
         html="reports/general_html_report/{sample}_{type}.general_report.html",
     params:
         final_directory_depth=config.get("general_html_report", {}).get("final_directory_depth", 1),
         multiqc_config=config.get("general_html_report", {}).get("multiqc_config", ""),
+        units=units,
         extra=config.get("general_html_report", {}).get("extra", ""),
     log:
         "reports/general_html_report/{sample}_{type}.general_report.log",

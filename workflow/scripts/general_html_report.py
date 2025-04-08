@@ -195,7 +195,9 @@ def merge_json(config: dict, extra_config: dict):
 
 def generate_report(template_filename: str, config: dict,
                     final_directory_depth: int, css_files: list,
-                    navigation_bar: list, multiqc_config: list) -> str:
+                    js_files: list, navigation_bar: list,
+                    multiqc_config: list) -> str:
+
     with open(template_filename) as f:
         template = Template(source=f.read())
 
@@ -217,10 +219,26 @@ def generate_report(template_filename: str, config: dict,
                 d["data"] = data.to_html(index=False).replace('border="1"', "")
             except pd.errors.EmptyDataError:
                 d["data"] = "Empty file"
+        if d["type"] == "large_file_table":
+            try:
+                data = pd.read_csv(d["value"], sep="\t")
+                if len(data.columns) == 1:
+                    data = pd.read_csv(d["value"], sep=",")
+                d["data"] = data.to_html(index=False).replace(
+                    'border="1"',
+                    "").replace('class="dataframe"',
+                                'class="display" style="width:100%"')
+            except pd.errors.EmptyDataError:
+                d["data"] = "Empty file"
     css_string = ""
     for css_filename in css_files:
         with open(css_filename) as f:
             css_string += f.read()
+
+    js_string = ""
+    for js_filename in js_files:
+        with open(js_filename) as f:
+            js_string += f.read()
 
     navigation_bar.sort()
     nav_bar_html = ""
@@ -232,32 +250,32 @@ def generate_report(template_filename: str, config: dict,
     if (config["tc_pathology"] == "NA") and (config["tc_purecn"] == "NA"):
         return template.render(
             dict(
-                metadata=dict(
-                    analysis_date=config["analysis_date"],
-                    report_date=time.strftime("%Y-%m-%d %H:%M",
-                                              time.localtime()),
-                    sample=config["sample"],
-                ),
+                metadata=dict(analysis_date=config["analysis_date"],
+                              report_date=time.strftime(
+                                  "%Y-%m-%d %H:%M", time.localtime()),
+                              sample=config["sample"],
+                              units=config["units"]),
                 pipeline=config["pipeline"],
                 results=config["results"],
                 css=css_string,
+                js=js_string,
                 nav_bar=nav_bar_html,
                 nav_header=navigation_bar,
             ))
     else:
         return template.render(
             dict(
-                metadata=dict(
-                    analysis_date=config["analysis_date"],
-                    report_date=time.strftime("%Y-%m-%d %H:%M",
-                                              time.localtime()),
-                    tc_pathology=config["tc_pathology"],
-                    tc_purecn=config["tc_purecn"],
-                    sample=config["sample"],
-                ),
+                metadata=dict(analysis_date=config["analysis_date"],
+                              report_date=time.strftime(
+                                  "%Y-%m-%d %H:%M", time.localtime()),
+                              tc_pathology=config["tc_pathology"],
+                              tc_purecn=config["tc_purecn"],
+                              sample=config["sample"],
+                              units=config["units"]),
                 pipeline=config["pipeline"],
                 results=config["results"],
                 css=css_string,
+                js=js_string,
                 nav_bar=nav_bar_html,
                 nav_header=navigation_bar,
             ))
@@ -268,9 +286,11 @@ def main():
     json_file = snakemake.input.json
     additional_json_file = snakemake.input.additional_json
     css = snakemake.input.css_files
+    js = snakemake.input.js_files
     config_schema = snakemake.input.config_schema
     final_directory_depth = snakemake.params.final_directory_depth
     multiqc_config = snakemake.params.multiqc_config
+
     if multiqc_config == "":
         general_stats_to_keep = []
     else:
@@ -289,7 +309,7 @@ def main():
     nav_bar = navigation_bar(config)
     validate_dict(config, schema_path=config_schema)
     report_content = generate_report(html_template, config,
-                                     final_directory_depth, css, nav_bar,
+                                     final_directory_depth, css, js, nav_bar,
                                      general_stats_to_keep)
 
     with open(snakemake.output.html, "w") as f:

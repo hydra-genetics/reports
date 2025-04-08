@@ -40,3 +40,8 @@ files:
     description: A completely empty file with no headers
     input: config/empty_table2.tsv
     nav_header: File types
+  - name: large_file_table (txt Tab-separated)
+    type: large_file_table
+    description: A tab separated txt file with many columns and/or rows 
+    input: config/large_file_table.tsv
+    nav_header: File types
