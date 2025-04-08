@@ -1,6 +1,3 @@
-<link rel="stylesheet" href="/home/lauri/Desktop/hydra-genetics/reports/workflow/templates/assets/css/datatables.min.css" />
-<script src="/home/lauri/Desktop/hydra-genetics/reports/workflow/templates/assets/js/datatables.min.js"></script>
-
 <!DOCTYPE html>
 <html lang="en">
   <style>
@@ -202,6 +199,9 @@
 
 
       <script>
+
+        {{ js | indent(width = 8) }}
+
         function openNav(evt, navHeader) {
         // Declare all variables
         var i, tabcontent, tablinks;

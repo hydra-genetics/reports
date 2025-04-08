@@ -46,7 +46,9 @@ rule general_html_report:
         json="reports/general_json_report/{sample}_{type}.general.json",
         css_files=[
             workflow.source_path("../templates/general_html_report/style.css"),
+            workflow.source_path("../templates/assets/css/datatables.min.css"),
         ],
+        js_files=[workflow.source_path("../templates/assets/js/datatables.min.js")],
         additional_json={},
     output:
         html="reports/general_html_report/{sample}_{type}.general_report.html",
