@@ -15,8 +15,9 @@ class CNV:
     start: int
     length: int
     type: str
-    copy_number: float
+    cn: float
     baf: float
+    passed_filter: bool = False
 
     def end(self):
         return self.start + self.length - 1
@@ -34,7 +35,10 @@ class CNV:
         )
 
     def __hash__(self):
-        return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.copy_number}")
+        return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.cn}")
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
 
 
 def parse_fai(filename, skip=None):
@@ -119,7 +123,7 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
                 yield chrom, variant.pos, f
 
 
-def get_cnvs(vcf_filename, skip=None):
+def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
     for variant in vcf.fetch():
@@ -190,18 +194,34 @@ def filter_chr_cnvs(unfiltered_cnvs: Dict[str, List[CNV]], filtered_cnvs: Dict[s
 
     cnvs = defaultdict(list)
     for c, pass_filter in added_cnvs.items():
-        cnvs[c.caller].append(
-            dict(
-                genes=c.genes,
-                start=c.start,
-                length=c.length,
-                type=c.type,
-                cn=c.copy_number,
-                baf=c.baf,
-                passed_filter=pass_filter,
-            )
-        )
+        c.passed_filter = pass_filter
+        cnvs[c.caller].append(c)
     return cnvs
+
+
+def sort_cnvs(cnvs: List[CNV]) -> List[CNV]:
+    def cnv_key_func(x):
+        chrom_id = x.chromosome
+        if x.chromosome.startswith("chr"):
+            chrom_id = x.chromosome[3:]
+        if chrom_id.isdigit():
+            chrom_id = f"{int(chrom_id):0>5}"
+        return [chrom_id, x.start]
+
+    return sorted(cnvs, key=cnv_key_func)
+
+
+def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
+    cnvs = []
+    # Iterate over the filtered and unfiltered CNVs and pair them according to overlap.
+    for uf_cnvs, f_cnvs in zip(unfiltered_cnvs, filtered_cnvs):
+        for chrom in uf_cnvs.keys():
+            merged_cnvs = filter_chr_cnvs(uf_cnvs[chrom], f_cnvs[chrom])
+            for caller, m_cnvs in merged_cnvs.items():
+                for c in m_cnvs:
+                    if c not in cnvs:
+                        cnvs.append(c)
+    return sort_cnvs(cnvs)
 
 
 def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs):
@@ -244,12 +264,8 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                 )
             )
 
-    # Iterate over the filtered and unfiltered CNVs and pair them according to overlap.
-    for uf_cnvs, f_cnvs in zip(unfiltered_cnvs, filtered_cnvs):
-        for chrom in uf_cnvs.keys():
-            merged_cnvs = filter_chr_cnvs(uf_cnvs[chrom], f_cnvs[chrom])
-            for caller, m_cnvs in merged_cnvs.items():
-                cnvs[chrom]["callers"][caller]["cnvs"] = m_cnvs
+    for cnv in merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
+        cnvs[cnv.chromosome]["callers"][cnv.caller]["cnvs"].append(cnv)
 
     for d in dicts:
         for r in sorted(d["ratios"], key=lambda x: x["start"]):
@@ -328,6 +344,13 @@ def main():
     if cytoband_file and show_cytobands:
         cytobands = parse_cytobands(cytoband_file, cytoband_colors, cytoband_centromere, skip_chromosomes)
 
+    if len(filtered_cnv_vcf_files) != len(cnv_vcf_files):
+        print(
+            f"error: the number of unfiltered vcf files ({len(filtered_cnv_vcf_files)}) "
+            f"must match the number of filtered vcf files ({len(cnv_vcf_files)})"
+        )
+        sys.exit(1)
+
     filtered_cnv_vcfs = []
     unfiltered_cnv_vcfs = []
     for f_vcf, uf_vcf in zip(filtered_cnv_vcf_files, cnv_vcf_files):
@@ -337,7 +360,7 @@ def main():
     cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs)
 
     with open(output_file, "w") as f:
-        print(json.dumps(cnvs), file=f)
+        print(json.dumps(cnvs, default=vars), file=f)
 
 
 if __name__ == "__main__":

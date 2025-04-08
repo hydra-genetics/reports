@@ -5,6 +5,7 @@
 ##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
 ##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878_N
+chrA	1100	.	N	<DUP>	.	.	Genes=gene1;SVTYPE=DUP;END=1400;SVLEN=300;BAF=0.3;CALLER=cnvkit;CORR_CN=10	GT:CN	0/1:10
 chrA	3000	.	N	<DUP>	.	.	Genes=gene2;SVTYPE=DUP;END=4000;SVLEN=1000;BAF=0.3;CALLER=cnvkit;CORR_CN=10	GT:CN	0/1:10
 chrA	4000	.	N	<DUP>	.	.	Genes=geneB,geneC;SVTYPE=DUP;END=5000;SVLEN=1000;BAF=0.3;CALLER=gatk;CORR_CN=3	GT:CN	0/1:3
 chrB	4000	.	N	<DUP>	.	.	Genes=gene4;SVTYPE=DUP;END=5000;SVLEN=1000;BAF=0.5;CALLER=cnvkit;CORR_CN=9	GT:CN	0/1:9
