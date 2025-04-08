@@ -13,8 +13,10 @@ rule general_json_report:
     params:
         sample="{sample}_{type}",
         pipeline_version=pipeline_version,
+        pipeline_name=pipeline_name,
         tc=get_tc_general_report,
         units=units,
+        reference_genome=config.get("reference", {}).get("fasta", ""),
     log:
         "reports/general_json_report/{sample}_{type}.general_report.log",
     benchmark:
