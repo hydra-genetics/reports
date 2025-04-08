@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/hydra-genetics/reports/compare/v0.9.0...v0.10.0) (2025-04-08)
+
+
+### Features
+
+* Added new file type, large_file_table. Added units and reference genome to metadata. Styling, ([#117](https://github.com/hydra-genetics/reports/issues/117)) ([07e0b4d](https://github.com/hydra-genetics/reports/commit/07e0b4db31f928dae5a86bd689b3e6c18dc590a7))
+
+
+### Bug Fixes
+
+* **cnv:** bug with missing results in table ([#115](https://github.com/hydra-genetics/reports/issues/115)) ([9e386fb](https://github.com/hydra-genetics/reports/commit/9e386fb36b3bea8ccc773a958a04b1a562d8f58d))
+
 ## [0.9.0](https://github.com/hydra-genetics/reports/compare/v0.8.0...v0.9.0) (2025-03-21)
 
 
