@@ -51,6 +51,7 @@ properties:
                 - single_value
                 - table
                 - file_link
+                - large_file_table
             value:
               description: |
                 The value of the result. Exactly what this is depends on the type.
@@ -60,6 +61,7 @@ properties:
                 - single_value: a single value, e.g. a number.
                 - table: a json representation of a table.
                 - file_link: path to file
+                - large_file_table: a large delimited text file (csv or tsv) with a header
             nav_header:
               description: If report is to be navigated through a tab menu, write under which header this result should fall under. For example Biomarker or Fusions.
           required:

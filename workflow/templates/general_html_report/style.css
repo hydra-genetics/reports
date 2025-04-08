@@ -42,73 +42,69 @@ p {
   color: rgb(0, 0, 0);
 }
 
-th {
-  font-family: Arial, Helvetica, sans-serif;
-  color: rgb(0, 0, 0);
-  background-color: #f1f1f1;
-  text-align: left;
-  border-color: inherit;
-  border-collapse: separate;
-}
-
-table,
-th,
-td,
-tbody {
-  font-family: Arial, Helvetica, sans-serif;
-  overflow-x: auto;
-  width: 300px;
-  margin-top: 20px;
-}
-
-thead {
-  display: table-header-group;
-  vertical-align: middle;
-  border-color: inherit;
-  border-collapse: separate;
-  box-shadow: 0 0 3.5px rgba(0, 0, 0, 0.15);
-}
-
-tr {
-  box-shadow: 0 0 3.5px rgba(0, 0, 0, 0.15);
-  border-radius: 25px;
-  border-collapse: separate;
-  border-left: 0;
-  border-radius: 4px;
-  border-spacing: 0px;
-}
-
-table {
-  font-family: Arial, Helvetica, sans-serif;
-  white-space: nowrap;
-}
 
 hr {
   color: rgb(0, 0, 0);
 }
 
-th,
-td {
-  padding: 10px;
-  box-shadow: 0 0 3.5px rgba(0, 0, 0, 0.15);
+table.dataTable td {
+  font-size: 1em;
+  font-family: Arial, Helvetica, sans-serif;
 }
+
+table.dataTable thead {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
+.dataTables_info {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
 
 .padding {
   padding-bottom: 40px;
 }
 
-.multiqc th {
-  background-color: rgba(255, 255, 255, 0.6);
+table {
+  white-space: nowrap;
+  margin-top: 20px;
+  border-collapse: collapse; /* Ensures borders are merged instead of doubled */
+
 }
 
-/* Style the tab */
-/*.tab {
-  float: left;
-  background-color: #f1f1f1;
-  width: 23%;
-  height: 100%;
+.dataframe {
+  border-collapse: collapse; /* Ensures borders are merged instead of doubled */
 }
-*/
+
+.dataframe thead {
+  display: table-header-group;
+  vertical-align: middle;
+}
+
+.dataframe tr {
+  border-bottom: 1px solid #ddd; /* Optional: adds border between rows */
+}
+
+.dataframe td, .dataframe th {
+  padding: 10px;
+  border: 1px solid #ddd; /* Adds border around each cell */
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.dataframe th {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f1f1f1;
+  text-align: left;
+  padding: 10px;
+}
+
+
+.multiqc th {
+  background-color: rgba(255, 255, 255, 0.6);
+  
+}
 
 .tab {
   height: 100%; /* Full-height: remove this if you want "auto" height */
@@ -163,19 +159,13 @@ td {
 }
 
 .single p {
-  width: 300px;
-  background-color: #f1f1f1;
-  font-weight: bold;
-  padding: 15px;
-  box-shadow: 0 0 3.5px rgba(0, 0, 0, 0.3);
-  border-collapse: separate;
-  border-left: 0;
-  border-radius: 4px;
-  border-spacing: 0px;
-  vertical-align: middle;
-  border-color: inherit;
-  border-collapse: separate;
+  border: 1px solid #ddd; /* Adds border around each cell */
+  padding: 10px;  /* Add some space between text and border */
+  display: inline-block;  /* Make the element an inline-block to shrink to content width */
+  text-align: left;  /* Align text to the left inside the container */
+  background-color: rgba(241,241,241, 0.25);
 }
+
 
 .bottom {
   position: fixed;

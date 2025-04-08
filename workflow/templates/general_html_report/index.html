@@ -8,7 +8,6 @@
       <title>{{ metadata.sample }} {{ pipeline.name }} General Report &ndash; General Report</title>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <link rel="stylesheet" href="style.css">
     </head>
     <body>
 
@@ -21,8 +20,8 @@
     <div class="center">
       <div id = "Metadata" class="tabcontent">
         <h1>{{ pipeline.name }} General report</h1>
-
       <h3> Sample information </h3>
+      <div class="dataframe">
       <table>
         <thead>
           <tr>
@@ -52,20 +51,46 @@
             <td>{{ metadata.tc_purecn }} </td>
             {% endif %}
             </tr>
-
         </thead>
       </table>
+      <h3>Units</h3>
+      <div class="scroll">
+        <div class="dataframe">
+            <table>
+              <thead>
+                <tr>
+                  {% for c in metadata.units[0].keys() %}
+                  <th>{{ c }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in metadata.units %}
+                <tr>
+                  {% for k in metadata.units[0].keys() %}
+                  <td>{{ row[k] }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+        </div>
+      </div>
+    </div>
       <h3>Pipeline</h3>
+      <div class="dataframe">
       <table>
         <thead>
           <tr>
-            <td><b>Name</b></td>
-            <td><b>Version</b></td>
-            <td><b>Source</b></td>
+            <th><b>Name</b></th>
+            <th><b>Version</b></th>
+            <th><b>Reference genome</b></th>
+            <th><b>Source</b></th>
           </tr>
           <tr>
             <td>{{ pipeline.name }}</td>
             <td>  {{ pipeline.version }}</td>
+            <td> {{pipeline.reference_genome }}</td>
             <td><a href="{{ pipeline.uri }}">{{ pipeline.uri }}</a></td>
           </tr>
       </thead>
@@ -76,7 +101,7 @@
         <!-- x-release-please-end-version -->
       </div>
     </div>
-
+  </div>
         {% for k in nav_header %}
           <div id = "{{ k }}" class="tabcontent">
             <h1>{{ pipeline.name }} General report</h1>
@@ -89,6 +114,7 @@
               <h3>{{ r.name }}</h3>
               <p>{{ r.description }}</p>
               {% if r.type == "table" %}
+              <div class="dataframe">
               <table>
                 <thead>
                   <tr>
@@ -107,9 +133,9 @@
                   {% endfor %}
                 </tbody>
               </table>
-
+            </div>
               {% elif r.type == "file_link" %}
-              <a href="{{ r.value}}">{{ r.value }} </a>
+              <a href="{{ r.value}}" target="_blank">{{ r.value }} </a>
 
               {% elif r.type == "single_value" %}
               <div class="single">
@@ -126,13 +152,14 @@
               <div class="scroll">
               {{ r.data }}
               </div>
+              {% elif r.type == "large_file_table" %}
+              {{ r.data }}
               {% elif r.type == "multiqc" %}
               {% for t in r.data %}
               {% if "table" in t %}
               <div class="scroll">
-
-
-              <table>
+                <div class="dataframe">
+                <table>
                 <thead>
                   <tr>
                     <th title="Sample name">Sample</th>
@@ -155,6 +182,7 @@
                 </tbody>
               </table>
               </div>
+            </div>
             </hr>
               {% endif %}
               {% endfor %}
@@ -166,15 +194,13 @@
         </div>
 
           {% endfor %}
-
-
-
       </div>
 
 
-
-
       <script>
+
+        {{ js | indent(width = 8) }}
+
         function openNav(evt, navHeader) {
         // Declare all variables
         var i, tabcontent, tablinks;
@@ -197,6 +223,12 @@
         evt.currentTarget.className += " active";
       }
       document.getElementById("defaultOpen").click();
+      
+      new DataTable('table.display', {
+        scrollX: true,
+        pageLength: 50
+      }
+      );
       </script>
 
     </div>
