@@ -35,7 +35,7 @@ class CNV:
         )
 
     def __hash__(self):
-        return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.cn}")
+        return hash(f"{self.caller}_{self.chromosome}:{self.start}-{self.end()}_{self.cn:.2f}")
 
     def __eq__(self, other):
         return hash(self) == hash(other)
