@@ -221,6 +221,13 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
                 for c in m_cnvs:
                     if c not in cnvs:
                         cnvs.append(c)
+                    else:
+                        # If it already exists, make sure that it represents
+                        # all genes and that the filtering status is updated
+                        added_cnv = cnvs.pop(cnvs.index(c))
+                        added_cnv.genes = list(set(added_cnv.genes + c.genes))
+                        added_cnv.passed_filter = added_cnv.passed_filter or c.passed_filter
+                        cnvs.append(added_cnv)
     return sort_cnvs(cnvs)
 
 
