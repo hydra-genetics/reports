@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 import os
 import sys
@@ -387,6 +388,8 @@ class TestMergeCnvJson(unittest.TestCase):
                     },
                 ],
                 filtered_cnvs=[
+                    # Filtered amplifications
+                    defaultdict(lambda: defaultdict(list)),
                     # Filtered deletions
                     {
                         "chr1": {
@@ -438,7 +441,7 @@ class TestMergeCnvJson(unittest.TestCase):
                         assert all([exp["genes"][i] for gene in c.genes])
 
                     n_pass_filter = sum(x.passed_filter for x in callerdata[0]["cnvs"])
-                    assert n_pass_filter == case.expected_cnvs[chromosome][caller]["pass_filter_count"]
+                    assert n_pass_filter == exp["pass_filter_count"]
 
     def test_merge_cnv_calls(self):
         unfiltered_files = [
