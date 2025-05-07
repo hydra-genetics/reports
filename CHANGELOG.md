@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.10.0](https://github.com/hydra-genetics/reports/compare/v0.9.0...v0.10.0) (2025-04-08)
+
+
+### Features
+
+* Added new file type, large_file_table. Added units and reference genome to metadata. Styling, ([#117](https://github.com/hydra-genetics/reports/issues/117)) ([07e0b4d](https://github.com/hydra-genetics/reports/commit/07e0b4db31f928dae5a86bd689b3e6c18dc590a7))
+
+
+### Bug Fixes
+
+* **cnv:** bug with missing results in table ([#115](https://github.com/hydra-genetics/reports/issues/115)) ([9e386fb](https://github.com/hydra-genetics/reports/commit/9e386fb36b3bea8ccc773a958a04b1a562d8f58d))
+
+## [0.9.0](https://github.com/hydra-genetics/reports/compare/v0.8.0...v0.9.0) (2025-03-21)
+
+
+### Features
+
+* resolve environment variables when parsing multiqc config ([50311b2](https://github.com/hydra-genetics/reports/commit/50311b2b571f6c33e1399301c5c2dfd0992351b8))
+
+
+### Bug Fixes
+
+* **Snakemake:** remove trailing comment that breaks local git ([#111](https://github.com/hydra-genetics/reports/issues/111)) ([ba1edef](https://github.com/hydra-genetics/reports/commit/ba1edef1a916b4820e76bf8edb07c4f201562c49))
+
+## [0.8.0](https://github.com/hydra-genetics/reports/compare/v0.7.0...v0.8.0) (2025-02-14)
+
+
+### Features
+
+* **cnv:** replace chromosome and start with position ([#105](https://github.com/hydra-genetics/reports/issues/105)) ([#106](https://github.com/hydra-genetics/reports/issues/106)) ([118d62e](https://github.com/hydra-genetics/reports/commit/118d62ead0e3c3cbd42d4be9680b024248b29adc))
+
+## [0.7.0](https://github.com/hydra-genetics/reports/compare/v0.6.1...v0.7.0) (2025-02-11)
+
+
+### Features
+
+* **cnv:** ability to manually adjust tumor cell content in plots ([#96](https://github.com/hydra-genetics/reports/issues/96)) ([fbeec94](https://github.com/hydra-genetics/reports/commit/fbeec94cc83815d08155ba1887c30948d083495d))
+* **cnv:** better help section ([#100](https://github.com/hydra-genetics/reports/issues/100)) ([088911a](https://github.com/hydra-genetics/reports/commit/088911adce16dbb6d5230bd06c5fa4174e9bbe00))
+
+## [0.6.1](https://github.com/hydra-genetics/reports/compare/v0.6.0...v0.6.1) (2025-01-24)
+
+
+### Bug Fixes
+
+* General report bugfixes. Handle empty files, remove duplicate analysis date ([#97](https://github.com/hydra-genetics/reports/issues/97)) ([7afc54a](https://github.com/hydra-genetics/reports/commit/7afc54a6bbcb560776857a8db6f44feedec5cd5e))
+
 ## [0.5.0](https://github.com/hydra-genetics/reports/compare/v0.4.2...v0.5.0) (2024-09-19)
 
 
