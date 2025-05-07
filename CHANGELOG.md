@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.1](https://github.com/hydra-genetics/reports/compare/v0.10.0...v0.10.1) (2025-05-07)
+
+
+### Bug Fixes
+
+* **cnv:** address issue with identical CNVs being ignored ([#120](https://github.com/hydra-genetics/reports/issues/120)) ([cd358e0](https://github.com/hydra-genetics/reports/commit/cd358e03dafd09d312538c828d639c262c8160ff))
+
+
 ## [0.10.0](https://github.com/hydra-genetics/reports/compare/v0.9.0...v0.10.0) (2025-04-08)
 
 
