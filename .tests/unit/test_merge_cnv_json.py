@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 import os
 import sys
@@ -338,7 +339,85 @@ class TestMergeCnvJson(unittest.TestCase):
                         }
                     }
                 },
-            )
+            ),
+            TestCase(
+                chromosomes=[("chr1", 1000)],
+                callers=[
+                    {
+                        "caller": "cnvkit",
+                        "segments": [],
+                        "ratios": [],
+                    },
+                ],
+                unfiltered_cnvs=[
+                    # File with amplifications
+                    {
+                        "chr1": {
+                            "cnvkit": [
+                                CNV(
+                                    caller="cnvkit",
+                                    chromosome="chr1",
+                                    genes=["gene2"],
+                                    start=500,
+                                    length=100,
+                                    type="COPY_NORMAL",
+                                    cn=2,
+                                    baf=1.3,
+                                ),
+                            ],
+                        },
+                    },
+                    # File with deletions
+                    {
+                        "chr1": {
+                            "cnvkit": [
+                                # This variant is present in the other file too,
+                                # but with annotated with a different gene.
+                                CNV(
+                                    caller="cnvkit",
+                                    chromosome="chr1",
+                                    genes=["gene3"],
+                                    start=500,
+                                    length=100,
+                                    type="COPY_NORMAL",
+                                    cn=2,
+                                    baf=1.3,
+                                ),
+                            ],
+                        },
+                    },
+                ],
+                filtered_cnvs=[
+                    # Filtered amplifications
+                    defaultdict(lambda: defaultdict(list)),
+                    # Filtered deletions
+                    {
+                        "chr1": {
+                            "cnvkit": [
+                                CNV(
+                                    caller="cnvkit",
+                                    chromosome="chr1",
+                                    genes=["gene3"],
+                                    start=500,
+                                    length=100,
+                                    type="COPY_NORMAL",
+                                    cn=2,
+                                    baf=1.3,
+                                ),
+                            ],
+                        },
+                    },
+                ],
+                expected_cnvs={
+                    "chr1": {
+                        "cnvkit": {
+                            "all_count": 1,
+                            "pass_filter_count": 1,
+                            "genes": [["gene2", "gene3"]],
+                        }
+                    }
+                },
+            ),
         ]
 
         for case in testcases:
@@ -352,10 +431,17 @@ class TestMergeCnvJson(unittest.TestCase):
                     callerdata = [x for x in chromosomedata[0]["callers"] if x["name"] == caller]
                     assert len(callerdata) == 1
 
-                    assert case.expected_cnvs[chromosome][caller]["all_count"] == len(callerdata[0]["cnvs"])
+                    exp = case.expected_cnvs[chromosome][caller]
+
+                    assert exp["all_count"] == len(callerdata[0]["cnvs"])
+                    for i, c in enumerate(callerdata[0]["cnvs"]):
+                        if "genes" not in exp:
+                            continue
+                        assert len(c.genes) == len(exp["genes"][i])
+                        assert all([exp["genes"][i] for gene in c.genes])
 
                     n_pass_filter = sum(x.passed_filter for x in callerdata[0]["cnvs"])
-                    assert n_pass_filter == case.expected_cnvs[chromosome][caller]["pass_filter_count"]
+                    assert n_pass_filter == exp["pass_filter_count"]
 
     def test_merge_cnv_calls(self):
         unfiltered_files = [
