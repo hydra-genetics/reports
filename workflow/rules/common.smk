@@ -8,7 +8,7 @@ import numpy as np
 import pathlib
 import pandas as pd
 import re
-from typing import List, Union
+from typing import List, Union, NoReturn
 import yaml
 from snakemake.io import Wildcards
 from snakemake.utils import validate
@@ -177,22 +177,37 @@ def get_cnv_segments(wildcards):
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
-def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+def get_germline_vcf(wildcards: Wildcards) -> Union[List[NoReturn], Path, str]:
     return config.get("merge_cnv_json", {}).get("germline_vcf", [])
 
 
-def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+def get_germline_vcf_tbi(wildcards: Wildcards) -> List[Union[str, Path]]:
+    vcf = get_germline_vcf(wildcards)
+    if not vcf or vcf.endswith(".vcf"):
+        return []
+    return f"{vcf}.tbi"
+
+
+def get_filtered_cnv_vcfs(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
 
     return config.get("merge_cnv_json", {}).get("filtered_cnv_vcfs", [])
 
 
-def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+def get_filtered_cnv_vcfs_tbi(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return [f"{vcf}.tbi" for vcf in get_filtered_cnv_vcfs(wildcards) if vcf.endswith(".vcf.gz")]
+
+
+def get_unfiltered_cnv_vcfs(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
 
     return config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs", [])
+
+
+def get_unfiltered_cnv_vcfs_tbi(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return [f"{vcf}.tbi" for vcf in get_unfiltered_cnv_vcfs(wildcards) if vcf.endswith(".vcf.gz")]
 
 
 def get_tc(wildcards):
