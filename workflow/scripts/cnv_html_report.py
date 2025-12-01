@@ -6,7 +6,11 @@ import time
 
 
 def get_sample_name(filename):
-    return Path(filename).name.split(".")[0]
+    p = Path(filename)
+    name = p.name # If there suffixes like .vcf or .vcf.gz, remove them all
+    for _ in p.suffixes:
+        name = Path(name).stem
+    return name
 
 
 def parse_table(table_def):
