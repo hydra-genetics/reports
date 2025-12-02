@@ -11,7 +11,7 @@ def get_sample_name(filename):
     # Extensions to be removed from the filename to get the sample name
     # We iterate from the end and remove them if they match
     extensions_to_strip = {'.gz', '.json', '.merged', '.tc_method'}
-    
+
     while True:
         stem = Path(name).stem
         suffix = Path(name).suffix
