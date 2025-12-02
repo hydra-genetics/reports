@@ -1,5 +1,12 @@
 import pytest
-from workflow.scripts.cnv_html_report import get_sample_name
+from pathlib import Path
+import sys
+
+TEST_DIR = Path(__file__).parent.resolve()
+SCRIPT_DIR = TEST_DIR / "../../workflow/scripts"
+sys.path.insert(0, str(SCRIPT_DIR))
+
+from cnv_html_report import get_sample_name
 
 
 def test_get_sample_name():
