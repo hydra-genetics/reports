@@ -7,9 +7,18 @@ import time
 
 def get_sample_name(filename):
     p = Path(filename)
-    name = p.name # If there suffixes like .vcf or .vcf.gz, remove them all
-    for _ in p.suffixes:
-        name = Path(name).stem
+    name = p.name
+    # Extensions to be removed from the filename to get the sample name
+    # We iterate from the end and remove them if they match
+    extensions_to_strip = {'.gz', '.json', '.merged', '.tc_method'}
+    
+    while True:
+        stem = Path(name).stem
+        suffix = Path(name).suffix
+        if suffix in extensions_to_strip:
+            name = stem
+        else:
+            break
     return name
 
 
