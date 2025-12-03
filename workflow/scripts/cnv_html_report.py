@@ -5,21 +5,8 @@ import sys
 import time
 
 
-def get_sample_name(filename):
-    p = Path(filename)
-    name = p.name
-    # Extensions to be removed from the filename to get the sample name
-    # We iterate from the end and remove them if they match
-    extensions_to_strip = {'.gz', '.json', '.merged', '.tc_method'}
-
-    while True:
-        stem = Path(name).stem
-        suffix = Path(name).suffix
-        if suffix in extensions_to_strip:
-            name = stem
-        else:
-            break
-    return name
+def get_sample_name(wildcards):
+    return wildcards.sample
 
 
 def parse_table(table_def):
@@ -41,7 +28,7 @@ def parse_table(table_def):
 
 
 def create_report(template_filename, json_filename, css_files, js_files,
-                  show_table, extra_tables, tc, tc_method):
+                  show_table, extra_tables, tc, tc_method, wildcards):
     with open(template_filename) as f:
         template = Template(source=f.read())
 
@@ -66,7 +53,7 @@ def create_report(template_filename, json_filename, css_files, js_files,
             extra_tables=extra_tables,
             metadata=dict(
                 date=time.strftime("%Y-%m-%d %H:%M", time.localtime()),
-                sample=get_sample_name(json_filename),
+                sample=get_sample_name(wildcards),
                 show_table=show_table,
                 tc=tc,
                 tc_method=tc_method,
@@ -104,6 +91,7 @@ def main():
         extra_tables,
         snakemake.params.tc,
         snakemake.params.tc_method,
+        snakemake.wildcards,
     )
 
     with open(html_filename, "w") as f:
