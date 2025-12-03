@@ -10,10 +10,10 @@ from cnv_html_report import get_sample_name
 
 
 def test_get_sample_name():
-    # simple case
-    assert get_sample_name("sample.json") == "sample"
-    # nested suffixes
-    assert get_sample_name("sample.type.json") == "sample.type"
-    assert get_sample_name("sample.type.json.gz") == "sample.type"
-    # complex sample name
-    assert get_sample_name("reports/cnv_html_report/2021.CC.13_T.tc_method.merged.json") == "2021.CC.13_T"
+    class MockWildcards:
+        def __init__(self, sample):
+            self.sample = sample
+
+    assert get_sample_name(MockWildcards("sample")) == "sample"
+    assert get_sample_name(MockWildcards("sample.type")) == "sample.type"
+    assert get_sample_name(MockWildcards("2021.CC.13_T")) == "2021.CC.13_T"
