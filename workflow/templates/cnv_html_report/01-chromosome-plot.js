@@ -701,243 +701,228 @@ class ChromosomePlot extends EventTarget {
       );
   }
 
-  const self = this;
+  #plotRatios() {
+    const self = this;
 
     let ratioData;
-if (this.equalDistance) {
-  const ratios = this.#data.callers[this.#activeCaller].ratios;
-  const [xMin, xMax] = this.xScale.domain();
-  const startIdx = Math.max(0, Math.floor(xMin));
-  const endIdx = Math.min(ratios.length, Math.ceil(xMax));
+    if (this.equalDistance) {
+      const ratios = this.#data.callers[this.#activeCaller].ratios;
+      const [xMin, xMax] = this.xScale.domain();
+      const startIdx = Math.max(0, Math.floor(xMin));
+      const endIdx = Math.min(ratios.length, Math.ceil(xMax));
 
-  ratioData = ratios.slice(startIdx, endIdx).map((p, i) => {
-    let tp = { ...p };
-    tp.log2 = self.transformLog2Ratio(tp.log2);
-    tp.realStart = tp.start;
-    tp.start = startIdx + i;
-    tp.end = startIdx + i + 1;
-    return tp;
-  });
-} else {
-  ratioData = this.#data.callers[this.#activeCaller].ratios
-    .filter(
-      (p) =>
-        p.start >= this.xScale.domain()[0] &&
-        p.start <= this.xScale.domain()[1]
-    )
-    .map((p) => {
-      let tp = { ...p };
-      tp.log2 = self.transformLog2Ratio(tp.log2);
-      return tp;
+      ratioData = ratios.slice(startIdx, endIdx).map((p, i) => {
+        let tp = { ...p };
+        tp.log2 = self.transformLog2Ratio(tp.log2);
+        tp.realStart = tp.start;
+        tp.start = startIdx + i;
+        tp.end = startIdx + i + 1;
+        return tp;
+      });
+    } else {
+      ratioData = this.#data.callers[this.#activeCaller].ratios
+        .filter(
+          (p) =>
+            p.start >= this.xScale.domain()[0] &&
+            p.start <= this.xScale.domain()[1]
+        )
+        .map((p) => {
+          let tp = { ...p };
+          tp.log2 = self.transformLog2Ratio(tp.log2);
+          return tp;
+        });
+    }
+
+    if (ratioData.length > MAX_POINTS && !this.#showAllData) {
+      ratioData = slidingPixelWindow(
+        ratioData,
+        this.xScale,
+        "start",
+        "log2",
+        self.baselineOffset
+      );
+    }
+
+    ratioData = ratioData.map((d) => {
+      let td = { ...d };
+      td.caller = self.activeCaller;
+      return td;
     });
-}
 
-if (ratioData.length > MAX_POINTS && !this.#showAllData) {
-  ratioData = slidingPixelWindow(
-    ratioData,
-    this.xScale,
-    "start",
-    "log2",
-    self.baselineOffset
-  );
-}
+    this.#ratios
+      .selectAll(".data-point")
+      .data(ratioData, (d) => {
+        let suffix = d.mean !== undefined ? "summary" : "point";
+        return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}-${suffix}`;
+      })
+      .join(
+        (enter) => {
+          if (enter.data()[0]?.hasOwnProperty("mean")) {
+            // Summarised data
+            let g = enter
+              .append("g")
+              .attr("class", "data-point")
+              .attr("opacity", 0);
 
-ratioData = ratioData.map((d) => {
-  let td = { ...d };
-  td.caller = self.activeCaller;
-  return td;
-});
+            g.append("rect")
+              .attr("class", "variance-rect")
+              .attr("x", (d) => this.xScale(d.start))
+              .attr("y", (d) => this.ratioYScale(d.mean ? d.mean + d.sd : 0))
+              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+              .attr("height", (d) =>
+                isNaN(d.sd)
+                  ? 0
+                  : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+              )
+              .attr("fill", "#333")
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
-this.#ratios
-  .selectAll(".data-point")
-  .data(ratioData, (d) => {
-    let suffix = d.mean !== undefined ? "summary" : "point";
-    return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}-${suffix}`;
-  })
-  .join(
-    (enter) => {
-      if (enter.data()[0]?.hasOwnProperty("mean")) {
-        // Summarised data
-        let g = enter
-          .append("g")
-          .attr("class", "data-point")
-          .attr("opacity", 0);
+            g.append("line")
+              .attr("class", "mean")
+              .attr("x1", (d) => this.xScale(d.start))
+              .attr("x2", (d) => this.xScale(d.end))
+              .attr("y1", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
+              .attr("y2", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
+              .attr("stroke", "#333")
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
-        g.append("rect")
-          .attr("class", "variance-rect")
-          .attr("x", (d) => this.xScale(d.start))
-          .attr("y", (d) => this.ratioYScale(d.mean ? d.mean + d.sd : 0))
-          .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-          .attr("height", (d) =>
-            isNaN(d.sd)
-              ? 0
-              : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-          )
-          .attr("fill", "#333")
-          .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
+            g.append("polygon")
+              .attr("class", "outlier")
+              .attr("points", (d) => {
+                const start = self.xScale(d.start);
+                const x0 = start + (self.xScale(d.end) - start) / 2;
+                const x1 = x0 - 2;
+                const x2 = x0 + 2;
+                const y0 = self.ratioYScale.range()[0];
+                const y1 = self.ratioYScale.range()[0] - 3;
+                return `${x0},${y0},${x1},${y1},${x2},${y1}`;
+              })
+              .attr("fill", "red")
+              .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
 
-        g.append("line")
-          .attr("class", "mean")
-          .attr("x1", (d) => this.xScale(d.start))
-          .attr("x2", (d) => this.xScale(d.end))
-          .attr("y1", (d) =>
-            isNaN(d.mean)
-              ? this.ratioYScale.range()[0]
-              : this.ratioYScale(d.mean)
-          )
-          .attr("y2", (d) =>
-            isNaN(d.mean)
-              ? this.ratioYScale.range()[0]
-              : this.ratioYScale(d.mean)
-          )
-          .attr("stroke", "#333")
-          .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
+            return g
+              .transition()
+              .duration(this.animationDuration)
+              .attr("opacity", 1);
+          }
 
-        g.append("polygon")
-          .attr("class", "outlier")
-          .attr("points", (d) => {
-            const start = self.xScale(d.start);
-            const x0 = start + (self.xScale(d.end) - start) / 2;
-            const x1 = x0 - 2;
-            const x2 = x0 + 2;
-            const y0 = self.ratioYScale.range()[0];
-            const y1 = self.ratioYScale.range()[0] - 3;
-            return `${x0},${y0},${x1},${y1},${x2},${y1}`;
-          })
-          .attr("fill", "red")
-          .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+          return enter
+            .append("circle")
+            .attr("class", "data-point")
+            .attr("cx", (d) => this.xScale(d.start))
+            .attr("cy", (d) => this.ratioYScale(d.log2))
+            .attr("r", 2)
+            .attr("fill", "#333")
+            .attr("opacity", 0)
+            .call((enter) =>
+              enter
+                .transition()
+                .duration(this.animationDuration)
+                .attr("opacity", 0.3)
+            );
+        },
+        (update) => {
+          if (update.data()[0]?.hasOwnProperty("mean")) {
+            // Summarised data
+            update
+              .selectAll(".mean")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("x1", (d) => this.xScale(d.start))
+              .attr("x2", (d) => this.xScale(d.end))
+              .attr("y1", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
+              .attr("y2", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean)
+              )
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
-        return g
-          .transition()
-          .duration(this.animationDuration)
-          .attr("opacity", 1);
-      }
+            update
+              .selectAll(".variance-rect")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("x", (d) => this.xScale(d.start))
+              .attr("y", (d) =>
+                isNaN(d.mean)
+                  ? this.ratioYScale.range()[0]
+                  : this.ratioYScale(d.mean + d.sd)
+              )
+              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+              .attr("height", (d) =>
+                isNaN(d.sd)
+                  ? 0
+                  : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
+              )
+              .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
-      return enter
-        .append("circle")
-        .attr("class", "data-point")
-        .attr("cx", (d) => this.xScale(d.start))
-        .attr("cy", (d) => this.ratioYScale(d.log2))
-        .attr("r", 2)
-        .attr("fill", "#333")
-        .attr("opacity", 0)
-        .call((enter) =>
-          enter
+            update
+              .selectAll(".outlier")
+              .data((d) => [d])
+              .transition()
+              .duration(this.animationDuration)
+              .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+
+            return update;
+          }
+
+          return update.call((update) =>
+            update
+              .transition()
+              .duration(this.animationDuration)
+              .attr("cx", (d) => this.xScale(d.start))
+              .attr("cy", (d) => this.ratioYScale(d.log2))
+              .attr("opacity", 0.3)
+          );
+        },
+        (exit) => {
+          exit
             .transition()
             .duration(this.animationDuration)
-            .attr("opacity", 0.3)
-        );
-    },
-    (update) => {
-      if (update.data()[0]?.hasOwnProperty("mean")) {
-        // Summarised data
-        update
-          .selectAll(".mean")
-          .data((d) => [d])
-          .transition()
-          .duration(this.animationDuration)
-          .attr("x1", (d) => this.xScale(d.start))
-          .attr("x2", (d) => this.xScale(d.end))
-          .attr("y1", (d) =>
-            isNaN(d.mean)
-              ? this.ratioYScale.range()[0]
-              : this.ratioYScale(d.mean)
-          )
-          .attr("y2", (d) =>
-            isNaN(d.mean)
-              ? this.ratioYScale.range()[0]
-              : this.ratioYScale(d.mean)
-          )
-          .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
-
-        update
-          .selectAll(".variance-rect")
-          .data((d) => [d])
-          .transition()
-          .duration(this.animationDuration)
-          .attr("x", (d) => this.xScale(d.start))
-          .attr("y", (d) =>
-            isNaN(d.mean)
-              ? this.ratioYScale.range()[0]
-              : this.ratioYScale(d.mean + d.sd)
-          )
-          .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-          .attr("height", (d) =>
-            isNaN(d.sd)
-              ? 0
-              : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
-          )
-          .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
-
-        update
-          .selectAll(".outlier")
-          .data((d) => [d])
-          .transition()
-          .duration(this.animationDuration)
-          .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
-
-        return update;
-      }
-
-      return update.call((update) =>
-        update
-          .transition()
-          .duration(this.animationDuration)
-          .attr("cx", (d) => this.xScale(d.start))
-          .attr("cy", (d) => this.ratioYScale(d.log2))
-          .attr("opacity", 0.3)
+            .attr("opacity", 0)
+            .remove();
+        }
       );
-    },
-    (exit) => {
-      exit
-        .transition()
-        .duration(this.animationDuration)
-        .attr("opacity", 0)
-        .remove();
-    }
-  );
   }
 
-#plotSegments() {
-  const self = this;
-  this.#segments
-    .selectAll(".segment")
-    .data(
-      this.#data.callers[this.#activeCaller].segments.map((d) => {
-        let ts = { ...d };
-        ts.log2 = self.transformLog2Ratio(ts.log2);
-        ts.caller = self.activeCaller;
-        if (self.equalDistance) {
-          ts.start = self.getRatioIndex(ts.start);
-          ts.end = self.getRatioIndex(ts.end);
+  #plotSegments() {
+    const self = this;
+    this.#segments
+      .selectAll(".segment")
+      .data(
+        this.#data.callers[this.#activeCaller].segments.map((d) => {
+          let ts = { ...d };
+          ts.log2 = self.transformLog2Ratio(ts.log2);
+          ts.caller = self.activeCaller;
+          if (self.equalDistance) {
+            ts.start = self.getRatioIndex(ts.start);
+            ts.end = self.getRatioIndex(ts.end);
+          }
+          return ts;
+        }),
+        function (d) {
+          return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}`;
         }
-        return ts;
-      }),
-      function (d) {
-        return `${d.caller}-${self.data.chromosome}-${d.start}-${d.end}`;
-      }
-    )
-    .join(
-      (enter) =>
-        enter
-          .append("path")
-          .attr("class", "segment")
-          .attr(
-            "d",
-            (d) =>
-              `M${this.xScale(d.start)} ${this.ratioYScale(
-                d.log2
-              )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
-          )
-          .attr("stroke-width", 2)
-          .attr("stroke-opacity", 0)
-          .call((enter) => enter.transition().attr("stroke-opacity", 1)),
-      (update) =>
-        update.attr("stroke-opacity", 1).call((update) =>
-          update
-            .transition()
-            .duration(this.animationDuration)
-            .attr("stroke-opacity", 1)
+      )
+      .join(
+        (enter) =>
+          enter
+            .append("path")
+            .attr("class", "segment")
             .attr(
               "d",
               (d) =>
@@ -945,682 +930,698 @@ this.#ratios
                   d.log2
                 )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
             )
-        ),
-      (exit) => exit.transition().attr("stroke-opacity", 0).remove()
-    );
-}
-
-#plotVAF() {
-  let vafData;
-  if (this.equalDistance) {
-    vafData = this.#data.vaf
-      .map((p) => {
-        let di = { ...p };
-        di.start = this.getRatioIndex(di.pos);
-        di.end = di.start + 1;
-        di.vaf = this.transformVAF(di.vaf);
-        // We must filter after mapping because xScale domain is in indices
-        return di;
-      })
-      .filter(
-        (p) =>
-          p.start >= this.xScale.domain()[0] && p.start <= this.xScale.domain()[1]
-      );
-  } else {
-    vafData = this.#data.vaf
-      .filter(
-        (p) =>
-          p.pos >= this.xScale.domain()[0] && p.pos <= this.xScale.domain()[1]
-      )
-      .map((p) => {
-        let di = { ...p };
-        di.vaf = this.transformVAF(di.vaf);
-        return di;
-      });
-  }
-
-  if (vafData.length > MAX_POINTS && !this.#showAllData) {
-    vafData = slidingPixelWindowVAF(vafData, this.xScale);
-  }
-
-  this.#vafArea
-    .selectAll(".data-point")
-    .data(vafData, (d) => {
-      if (d.mean !== undefined) {
-        return `${d.pos}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`;
-      }
-      return `${this.data.chromosome}-${d.pos}`;
-    })
-    .join(
-      (enter) => {
-        if (enter.data()[0]?.mean) {
-          return enter
-            .append("g")
-            .attr("class", "data-point")
-            .attr("opacity", 0)
-            .call((g) =>
-              g
-                .append("rect")
-                .attr("class", "variance-rect")
-                .attr("x", (d) => this.xScale(d.start))
-                .attr("y", (d) => this.vafYScale(d.mean + d.sd))
-                .attr(
-                  "width",
-                  (d) => this.xScale(d.end) - this.xScale(d.start)
-                )
-                .attr("height", (d) =>
-                  this.vafYScale(this.vafYScale.domain()[1] - 2 * d.sd)
-                )
-                .attr("fill", "#333")
-                .attr("opacity", 0.3)
-            )
-            .call((g) =>
-              g
-                .append("line")
-                .attr("class", "mean")
-                .attr("x1", (d) => this.xScale(d.start))
-                .attr("x2", (d) => this.xScale(d.end))
-                .attr("y1", (d) => this.vafYScale(d.mean))
-                .attr("y2", (d) => this.vafYScale(d.mean))
-                .attr("stroke", "#333")
-                .attr("opacity", 0.5)
-            )
-            .call((g) =>
-              g
-                .transition()
-                .duration(this.animationDuration)
-                .attr("opacity", 1)
-            );
-        }
-
-        return enter
-          .append("circle")
-          .attr("class", "data-point")
-          .attr("cx", (d) => this.xScale(d.pos))
-          .attr("cy", (d) => this.vafYScale(d.vaf))
-          .attr("r", 2)
-          .attr("fill", "#333")
-          .attr("opacity", 0)
-          .call((enter) =>
-            enter
+            .attr("stroke-width", 2)
+            .attr("stroke-opacity", 0)
+            .call((enter) => enter.transition().attr("stroke-opacity", 1)),
+        (update) =>
+          update.attr("stroke-opacity", 1).call((update) =>
+            update
               .transition()
               .duration(this.animationDuration)
-              .attr("opacity", 0.3)
-          );
-      },
-      (update) => {
-        if (update.data()[0]?.mean) {
-          return update
-            .call((update) =>
-              update
-                .selectAll(".variance-rect")
-                .data((d) => [d])
-                .transition()
-                .duration(this.animationDuration)
-                .attr("x", (d) => this.xScale(d.start))
-                .attr("y", (d) => this.vafYScale(d.mean + d.sd))
-                .attr(
-                  "width",
-                  (d) => this.xScale(d.end) - this.xScale(d.start)
-                )
-                .attr("height", (d) =>
-                  this.vafYScale(this.vafYScale.domain()[1] - 2 * d.sd)
-                )
-            )
-            .call((update) =>
-              update
-                .selectAll(".mean")
-                .data((d) => [d])
-                .transition()
-                .duration(this.animationDuration)
-                .attr("x1", (d) => this.xScale(d.start))
-                .attr("x2", (d) => this.xScale(d.end))
-                .attr("y1", (d) => this.vafYScale(d.mean))
-                .attr("y2", (d) => this.vafYScale(d.mean))
-            )
-            .call((update) =>
-              update
-                .transition()
-                .duration(this.animationDuration)
-                .attr("opacity", 1)
-            );
-        }
+              .attr("stroke-opacity", 1)
+              .attr(
+                "d",
+                (d) =>
+                  `M${this.xScale(d.start)} ${this.ratioYScale(
+                    d.log2
+                  )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
+              )
+          ),
+        (exit) => exit.transition().attr("stroke-opacity", 0).remove()
+      );
+  }
 
-        return update.call((update) =>
-          update
-            .transition()
-            .duration(this.animationDuration)
+  #plotVAF() {
+    let vafData;
+    if (this.equalDistance) {
+      vafData = this.#data.vaf
+        .map((p) => {
+          let di = { ...p };
+          di.start = this.getRatioIndex(di.pos);
+          di.end = di.start + 1;
+          di.vaf = this.transformVAF(di.vaf);
+          // We must filter after mapping because xScale domain is in indices
+          return di;
+        })
+        .filter(
+          (p) =>
+            p.start >= this.xScale.domain()[0] && p.start <= this.xScale.domain()[1]
+        );
+    } else {
+      vafData = this.#data.vaf
+        .filter(
+          (p) =>
+            p.pos >= this.xScale.domain()[0] && p.pos <= this.xScale.domain()[1]
+        )
+        .map((p) => {
+          let di = { ...p };
+          di.vaf = this.transformVAF(di.vaf);
+          return di;
+        });
+    }
+
+    if (vafData.length > MAX_POINTS && !this.#showAllData) {
+      vafData = slidingPixelWindowVAF(vafData, this.xScale);
+    }
+
+    this.#vafArea
+      .selectAll(".data-point")
+      .data(vafData, (d) => {
+        if (d.mean !== undefined) {
+          return `${d.pos}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`;
+        }
+        return `${this.data.chromosome}-${d.pos}`;
+      })
+      .join(
+        (enter) => {
+          if (enter.data()[0]?.mean) {
+            return enter
+              .append("g")
+              .attr("class", "data-point")
+              .attr("opacity", 0)
+              .call((g) =>
+                g
+                  .append("rect")
+                  .attr("class", "variance-rect")
+                  .attr("x", (d) => this.xScale(d.start))
+                  .attr("y", (d) => this.vafYScale(d.mean + d.sd))
+                  .attr(
+                    "width",
+                    (d) => this.xScale(d.end) - this.xScale(d.start)
+                  )
+                  .attr("height", (d) =>
+                    this.vafYScale(this.vafYScale.domain()[1] - 2 * d.sd)
+                  )
+                  .attr("fill", "#333")
+                  .attr("opacity", 0.3)
+              )
+              .call((g) =>
+                g
+                  .append("line")
+                  .attr("class", "mean")
+                  .attr("x1", (d) => this.xScale(d.start))
+                  .attr("x2", (d) => this.xScale(d.end))
+                  .attr("y1", (d) => this.vafYScale(d.mean))
+                  .attr("y2", (d) => this.vafYScale(d.mean))
+                  .attr("stroke", "#333")
+                  .attr("opacity", 0.5)
+              )
+              .call((g) =>
+                g
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("opacity", 1)
+              );
+          }
+
+          return enter
+            .append("circle")
+            .attr("class", "data-point")
             .attr("cx", (d) => this.xScale(d.pos))
             .attr("cy", (d) => this.vafYScale(d.vaf))
-            .attr("opacity", 0.3)
-        );
-      },
-      (exit) =>
-        exit
-          .transition()
-          .duration(this.animationDuration)
-          .attr("opacity", 0)
-          .remove()
-    );
-}
+            .attr("r", 2)
+            .attr("fill", "#333")
+            .attr("opacity", 0)
+            .call((enter) =>
+              enter
+                .transition()
+                .duration(this.animationDuration)
+                .attr("opacity", 0.3)
+            );
+        },
+        (update) => {
+          if (update.data()[0]?.mean) {
+            return update
+              .call((update) =>
+                update
+                  .selectAll(".variance-rect")
+                  .data((d) => [d])
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("x", (d) => this.xScale(d.start))
+                  .attr("y", (d) => this.vafYScale(d.mean + d.sd))
+                  .attr(
+                    "width",
+                    (d) => this.xScale(d.end) - this.xScale(d.start)
+                  )
+                  .attr("height", (d) =>
+                    this.vafYScale(this.vafYScale.domain()[1] - 2 * d.sd)
+                  )
+              )
+              .call((update) =>
+                update
+                  .selectAll(".mean")
+                  .data((d) => [d])
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("x1", (d) => this.xScale(d.start))
+                  .attr("x2", (d) => this.xScale(d.end))
+                  .attr("y1", (d) => this.vafYScale(d.mean))
+                  .attr("y2", (d) => this.vafYScale(d.mean))
+              )
+              .call((update) =>
+                update
+                  .transition()
+                  .duration(this.animationDuration)
+                  .attr("opacity", 1)
+              );
+          }
 
-#plotAnnotations() {
-  const annotData = this.#data.annotations.map(d => {
-    let ad = { ...d };
-    if (this.equalDistance) {
-      ad.start = this.getRatioIndex(d.start);
-      ad.end = this.getRatioIndex(d.end);
-    }
-    return ad;
-  });
-
-  this.annotations
-    .selectAll(".annotation")
-    .data(annotData, (d) => [d.name, d.start, d.end])
-    .join(
-      (enter) => {
-        return enter
-          .append("g")
-          .attr("class", "annotation")
-          .attr("clip-path", "url(#annotation-clip)")
-          .attr("opacity", 0)
-          .call((enter) =>
-            enter
-              .append("rect")
-              .attr("class", "annotation-marker")
-              .attr("x", (d) => this.xScale(d.start))
-              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-              .attr(
-                "height",
-                this.height - this.margin.top - this.margin.bottom
-              )
-              .attr("stroke", "#000")
-              .attr("stroke-width", 0.5)
-              .attr("fill", "#333")
-              .attr("fill-opacity", 0.05)
-              .attr("pointer-events", "none")
-          )
-          .call((enter) =>
-            enter
-              .append("rect")
-              .attr("class", "annotation-label-background")
-              .attr("x", (d) => {
-                let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
-                return (
-                  this.xScale(d.start + (d.end - d.start) / 2) -
-                  labelWidth / 2 -
-                  5
-                );
-              })
-              .attr("y", (d) => {
-                let [_, labelHeight] = getTextDimensions(d.name, "0.8rem");
-                return (
-                  this.plotHeight +
-                  this.margin.between / 2 -
-                  labelHeight / 2 -
-                  2
-                );
-              })
-              .attr(
-                "width",
-                (d) => getTextDimensions(d.name, "0.8rem")[0] + 10
-              )
-              .attr(
-                "height",
-                (d) => getTextDimensions(d.name, "0.8rem")[1] + 4
-              )
-              .attr("fill", "#EEE")
-              .attr("rx", 4)
-          )
-          .call((enter) =>
-            enter
-              .append("text")
-              .attr("class", "annotation-label")
-              .text((d) => d.name)
-              .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
-              .attr("y", this.plotHeight + this.margin.between / 2)
-              .attr("text-anchor", "middle")
-              .attr("dominant-baseline", "central")
-          )
-          .call((enter) =>
-            enter
+          return update.call((update) =>
+            update
               .transition()
               .duration(this.animationDuration)
-              .attr("opacity", 1)
+              .attr("cx", (d) => this.xScale(d.pos))
+              .attr("cy", (d) => this.vafYScale(d.vaf))
+              .attr("opacity", 0.3)
           );
-      },
-      (update) =>
-        update
-          .call((update) =>
-            update
-              .selectAll(".annotation-label")
-              .transition()
-              .duration(this.animationDuration)
-              .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
-          )
-          .call((update) =>
-            update
-              .selectAll(".annotation-label-background")
-              .transition()
-              .duration(this.animationDuration)
-              .attr("x", (d) => {
-                let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
-                return (
-                  this.xScale(d.start + (d.end - d.start) / 2) -
-                  labelWidth / 2 -
-                  5
-                );
-              })
-          )
-          .call((update) =>
-            update
-              .selectAll(".annotation-marker")
-              .transition()
-              .duration(this.animationDuration)
-              .attr("x", (d) => this.xScale(d.start))
-              .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-          )
-          .call((update) =>
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("opacity", 1)
-          ),
-      (exit) => {
-        return exit
-          .transition()
-          .duration(this.animationDuration)
-          .attr("opacity", 0)
-          .remove();
+        },
+        (exit) =>
+          exit
+            .transition()
+            .duration(this.animationDuration)
+            .attr("opacity", 0)
+            .remove()
+      );
+  }
+
+  #plotAnnotations() {
+    const annotData = this.#data.annotations.map(d => {
+      let ad = { ...d };
+      if (this.equalDistance) {
+        ad.start = this.getRatioIndex(d.start);
+        ad.end = this.getRatioIndex(d.end);
       }
-    );
-}
-
-#drawAxes() {
-  this.svg.selectAll(".y-axis").remove();
-  this.svg
-    .insert("g", "#lr-area-clip")
-    .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
-    .attr("class", "y-axis primary-y-axis ratio-y-axis")
-    .transition()
-    .duration(this.animationDuration)
-    .call(this.ratioYAxis);
-  this.svg
-    .insert("g", "#lr-area-clip")
-    .attr(
-      "transform",
-      `translate(${this.width - this.margin.right},${this.margin.top})`
-    )
-    .attr("class", "y-axis secondary-y-axis cn-y-axis")
-    .transition()
-    .duration(this.animationDuration)
-    .call(this.cnYAxis);
-  this.svg
-    .insert("g", "#lr-area-clip")
-    .attr(
-      "transform",
-      `translate(${this.margin.left},${this.margin.top + this.plotHeight + this.margin.between
-      })`
-    )
-    .attr("class", "y-axis primary-y-axis vaf-y-axis")
-    .transition()
-    .duration(this.animationDuration)
-    .call(this.vafYAxis);
-
-  this.svg.select(".x-axis").remove();
-  this.svg
-    .insert("g", "#lr-area-clip")
-    .attr(
-      "transform",
-      `translate(${this.margin.left},${this.height - this.margin.bottom})`
-    )
-    .attr("class", "x-axis")
-    .transition()
-    .duration(this.animationDuration)
-    .call(this.xAxis);
-}
-
-#setLabels() {
-  this.svg
-    .append("text")
-    .attr("transform", `translate(${this.width / 2},${this.height})`)
-    .attr("class", "x-label")
-    .text(this.data.label)
-    .attr("text-anchor", "middle");
-
-  this.svg
-    .append("text")
-    .attr(
-      "transform",
-      `translate(0,${this.margin.top + this.plotHeight / 2}) rotate(-90)`
-    )
-    .attr("class", "y-label")
-    .text("log2 ratio")
-    .attr("text-anchor", "middle")
-    .attr("dominant-baseline", "text-before-edge");
-
-  this.svg
-    .append("text")
-    .attr(
-      "transform",
-      `translate(${this.width},${this.margin.top + this.plotHeight / 2
-      }) rotate(90)`
-    )
-    .attr("class", "y-label")
-    .text("Copy number")
-    .attr("text-anchor", "middle")
-    .attr("dominant-baseline", "text-before-edge");
-
-  this.svg
-    .append("text")
-    .attr(
-      "transform",
-      `translate(0,${this.height - this.margin.bottom - this.plotHeight / 2
-      }) rotate(-90)`
-    )
-    .attr("class", "y-label")
-    .text("VAF")
-    .attr("text-anchor", "middle")
-    .attr("dominant-baseline", "text-before-edge");
-}
-
-initialiseMousetrap() {
-  let isDragging = false;
-  const mouseTrap = this.svg
-    .append("g")
-    .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
-  mouseTrap
-    .append("g")
-    .attr("id", "lr-mousetrap")
-    .append("rect")
-    .attr("class", "mousetrap")
-    .attr("width", this.width - this.margin.left - this.margin.right)
-    .attr("height", this.plotHeight)
-    .attr("fill", "none")
-    .attr("pointer-events", "all");
-  mouseTrap
-    .append("g")
-    .attr("transform", `translate(0,${this.plotHeight})`)
-    .attr("id", "zoom-mousetrap")
-    .append("rect")
-    .attr("class", "mousetrap")
-    .attr("width", this.width - this.margin.left - this.margin.right)
-    .attr("height", this.margin.between)
-    .attr("fill", "none")
-    .attr("pointer-events", "all");
-  mouseTrap
-    .append("g")
-    .attr(
-      "transform",
-      `translate(0,${this.plotHeight + this.margin.between})`
-    )
-    .attr("id", "vaf-mousetrap")
-    .append("rect")
-    .attr("class", "mousetrap")
-    .attr("width", this.width - this.margin.left - this.margin.right)
-    .attr("height", this.plotHeight)
-    .attr("fill", "none")
-    .attr("pointer-events", "all");
-
-  mouseTrap.select("#lr-mousetrap").on("mouseenter mousemove", (e) => {
-    if (isDragging) {
-      return;
-    }
-    let pos = d3.pointer(e);
-    ratioCursor.set(pos[1]);
-    positionCursor.set(pos[0]);
-  });
-
-  mouseTrap.select("#zoom-mousetrap").on("mouseenter mousemove", (e) => {
-    let pos = d3.pointer(e);
-    positionCursor.set(pos[0]);
-  });
-
-  mouseTrap.select("#vaf-mousetrap").on("mouseenter mousemove", (e) => {
-    if (isDragging) {
-      return;
-    }
-    let pos = d3.pointer(e);
-    vafCursor.set(pos[1]);
-    positionCursor.set(pos[0]);
-  });
-
-  // Where the zooming elements are drawn
-  const zoomLayer = mouseTrap.append("g").lower().attr("id", "zoom-layer");
-
-  // Handle zooming
-  mouseTrap
-    .selectAll(".mousetrap")
-    .on("mouseleave", () => {
-      positionCursor.hide();
-      ratioCursor.hide();
-      vafCursor.hide();
-    })
-    .call(
-      d3
-        .drag()
-        .on("start", (e) => {
-          isDragging = true;
-          zoomLayer
-            .append("rect")
-            .attr("id", "zoom-region")
-            .attr("x", e.x)
-            .attr(
-              "height",
-              this.height - this.margin.bottom - this.margin.top
-            )
-            .attr("stroke-width", 0)
-            .attr("fill-opacity", 0.1)
-            .attr("pointer-events", "none");
-          ratioCursor.hide();
-          vafCursor.hide();
-        })
-        .on("drag", (e) => {
-          const leftBound = Math.min(e.x, e.subject.x);
-          let width = Math.abs(Math.max(0, e.x) - e.subject.x);
-
-          if (leftBound + width > this.xScale.range()[1]) {
-            width = this.xScale.range()[1] - leftBound;
-          }
-
-          const genomeWidth =
-            this.xScale.invert(Math.max(e.x, e.subject.x)) -
-            this.xScale.invert(leftBound);
-
-          const zoomRegion = zoomLayer
-            .select("#zoom-region")
-            .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
-            .attr("width", width);
-
-          if (genomeWidth < this.minZoomRange) {
-            zoomRegion.attr("fill", "red");
-          } else {
-            zoomRegion.attr("fill", "#333");
-          }
-
-          positionCursor.set(e.x);
-        })
-        .on("end", (e) => {
-          zoomLayer.select("#zoom-region").remove();
-          const xMin = Math.max(0, Math.min(e.x, e.subject.x));
-          const xMax = Math.min(
-            this.xScale.range()[1],
-            Math.max(e.x, e.subject.x)
-          );
-          isDragging = false;
-          if (xMax - xMin < 3) {
-            return;
-          }
-          this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
-          this.update();
-        })
-    )
-    .on("click", (e) => {
-      isDragging = false;
-      const [xMin, xMax] = this.xScale.domain();
-      if (xMax - xMin !== this.length) {
-        this.resetZoom();
-        this.update();
-      }
-      const pos = d3.pointer(e);
-      positionCursor.set(pos[0]);
-      if (e.target.parentElement.id === "lr-mousetrap") {
-        ratioCursor.set(pos[1]);
-      } else if (e.target.parentElement.id == "vaf-mousetrap") {
-        vafCursor.set(pos[1]);
-      }
+      return ad;
     });
 
-  const positionCursor = new XCursor({
-    element: mouseTrap,
-    height: this.plotHeight * 2 + this.margin.between,
-    xScale: this.xScale,
-  });
-
-  const ratioCursor = new YCursor({
-    element: mouseTrap.select("#lr-mousetrap"),
-    width: this.width - this.margin.left - this.margin.right,
-    yScale: this.ratioYScale,
-    secondaryYScale: this.cnYScale,
-  });
-
-  const vafCursor = new YCursor({
-    element: mouseTrap.select("#vaf-mousetrap"),
-    width: this.width - this.margin.left - this.margin.right,
-    yScale: this.vafYScale,
-  });
-}
-
-#updateAxes() {
-  const [staticYMin, staticYMax] = [-2, 2];
-
-  const [xMin, xMax] = this.zoomRange;
-  let yMin, yMax;
-
-  this.xScale.domain([0, this.length]);
-
-  if (xMin > 0 || xMax < this.length) {
-    this.xScale.domain([Math.max(xMin, 0), Math.min(xMax, this.length)]);
-
-    let yValues;
-    if (this.equalDistance) {
-      yValues = this.#data.callers[this.#activeCaller].ratios.slice(
-        Math.max(xMin, 0),
-        Math.min(xMax, this.length)
+    this.annotations
+      .selectAll(".annotation")
+      .data(annotData, (d) => [d.name, d.start, d.end])
+      .join(
+        (enter) => {
+          return enter
+            .append("g")
+            .attr("class", "annotation")
+            .attr("clip-path", "url(#annotation-clip)")
+            .attr("opacity", 0)
+            .call((enter) =>
+              enter
+                .append("rect")
+                .attr("class", "annotation-marker")
+                .attr("x", (d) => this.xScale(d.start))
+                .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+                .attr(
+                  "height",
+                  this.height - this.margin.top - this.margin.bottom
+                )
+                .attr("stroke", "#000")
+                .attr("stroke-width", 0.5)
+                .attr("fill", "#333")
+                .attr("fill-opacity", 0.05)
+                .attr("pointer-events", "none")
+            )
+            .call((enter) =>
+              enter
+                .append("rect")
+                .attr("class", "annotation-label-background")
+                .attr("x", (d) => {
+                  let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.xScale(d.start + (d.end - d.start) / 2) -
+                    labelWidth / 2 -
+                    5
+                  );
+                })
+                .attr("y", (d) => {
+                  let [_, labelHeight] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.plotHeight +
+                    this.margin.between / 2 -
+                    labelHeight / 2 -
+                    2
+                  );
+                })
+                .attr(
+                  "width",
+                  (d) => getTextDimensions(d.name, "0.8rem")[0] + 10
+                )
+                .attr(
+                  "height",
+                  (d) => getTextDimensions(d.name, "0.8rem")[1] + 4
+                )
+                .attr("fill", "#EEE")
+                .attr("rx", 4)
+            )
+            .call((enter) =>
+              enter
+                .append("text")
+                .attr("class", "annotation-label")
+                .text((d) => d.name)
+                .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+                .attr("y", this.plotHeight + this.margin.between / 2)
+                .attr("text-anchor", "middle")
+                .attr("dominant-baseline", "central")
+            )
+            .call((enter) =>
+              enter
+                .transition()
+                .duration(this.animationDuration)
+                .attr("opacity", 1)
+            );
+        },
+        (update) =>
+          update
+            .call((update) =>
+              update
+                .selectAll(".annotation-label")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+            )
+            .call((update) =>
+              update
+                .selectAll(".annotation-label-background")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => {
+                  let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
+                  return (
+                    this.xScale(d.start + (d.end - d.start) / 2) -
+                    labelWidth / 2 -
+                    5
+                  );
+                })
+            )
+            .call((update) =>
+              update
+                .selectAll(".annotation-marker")
+                .transition()
+                .duration(this.animationDuration)
+                .attr("x", (d) => this.xScale(d.start))
+                .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+            )
+            .call((update) =>
+              update
+                .transition()
+                .duration(this.animationDuration)
+                .attr("opacity", 1)
+            ),
+        (exit) => {
+          return exit
+            .transition()
+            .duration(this.animationDuration)
+            .attr("opacity", 0)
+            .remove();
+        }
       );
-    } else {
-      yValues = this.#data.callers[this.#activeCaller].ratios.filter(
-        (d) => d.start > xMin && d.start < xMax
-      );
-    }
-
-    if (yValues.length === 0) {
-      yMin = staticYMin;
-      yMax = staticYMax;
-    } else {
-      yMin = yValues
-        .map((d) => this.transformLog2Ratio(d.log2))
-        .reduce((a, d) => (d < a ? d : a));
-      yMax = yValues
-        .map((d) => this.transformLog2Ratio(d.log2))
-        .reduce((a, d) => (d > a ? d : a));
-    }
-  } else {
-    [yMin, yMax] = d3.extent(
-      this.#data.callers[this.#activeCaller].ratios,
-      (d) => this.transformLog2Ratio(d.log2)
-    );
-    if (!yMin && !yMax) {
-      yMin = staticYMin;
-      yMax = staticYMax;
-    }
   }
 
-  if (this.fitToData) {
-    this.dispatchEvent(
-      new CustomEvent("zoom", {
-        detail: { dataOutsideRange: false },
-      })
-    );
-    const padding = (yMax - yMin) * 0.05;
-    this.ratioYScale.domain([yMin - padding, yMax + padding]);
-    this.cnYScale.domain([
-      cnFromRatio(yMin - padding),
-      cnFromRatio(yMax + padding),
-    ]);
-  } else {
-    this.dispatchEvent(
-      new CustomEvent("zoom", {
-        detail: { dataOutsideRange: yMin < staticYMin || yMax > staticYMax },
-      })
-    );
-    const padding = (staticYMax - staticYMin) * 0.05;
-    this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
-    this.cnYScale.domain([
-      cnFromRatio(staticYMin - padding),
-      cnFromRatio(staticYMax + padding),
-    ]);
+  #drawAxes() {
+    this.svg.selectAll(".y-axis").remove();
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
+      .attr("class", "y-axis primary-y-axis ratio-y-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.ratioYAxis);
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.width - this.margin.right},${this.margin.top})`
+      )
+      .attr("class", "y-axis secondary-y-axis cn-y-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.margin.left},${this.margin.top + this.plotHeight + this.margin.between
+        })`
+      )
+      .attr("class", "y-axis primary-y-axis vaf-y-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.vafYAxis);
+
+    this.svg.select(".x-axis").remove();
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.margin.left},${this.height - this.margin.bottom})`
+      )
+      .attr("class", "x-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.xAxis);
   }
 
-  this.svg
-    .transition()
-    .select(".x-axis")
-    .duration(this.animationDuration)
-    .call(this.xAxis);
-  this.svg
-    .transition()
-    .select(".ratio-y-axis")
-    .duration(this.animationDuration)
-    .call(this.ratioYAxis);
-  this.svg
-    .transition()
-    .select(".cn-y-axis")
-    .duration(this.animationDuration)
-    .call(this.cnYAxis);
+  #setLabels() {
+    this.svg
+      .append("text")
+      .attr("transform", `translate(${this.width / 2},${this.height})`)
+      .attr("class", "x-label")
+      .text(this.data.label)
+      .attr("text-anchor", "middle");
 
-  this.svg.selectAll(".gridline").remove();
-  this.svg
-    .selectAll(".primary-y-axis .tick")
-    .lower()
-    .append("line")
-    .attr("class", (d) => {
-      return d == 0 ? "gridline baseline" : "gridline";
-    })
-    .attr("x2", this.xScale.range()[1]);
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(0,${this.margin.top + this.plotHeight / 2}) rotate(-90)`
+      )
+      .attr("class", "y-label")
+      .text("log2 ratio")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
 
-  this.svg.select(".x-label").text(this.#data.label);
-}
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(${this.width},${this.margin.top + this.plotHeight / 2
+        }) rotate(90)`
+      )
+      .attr("class", "y-label")
+      .text("Copy number")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
 
-getZoomRange() {
-  return this.zoomRange;
-}
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(0,${this.height - this.margin.bottom - this.plotHeight / 2
+        }) rotate(-90)`
+      )
+      .attr("class", "y-label")
+      .text("VAF")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
+  }
 
-zoomTo(start, end) {
-  if (end - start < this.minZoomRange) {
-    this.dispatchEvent(new CustomEvent("max-zoom-reached", {}));
+  initialiseMousetrap() {
+    let isDragging = false;
+    const mouseTrap = this.svg
+      .append("g")
+      .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
+    mouseTrap
+      .append("g")
+      .attr("id", "lr-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.plotHeight)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+    mouseTrap
+      .append("g")
+      .attr("transform", `translate(0,${this.plotHeight})`)
+      .attr("id", "zoom-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.margin.between)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+    mouseTrap
+      .append("g")
+      .attr(
+        "transform",
+        `translate(0,${this.plotHeight + this.margin.between})`
+      )
+      .attr("id", "vaf-mousetrap")
+      .append("rect")
+      .attr("class", "mousetrap")
+      .attr("width", this.width - this.margin.left - this.margin.right)
+      .attr("height", this.plotHeight)
+      .attr("fill", "none")
+      .attr("pointer-events", "all");
+
+    mouseTrap.select("#lr-mousetrap").on("mouseenter mousemove", (e) => {
+      if (isDragging) {
+        return;
+      }
+      let pos = d3.pointer(e);
+      ratioCursor.set(pos[1]);
+      positionCursor.set(pos[0]);
+    });
+
+    mouseTrap.select("#zoom-mousetrap").on("mouseenter mousemove", (e) => {
+      let pos = d3.pointer(e);
+      positionCursor.set(pos[0]);
+    });
+
+    mouseTrap.select("#vaf-mousetrap").on("mouseenter mousemove", (e) => {
+      if (isDragging) {
+        return;
+      }
+      let pos = d3.pointer(e);
+      vafCursor.set(pos[1]);
+      positionCursor.set(pos[0]);
+    });
+
+    // Where the zooming elements are drawn
+    const zoomLayer = mouseTrap.append("g").lower().attr("id", "zoom-layer");
+
+    // Handle zooming
+    mouseTrap
+      .selectAll(".mousetrap")
+      .on("mouseleave", () => {
+        positionCursor.hide();
+        ratioCursor.hide();
+        vafCursor.hide();
+      })
+      .call(
+        d3
+          .drag()
+          .on("start", (e) => {
+            isDragging = true;
+            zoomLayer
+              .append("rect")
+              .attr("id", "zoom-region")
+              .attr("x", e.x)
+              .attr(
+                "height",
+                this.height - this.margin.bottom - this.margin.top
+              )
+              .attr("stroke-width", 0)
+              .attr("fill-opacity", 0.1)
+              .attr("pointer-events", "none");
+            ratioCursor.hide();
+            vafCursor.hide();
+          })
+          .on("drag", (e) => {
+            const leftBound = Math.min(e.x, e.subject.x);
+            let width = Math.abs(Math.max(0, e.x) - e.subject.x);
+
+            if (leftBound + width > this.xScale.range()[1]) {
+              width = this.xScale.range()[1] - leftBound;
+            }
+
+            const genomeWidth =
+              this.xScale.invert(Math.max(e.x, e.subject.x)) -
+              this.xScale.invert(leftBound);
+
+            const zoomRegion = zoomLayer
+              .select("#zoom-region")
+              .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
+              .attr("width", width);
+
+            if (genomeWidth < this.minZoomRange) {
+              zoomRegion.attr("fill", "red");
+            } else {
+              zoomRegion.attr("fill", "#333");
+            }
+
+            positionCursor.set(e.x);
+          })
+          .on("end", (e) => {
+            zoomLayer.select("#zoom-region").remove();
+            const xMin = Math.max(0, Math.min(e.x, e.subject.x));
+            const xMax = Math.min(
+              this.xScale.range()[1],
+              Math.max(e.x, e.subject.x)
+            );
+            isDragging = false;
+            if (xMax - xMin < 3) {
+              return;
+            }
+            this.zoomTo(this.xScale.invert(xMin), this.xScale.invert(xMax));
+            this.update();
+          })
+      )
+      .on("click", (e) => {
+        isDragging = false;
+        const [xMin, xMax] = this.xScale.domain();
+        if (xMax - xMin !== this.length) {
+          this.resetZoom();
+          this.update();
+        }
+        const pos = d3.pointer(e);
+        positionCursor.set(pos[0]);
+        if (e.target.parentElement.id === "lr-mousetrap") {
+          ratioCursor.set(pos[1]);
+        } else if (e.target.parentElement.id == "vaf-mousetrap") {
+          vafCursor.set(pos[1]);
+        }
+      });
+
+    const positionCursor = new XCursor({
+      element: mouseTrap,
+      height: this.plotHeight * 2 + this.margin.between,
+      xScale: this.xScale,
+    });
+
+    const ratioCursor = new YCursor({
+      element: mouseTrap.select("#lr-mousetrap"),
+      width: this.width - this.margin.left - this.margin.right,
+      yScale: this.ratioYScale,
+      secondaryYScale: this.cnYScale,
+    });
+
+    const vafCursor = new YCursor({
+      element: mouseTrap.select("#vaf-mousetrap"),
+      width: this.width - this.margin.left - this.margin.right,
+      yScale: this.vafYScale,
+    });
+  }
+
+  #updateAxes() {
+    const [staticYMin, staticYMax] = [-2, 2];
+
+    const [xMin, xMax] = this.zoomRange;
+    let yMin, yMax;
+
+    this.xScale.domain([0, this.length]);
+
+    if (xMin > 0 || xMax < this.length) {
+      this.xScale.domain([Math.max(xMin, 0), Math.min(xMax, this.length)]);
+
+      let yValues;
+      if (this.equalDistance) {
+        yValues = this.#data.callers[this.#activeCaller].ratios.slice(
+          Math.max(xMin, 0),
+          Math.min(xMax, this.length)
+        );
+      } else {
+        yValues = this.#data.callers[this.#activeCaller].ratios.filter(
+          (d) => d.start > xMin && d.start < xMax
+        );
+      }
+
+      if (yValues.length === 0) {
+        yMin = staticYMin;
+        yMax = staticYMax;
+      } else {
+        yMin = yValues
+          .map((d) => this.transformLog2Ratio(d.log2))
+          .reduce((a, d) => (d < a ? d : a));
+        yMax = yValues
+          .map((d) => this.transformLog2Ratio(d.log2))
+          .reduce((a, d) => (d > a ? d : a));
+      }
+    } else {
+      [yMin, yMax] = d3.extent(
+        this.#data.callers[this.#activeCaller].ratios,
+        (d) => this.transformLog2Ratio(d.log2)
+      );
+      if (!yMin && !yMax) {
+        yMin = staticYMin;
+        yMax = staticYMax;
+      }
+    }
+
+    if (this.fitToData) {
+      this.dispatchEvent(
+        new CustomEvent("zoom", {
+          detail: { dataOutsideRange: false },
+        })
+      );
+      const padding = (yMax - yMin) * 0.05;
+      this.ratioYScale.domain([yMin - padding, yMax + padding]);
+      this.cnYScale.domain([
+        cnFromRatio(yMin - padding),
+        cnFromRatio(yMax + padding),
+      ]);
+    } else {
+      this.dispatchEvent(
+        new CustomEvent("zoom", {
+          detail: { dataOutsideRange: yMin < staticYMin || yMax > staticYMax },
+        })
+      );
+      const padding = (staticYMax - staticYMin) * 0.05;
+      this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
+      this.cnYScale.domain([
+        cnFromRatio(staticYMin - padding),
+        cnFromRatio(staticYMax + padding),
+      ]);
+    }
+
+    this.svg
+      .transition()
+      .select(".x-axis")
+      .duration(this.animationDuration)
+      .call(this.xAxis);
+    this.svg
+      .transition()
+      .select(".ratio-y-axis")
+      .duration(this.animationDuration)
+      .call(this.ratioYAxis);
+    this.svg
+      .transition()
+      .select(".cn-y-axis")
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
+
+    this.svg.selectAll(".gridline").remove();
+    this.svg
+      .selectAll(".primary-y-axis .tick")
+      .lower()
+      .append("line")
+      .attr("class", (d) => {
+        return d == 0 ? "gridline baseline" : "gridline";
+      })
+      .attr("x2", this.xScale.range()[1]);
+
+    this.svg.select(".x-label").text(this.#data.label);
+  }
+
+  getZoomRange() {
+    return this.zoomRange;
+  }
+
+  zoomTo(start, end) {
+    if (end - start < this.minZoomRange) {
+      this.dispatchEvent(new CustomEvent("max-zoom-reached", {}));
+      return this;
+    }
+    this.zoomRange = [start, end];
+    this.xScale.domain(this.zoomRange);
+  }
+
+  resetZoom() {
+    this.zoomRange = [0, this.length];
+    this.xScale.domain(this.zoomRange);
+  }
+
+  setBaselineOffset(dy) {
+    this.baselineOffset = dy;
+    this.update();
+  }
+
+  update() {
+    this.#updateAxes();
+    this.#plotRatios();
+    this.#plotSegments();
+    this.#plotVAF();
+    this.#plotAnnotations();
+    this.#plotCytobands();
     return this;
   }
-  this.zoomRange = [start, end];
-  this.xScale.domain(this.zoomRange);
-}
-
-resetZoom() {
-  this.zoomRange = [0, this.length];
-  this.xScale.domain(this.zoomRange);
-}
-
-setBaselineOffset(dy) {
-  this.baselineOffset = dy;
-  this.update();
-}
-
-update() {
-  this.#updateAxes();
-  this.#plotRatios();
-  this.#plotSegments();
-  this.#plotVAF();
-  this.#plotAnnotations();
-  this.#plotCytobands();
-  return this;
-}
 }
