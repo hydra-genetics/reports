@@ -137,13 +137,28 @@
               Click and drag to zoom along x-axis. Click the plot to reset zoom.
             </p>
             <div class="no-print">
-              <div>
+  <div>
                 <input type="checkbox" id="chromosome-fit-to-data" />
                 <label for="chromosome-fit-to-data">Zoom to data extent</label>
                 <i
                   class="data-range-warning bi-exclamation-triangle-fill"
                   title="There are data points outside the current range"
                 ></i>
+              </div>
+              <div>
+                <input type="checkbox" id="chromosome-equal-distance" />
+                <label for="chromosome-equal-distance">Equal distance view</label>
+              </div>
+              <div>
+                <label for="gene-search">Search gene: </label>
+                <input
+                  type="text"
+                  id="gene-search"
+                  list="gene-list"
+                  placeholder="Enter gene name"
+                />
+                <datalist id="gene-list"></datalist>
+                <i id="gene-search-error" class="bi bi-exclamation-circle-fill" style="display: none; color: red;" title="Gene not found"></i>
               </div>
               <div>
                 <input type="checkbox" id="chromosome-show-all-datapoints" />

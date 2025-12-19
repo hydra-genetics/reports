@@ -117,7 +117,7 @@ chromosomePlot.addEventListener("zoom", (e) => {
 chromosomePlot.addEventListener("max-zoom-reached", () => {
   setModalMessage(
     "Trying to zoom in too far. " +
-      `Current lower limit is ${chromosomePlot.minZoomRange} bp.`,
+    `Current lower limit is ${chromosomePlot.minZoomRange} bp.`,
     "error"
   );
   messageModal.showModal();
@@ -272,4 +272,52 @@ d3.selectAll("input[name=dataset]").on("change", (e) => {
   chromosomePlot.activeCaller = parseInt(e.target.value);
   genomePlot.activeCaller = parseInt(e.target.value);
   resultsTable.activeCaller = parseInt(e.target.value);
+});
+
+d3.select("#chromosome-equal-distance").on("change", (e) => {
+  chromosomePlot.equalDistance = e.target.checked;
+});
+
+const genes = new Map();
+cnvData.forEach((chromData) => {
+  chromData.annotations.forEach((anno) => {
+    genes.set(anno.name, {
+      chromosome: chromData.chromosome,
+      start: anno.start,
+      end: anno.end,
+    });
+  });
+});
+
+const geneList = d3.select("#gene-list");
+Array.from(genes.keys())
+  .sort()
+  .forEach((gene) => {
+    geneList.append("option").attr("value", gene);
+  });
+
+d3.select("#gene-search").on("change", (e) => {
+  const geneName = e.target.value;
+  const geneInfo = genes.get(geneName);
+  const errorIcon = d3.select("#gene-search-error");
+
+  if (geneInfo) {
+    errorIcon.style("display", "none");
+    const chromIndex = cnvData.findIndex(
+      (d) => d.chromosome === geneInfo.chromosome
+    );
+    if (chromIndex !== -1) {
+      genomePlot.selectChromosome(
+        cnvData[chromIndex].chromosome,
+        geneInfo.start,
+        geneInfo.end
+      );
+    }
+  } else {
+    if (geneName !== "") {
+      errorIcon.style("display", "inline-block");
+    } else {
+      errorIcon.style("display", "none");
+    }
+  }
 });
