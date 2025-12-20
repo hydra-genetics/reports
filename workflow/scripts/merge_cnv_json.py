@@ -118,26 +118,26 @@ def parse_cytobands(filename, cytoband_colors, cytoband_centromere="acen", skip=
 
 def parse_ref_genes(filename, skip=None):
     """Parse UCSC refGene.txt format to create a gene search index.
-    
+
     Args:
         filename: Path to refGene.txt file
         skip: Set of chromosomes to skip
-        
+
     Returns:
         Dict mapping gene names to {chrom, start, end}
     """
     if not filename:
         return {}
-        
+
     genes = defaultdict(lambda: {"chrom": None, "start": float("inf"), "end": float("-inf")})
-    
+
     print(f"DEBUG: Opening ref_genes file: {filename}", file=sys.stderr)
-    
+
     with open(filename) as f:
         # Standard UCSC refGene.txt format (tab-separated):
         # With bin column: 0:bin, 1:name, 2:chrom, 4:txStart, 5:txEnd, 12:name2
         # Without bin column: 0:name, 1:chrom, 3:txStart, 4:txEnd, 11:name2
-        
+
         line_count = 0
         for line in f:
             line_count += 1
@@ -149,7 +149,7 @@ def parse_ref_genes(filename, skip=None):
                 parts = line.strip().split()
                 if len(parts) < 12:
                     continue
-            
+
             # Detect layout
             if parts[0].isdigit() and len(parts) >= 13:
                 # Likely has bin column
@@ -172,23 +172,23 @@ def parse_ref_genes(filename, skip=None):
 
             if name_idx >= len(parts):
                 continue
-                
+
             chrom = normalize_chrom(parts[chrom_idx])
             if skip is not None and chrom in skip:
                 continue
-                
+
             try:
                 txStart = int(parts[start_idx])
                 txEnd = int(parts[end_idx])
                 name = parts[name_idx]
-                
+
                 if not name:
                     continue
 
                 # Update gene extent (merge overlapping transcripts)
                 if genes[name]["chrom"] is None:
                     genes[name]["chrom"] = chrom
-                
+
                 # Only merge if on same chromosome
                 if genes[name]["chrom"] == chrom:
                     genes[name]["start"] = min(genes[name]["start"], txStart)
@@ -428,7 +428,7 @@ def main():
     skip_chromosomes = snakemake.params["skip_chromosomes"]
     if skip_chromosomes:
         skip_chromosomes = [normalize_chrom(c) for c in skip_chromosomes]
-        
+
     show_cytobands = snakemake.params["cytobands"]
 
     cytoband_config = snakemake.config.get("merge_cnv_json", {}).get("cytoband_config", {}).get("colors", {})

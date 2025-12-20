@@ -221,12 +221,14 @@ class ChromosomePlot extends EventTarget {
   #segments;
   #showAllData;
   #equalDistance;
+  #highlightedRegion;
 
   constructor(config) {
     super();
 
     this.#showAllData = config?.showAllData ? config.showAllData : false;
     this.#equalDistance = config?.equalDistance ? config.equalDistance : false;
+    this.#highlightedRegion = null;
     this.element = config?.element ? config.element : document.body;
     this.name = config?.name ? config.name : "";
     this.#data = config?.data;
@@ -394,6 +396,7 @@ class ChromosomePlot extends EventTarget {
     const prevChromosome = this.data.chromosome;
 
     if (data && data.chromosome !== prevChromosome) {
+      this.#highlightedRegion = null;
       this.#data = data;
       if (!start && !end) {
         this.resetZoom();
@@ -1627,22 +1630,37 @@ class ChromosomePlot extends EventTarget {
     this.#plotVAF();
     this.#plotAnnotations();
     this.#plotCytobands();
+
+    if (this.#highlightedRegion) {
+      this.#drawHighlight(
+        this.#highlightedRegion.start,
+        this.#highlightedRegion.end,
+        this.#highlightedRegion.name
+      );
+    }
     return this;
   }
 
   highlightRegion(start, end, name) {
+    this.#highlightedRegion = { start, end, name };
+    this.#drawHighlight(start, end, name);
+  }
+
+  #drawHighlight(start, end, name) {
     // Clear existing highlights first
     this.#plotArea.selectAll(".highlight-region").remove();
     this.#vafArea.selectAll(".highlight-region").remove();
 
     // Determine coordinates based on view mode (equal distance vs genomic)
     let xStart, xEnd;
+    let s = start;
+    let e = end;
     if (this.equalDistance) {
-      start = this.getRatioIndex(start);
-      end = this.getRatioIndex(end);
+      s = this.getRatioIndex(s);
+      e = this.getRatioIndex(e);
     }
-    xStart = this.xScale(start);
-    xEnd = this.xScale(end);
+    xStart = this.xScale(s);
+    xEnd = this.xScale(e);
 
     // If region is too small, make it visible (min 2px)
     if (xEnd - xStart < 2) {
