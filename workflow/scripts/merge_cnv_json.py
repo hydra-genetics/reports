@@ -44,7 +44,7 @@ class CNV:
 def normalize_chrom(chrom: str) -> str:
     """Ensure chromosome name starts with 'chr' exactly once."""
     c = str(chrom)
-    if c.startswith("chr"):
+    while c.startswith("chr"):
         c = c[3:]
     return f"chr{c}"
 
@@ -131,12 +131,16 @@ def parse_ref_genes(filename, skip=None):
         
     genes = defaultdict(lambda: {"chrom": None, "start": float("inf"), "end": float("-inf")})
     
+    print(f"DEBUG: Opening ref_genes file: {filename}", file=sys.stderr)
+    
     with open(filename) as f:
         # Standard UCSC refGene.txt format (tab-separated):
         # With bin column: 0:bin, 1:name, 2:chrom, 4:txStart, 5:txEnd, 12:name2
         # Without bin column: 0:name, 1:chrom, 3:txStart, 4:txEnd, 11:name2
         
+        line_count = 0
         for line in f:
+            line_count += 1
             if line.startswith("#") or not line.strip():
                 continue
             parts = line.strip().split("\t")
@@ -189,12 +193,14 @@ def parse_ref_genes(filename, skip=None):
                 if genes[name]["chrom"] == chrom:
                     genes[name]["start"] = min(genes[name]["start"], txStart)
                     genes[name]["end"] = max(genes[name]["end"], txEnd)
-            except (ValueError, IndexError):
+            except Exception as e:
+                if line_count < 10:
+                    print(f"DEBUG: Error parsing line {line_count}: {e}", file=sys.stderr)
                 continue
 
     # Convert to standard dict and cleanup
     results = {k: v for k, v in genes.items() if v["chrom"] is not None}
-    print(f"Parsed {len(results)} genes from {filename}", file=sys.stderr)
+    print(f"Parsed {len(results)} genes from {filename} into search index", file=sys.stderr)
     return results
 
 
@@ -390,9 +396,11 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
     for v in cnvs.values():
         v["callers"] = list(v["callers"].values())
 
-    # Attach gene search index to first chromosome if available
-    if gene_index and chromosomes:
-        cnvs[chromosomes[0][0]]["gene_search_index"] = gene_index
+    # Attach gene search index to first chromosome dictionary if available.
+    # The frontend expects to find it in the first element of the chromosome array.
+    if gene_index and cnvs:
+        first_chrom = next(iter(cnvs))
+        cnvs[first_chrom]["gene_search_index"] = gene_index
 
     return list(cnvs.values())
 
