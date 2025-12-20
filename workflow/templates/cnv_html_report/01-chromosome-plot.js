@@ -982,7 +982,7 @@ class ChromosomePlot extends EventTarget {
     }
 
     if (vafData.length > MAX_POINTS && !this.#showAllData) {
-      vafData = slidingPixelWindowVAF(vafData, this.xScale);
+      vafData = slidingPixelWindowVAF(vafData, this.xScale, this.equalDistance ? "start" : "pos");
     }
 
     this.#vafArea
@@ -1038,7 +1038,7 @@ class ChromosomePlot extends EventTarget {
           return enter
             .append("circle")
             .attr("class", "data-point")
-            .attr("cx", (d) => this.xScale(d.pos))
+            .attr("cx", (d) => this.xScale(this.equalDistance ? d.start : d.pos))
             .attr("cy", (d) => this.vafYScale(d.vaf))
             .attr("r", 2)
             .attr("fill", "#333")
@@ -1092,7 +1092,7 @@ class ChromosomePlot extends EventTarget {
             update
               .transition()
               .duration(this.animationDuration)
-              .attr("cx", (d) => this.xScale(d.pos))
+              .attr("cx", (d) => this.xScale(this.equalDistance ? d.start : d.pos))
               .attr("cy", (d) => this.vafYScale(d.vaf))
               .attr("opacity", 0.3)
           );

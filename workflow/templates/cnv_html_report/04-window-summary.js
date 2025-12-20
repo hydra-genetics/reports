@@ -45,7 +45,7 @@ function summariseWindow(
   let mean = sum / points.length;
   let sd = Math.sqrt(
     points.reduce((a, b) => a + Math.pow(b[valAttr] - mean, 2), 0) /
-      points.length
+    points.length
   );
   return {
     start: windowStart,
@@ -59,17 +59,20 @@ function summariseWindow(
 function slidingPixelWindowVAF(
   points,
   scale,
+  posAttr = "pos",
   pixelWindowSize = 5,
   force = false
 ) {
   points = points.filter(
-    (p) => p.pos >= scale.domain()[0] && p.pos < scale.domain()[1]
+    (p) => p[posAttr] >= scale.domain()[0] && p[posAttr] < scale.domain()[1]
   );
   if (points[0]?.vaf instanceof Array) {
     points = points
       .map((p) =>
         p.vaf.map((v) => {
-          return { pos: p.pos, vaf: v };
+          let dp = { vaf: v };
+          dp[posAttr] = p[posAttr];
+          return dp;
         })
       )
       .flat();
@@ -83,7 +86,7 @@ function slidingPixelWindowVAF(
 
   let reducedPoints = [];
 
-  for (let window of generateWindowSlices(points, scale, "pos", windowSize)) {
+  for (let window of generateWindowSlices(points, scale, posAttr, windowSize)) {
     if (window.length === 0) {
       windowStart += windowSize;
       continue;

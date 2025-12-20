@@ -27,12 +27,12 @@ class GenomePlot extends EventTarget {
     this.margin = config?.margin
       ? config.margin
       : {
-          top: 10,
-          right: 30,
-          bottom: 60,
-          left: 60,
-          between: 20,
-        };
+        top: 10,
+        right: 30,
+        bottom: 60,
+        left: 60,
+        between: 20,
+      };
 
     this.totalLength = d3.sum(this.#data.map((d) => d.length));
 
@@ -242,8 +242,7 @@ class GenomePlot extends EventTarget {
       .append("g")
       .attr(
         "transform",
-        `translate(${this.margin.left}, ${
-          this.margin.top + this.panelHeight + this.margin.between
+        `translate(${this.margin.left}, ${this.margin.top + this.panelHeight + this.margin.between
         })`
       )
       .attr("class", "y-axis")
@@ -304,8 +303,7 @@ class GenomePlot extends EventTarget {
       .attr(
         "transform",
         (_, i) =>
-          `translate(${this.panelWidths[i] / 2},${
-            this.panelHeight + 10
+          `translate(${this.panelWidths[i] / 2},${this.panelHeight + 10
           }) rotate(-90)`
       )
       .attr("class", "x-label")
@@ -328,8 +326,7 @@ class GenomePlot extends EventTarget {
       .append("text")
       .attr(
         "transform",
-        `translate(0,${
-          this.margin.top + this.margin.between + (3 * this.panelHeight) / 2
+        `translate(0,${this.margin.top + this.margin.between + (3 * this.panelHeight) / 2
         }) rotate(-90)`
       )
       .attr("class", "y-label")
@@ -561,7 +558,7 @@ class GenomePlot extends EventTarget {
         return td;
       });
       if (vafPointsPerChromosome > MAX_POINTS) {
-        panelVaf = slidingPixelWindowVAF(panelVaf, self.xScales[i], 3, true);
+        panelVaf = slidingPixelWindowVAF(panelVaf, self.xScales[i], "pos", 3, true);
       }
 
       d3.select(this)
