@@ -25,6 +25,14 @@ import sys
 PARSERS = collections.defaultdict(dict)
 
 
+def normalize_chrom(chrom: str) -> str:
+    """Ensure chromosome name starts with 'chr' exactly once."""
+    c = str(chrom)
+    if c.startswith("chr"):
+        c = c[3:]
+    return f"chr{c}"
+
+
 def cnv_parser(file_format, header=True, skip=0, comment="#"):
     """
     Decorator for parsers of CNV result files. The first argument of
@@ -146,7 +154,7 @@ def parse_jumble_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=f"chr{line[0]}",
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[5]),
@@ -161,7 +169,7 @@ def parse_jumble_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=f"chr{line[0]}",
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),

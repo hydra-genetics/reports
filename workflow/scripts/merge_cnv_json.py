@@ -41,10 +41,19 @@ class CNV:
         return hash(self) == hash(other)
 
 
+def normalize_chrom(chrom: str) -> str:
+    """Ensure chromosome name starts with 'chr' exactly once."""
+    c = str(chrom)
+    if c.startswith("chr"):
+        c = c[3:]
+    return f"chr{c}"
+
+
 def parse_fai(filename, skip=None):
     with open(filename) as f:
         for line in f:
             chrom, length = line.strip().split()[:2]
+            chrom = normalize_chrom(chrom)
             if skip is not None and chrom in skip:
                 continue
             yield chrom, int(length)
@@ -57,6 +66,7 @@ def annotation_parser():
         with open(filename) as f:
             for line in f:
                 chrom, start, end, name = line.strip().split()[:4]
+                chrom = normalize_chrom(chrom)
                 if skip is not None and chrom in skip:
                     continue
                 if (name, chrom, start, end) in parsed_annotations:
@@ -74,6 +84,7 @@ def parse_cytobands(filename, cytoband_colors, cytoband_centromere="acen", skip=
     with open(filename) as f:
         for line in f:
             chrom, start, end, name, giemsa = line.strip().split()
+            chrom = normalize_chrom(chrom)
             if skip is not None and chrom in skip:
                 continue
             cytobands[chrom].append(
@@ -121,28 +132,55 @@ def parse_ref_genes(filename, skip=None):
     genes = defaultdict(lambda: {"chrom": None, "start": float("inf"), "end": float("-inf")})
     
     with open(filename) as f:
-        # UCSC refGene.txt format (tab-separated):
-        # col 2: chrom
-        # col 4: txStart
-        # col 5: txEnd
-        # col 12: name2 (gene symbol)
+        # Standard UCSC refGene.txt format (tab-separated):
+        # With bin column: 0:bin, 1:name, 2:chrom, 4:txStart, 5:txEnd, 12:name2
+        # Without bin column: 0:name, 1:chrom, 3:txStart, 4:txEnd, 11:name2
         
         for line in f:
-            if line.startswith("#"):
+            if line.startswith("#") or not line.strip():
                 continue
             parts = line.strip().split("\t")
-            if len(parts) < 13:
+            if len(parts) < 12:
+                # Try fallback to any whitespace split if tabs aren't working as expected
+                parts = line.strip().split()
+                if len(parts) < 12:
+                    continue
+            
+            # Detect layout
+            if parts[0].isdigit() and len(parts) >= 13:
+                # Likely has bin column
+                chrom_idx = 2
+                start_idx = 4
+                end_idx = 5
+                name_idx = 12
+            elif parts[1].startswith("chr") or parts[1].isdigit() or parts[1].startswith(("X", "Y", "M")):
+                # Likely no bin column
+                chrom_idx = 1
+                start_idx = 3
+                end_idx = 4
+                name_idx = 11
+            else:
+                # Fallback to defaults
+                chrom_idx = 2
+                start_idx = 4
+                end_idx = 5
+                name_idx = 12
+
+            if name_idx >= len(parts):
                 continue
                 
-            chrom = parts[2]
+            chrom = normalize_chrom(parts[chrom_idx])
             if skip is not None and chrom in skip:
                 continue
                 
             try:
-                txStart = int(parts[4])
-                txEnd = int(parts[5])
-                name = parts[12]
+                txStart = int(parts[start_idx])
+                txEnd = int(parts[end_idx])
+                name = parts[name_idx]
                 
+                if not name:
+                    continue
+
                 # Update gene extent (merge overlapping transcripts)
                 if genes[name]["chrom"] is None:
                     genes[name]["chrom"] = chrom
@@ -155,7 +193,9 @@ def parse_ref_genes(filename, skip=None):
                 continue
 
     # Convert to standard dict and cleanup
-    return {k: v for k, v in genes.items() if v["chrom"] is not None}
+    results = {k: v for k, v in genes.items() if v["chrom"] is not None}
+    print(f"Parsed {len(results)} genes from {filename}", file=sys.stderr)
+    return results
 
 
 def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
@@ -163,9 +203,7 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
         skip = []
     vcf = pysam.VariantFile(str(vcf_filename))
     for variant in vcf.fetch():
-        chrom = variant.chrom
-        if not chrom.startswith("chr"):
-            chrom = f"chr{chrom}"
+        chrom = normalize_chrom(variant.chrom)
         if chrom in skip:
             continue
         vaf = variant.info.get("AF")
@@ -180,9 +218,7 @@ def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
     for variant in vcf.fetch():
-        chrom = variant.chrom
-        if not chrom.startswith("chr"):
-            chrom = f"chr{chrom}"
+        chrom = normalize_chrom(variant.chrom)
         if skip is not None and chrom in skip:
             continue
         caller = variant.info.get("CALLER")
@@ -329,7 +365,10 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
 
     for d in dicts:
         for r in sorted(d["ratios"], key=lambda x: x["start"]):
-            cnvs[r["chromosome"]]["callers"][d["caller"]]["ratios"].append(
+            chrom = normalize_chrom(r["chromosome"])
+            if chrom not in cnvs:
+                continue
+            cnvs[chrom]["callers"][d["caller"]]["ratios"].append(
                 dict(
                     start=r["start"],
                     end=r["end"],
@@ -337,7 +376,10 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
                 )
             )
         for s in sorted(d["segments"], key=lambda x: x["start"]):
-            cnvs[s["chromosome"]]["callers"][d["caller"]]["segments"].append(
+            chrom = normalize_chrom(s["chromosome"])
+            if chrom not in cnvs:
+                continue
+            cnvs[chrom]["callers"][d["caller"]]["segments"].append(
                 dict(
                     start=s["start"],
                     end=s["end"],
@@ -376,6 +418,9 @@ def main():
     output_file = snakemake.output["json"]
 
     skip_chromosomes = snakemake.params["skip_chromosomes"]
+    if skip_chromosomes:
+        skip_chromosomes = [normalize_chrom(c) for c in skip_chromosomes]
+        
     show_cytobands = snakemake.params["cytobands"]
 
     cytoband_config = snakemake.config.get("merge_cnv_json", {}).get("cytoband_config", {}).get("colors", {})
