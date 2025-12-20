@@ -71,15 +71,25 @@ const cnFromRatio = function (ratio, refPloidy) {
   return refPloidy * 2 ** ratio;
 };
 
+// Sort callers to put Jumble first
+const sortedCallers = [...cnvData[0].callers].sort((a, b) => {
+  if (a.name.toLowerCase() === 'jumble') return -1;
+  if (b.name.toLowerCase() === 'jumble') return 1;
+  return a.label.localeCompare(b.label);
+});
+
 d3.select("#dataset-picker")
   .selectAll("div")
-  .data(cnvData[0].callers)
+  .data(sortedCallers)
   .join("div")
   .call((e) => {
     e.append("input")
       .attr("type", "radio")
       .property("checked", (_, i) => i === 0)
-      .attr("value", (_, i) => i)
+      .attr("value", (d) => {
+        // Find the original index in cnvData[0].callers
+        return cnvData[0].callers.findIndex(c => c.name === d.name);
+      })
       .attr("id", (d) => `dataset-${d.name}`)
       .attr("name", "dataset");
     return e;
@@ -279,6 +289,19 @@ d3.select("#chromosome-equal-distance").on("change", (e) => {
 });
 
 const genes = new Map();
+
+// Add comprehensive gene index first (from RefSeq)
+if (cnvData[0].gene_search_index) {
+  Object.entries(cnvData[0].gene_search_index).forEach(([gene, info]) => {
+    genes.set(gene, {
+      chromosome: info.chrom,
+      start: info.start,
+      end: info.end,
+    });
+  });
+}
+
+// Add annotation genes (overwrites if duplicates, but usually same or better resolution on annotations)
 cnvData.forEach((chromData) => {
   chromData.annotations.forEach((anno) => {
     genes.set(anno.name, {
@@ -307,11 +330,19 @@ d3.select("#gene-search").on("change", (e) => {
       (d) => d.chromosome === geneInfo.chromosome
     );
     if (chromIndex !== -1) {
-      genomePlot.selectChromosome(
-        cnvData[chromIndex].chromosome,
-        geneInfo.start,
-        geneInfo.end
-      );
+      // Switch chromosome if needed
+      if (genomePlot.selectedChromosomeIndex !== chromIndex) {
+        genomePlot.selectChromosome(cnvData[chromIndex].chromosome);
+      }
+
+      // Wait for chromosome switch to complete, then highlight
+      setTimeout(() => {
+        chromosomePlot.highlightRegion(geneInfo.start, geneInfo.end, geneName);
+      }, 50);
+
+      // Clear the input so the same gene can be selected again
+      e.target.value = "";
+      e.target.blur();
     }
   } else {
     if (geneName !== "") {

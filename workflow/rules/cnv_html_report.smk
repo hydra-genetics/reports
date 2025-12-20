@@ -92,6 +92,7 @@ rule merge_cnv_json:
         filtered_cnv_vcfs=get_filtered_cnv_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,
         cytobands=config.get("merge_cnv_json", {}).get("cytobands", []),
+        ref_genes=config.get("merge_cnv_json", {}).get("ref_genes", ""),
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:

@@ -1,293 +1,245 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=1080, initial-scale=1.0" />
-    <title>CNV report</title>
-    <style>
-      {{ css | indent(width=8) }}
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <dialog id="help-modal" class="help-contents">
-        <a href="#" class="close"
-          ><i title="Close" class="bi bi-x"></i> Close</a
-        >
-        <header>
-          <h1>CNV report &mdash; Help</h1>
-        </header>
-        <section>
-          <h2 id="help-copy-number-plots">Copy number plots</h2>
 
-          <h3 id="help-plotting-caveats">Plotting caveats</h3>
-          <p>
-            All chromosomes are assumed to be diploid for copy number
-            calculations, including sex chromosomes. {% if metadata.show_table
-            %} Copy numbers are different in the plot and the table. The table
-            shows tumor content corrected values while the plot shows
-            uncorrected values. {% endif %}
-          </p>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=1080, initial-scale=1.0" />
+  <title>CNV report</title>
+  <style>
+    {{ css | indent(width=8) }}
+  </style>
+</head>
 
-          <h3 id="help-tumor-purity-adjustment">Tumor purity adjustment</h3>
-          <p>
-            Similar as for the copy number calculations in the plots, the tumor
-            purity adjustment also assumes that all chromosomes are diploid.
-          </p>
-          <p>
-            The smallest possible copy number is limited to 0.001 copies. When
-            displaying all points this will show as points lining up at that
-            copy number. For summarised data, the rectangles will represent the
-            mean and standard deviation for all points that do not end up below
-            this threshold. If there are points in a summarised window that fall
-            under the threshold, this will be indicated with a red triangle at
-            the bottom of the plot. This might be an indication that the copy
-            number is lower than the real copy number.
-          </p>
-
-          {% if metadata.show_table %}
-          <h2 id="help-results-table">Results table</h2>
-          <p>
-            The results table presents copy number variants that have been
-            called by the selected caller.
-          </p>
-          <p>
-            Note that variants labelled as COPY_NORMAL can be present in the
-            filtered table. This indicates that there is a variant covering the
-            same gene that has been called by a different caller.
-          </p>
-          <p>
-            By checking the "Filter table" checkbox (checked by default), only
-            copy number variants in the filtered callset will be presented.
-            Unchecking it will show all variants.
-          </p>
-          <p>
-            Click the magnifying glass to zoom in on the region in question.
-            Hover over the copy number to see what results other callers got for
-            this gene.
-          </p>
-          <p>
-            BAF values outside the range 0&ndash;1 might indicate that the tumor
-            cell content is underestimated.
-          </p>
-          <p>
-            Clicking the position will copy the string to the system clipboard,
-            and the format should be compatible with most genome viewers.
-          </p>
-          {% endif %}
-        </section>
-      </dialog>
+<body>
+  <div class="container">
+    <dialog id="help-modal" class="help-contents">
+      <a href="#" class="close"><i title="Close" class="bi bi-x"></i> Close</a>
       <header>
-        <h1>CNV report</h1>
-        <ul>
-          <li>Sample: {{ metadata.sample }}</li>
-          <li>Date: <time>{{ metadata.date }}</time></li>
-          <li>
-            Tumor cell content: {{ metadata.tc if metadata.tc is not none else
-            "N/A" }} ({{ metadata.tc_method }})
-          </li>
-        </ul>
-        <!-- x-release-please-start-version -->
-        <p class="fix-right">
-          <small>
-            <a href="https://github.com/hydra-genetics/reports/tree/v0.10.0"
-              >hydra-genetics/reports v0.10.0</a
-            >
-          </small>
-          <br />
-          <a href="#" onclick="showHelp();" class="no-print help-link"
-            ><i class="bi bi-question-circle-fill"></i> Help</a
-          >
-        </p>
-        <!-- x-release-please-end-version -->
+        <h1>CNV report &mdash; Help</h1>
       </header>
+      <section>
+        <h2 id="help-copy-number-plots">Copy number plots</h2>
 
-      <div class="app-container">
-        <div class="plot-container">
-          <fieldset id="dataset-picker">
-            <legend>CNV dataset</legend>
-          </fieldset>
+        <h3 id="help-plotting-caveats">Plotting caveats</h3>
+        <p>
+          All chromosomes are assumed to be diploid for copy number
+          calculations, including sex chromosomes. {% if metadata.show_table
+          %} Copy numbers are different in the plot and the table. The table
+          shows tumor content corrected values while the plot shows
+          uncorrected values. {% endif %}
+        </p>
 
-          <section class="genome-view plot-section">
-            <h2>
-              Genome view
-              <a
-                class="no-print help-link"
-                href="#help-copy-number-plots"
-                onclick="showHelp()"
-                ><i class="bi bi-question-circle-fill"></i
-              ></a>
-            </h2>
-            <p class="no-print">Click a chromosome to visualise it below.</p>
-            <svg id="genome-view"></svg>
-          </section>
+        <h3 id="help-tumor-purity-adjustment">Tumor purity adjustment</h3>
+        <p>
+          Similar as for the copy number calculations in the plots, the tumor
+          purity adjustment also assumes that all chromosomes are diploid.
+        </p>
+        <p>
+          The smallest possible copy number is limited to 0.001 copies. When
+          displaying all points this will show as points lining up at that
+          copy number. For summarised data, the rectangles will represent the
+          mean and standard deviation for all points that do not end up below
+          this threshold. If there are points in a summarised window that fall
+          under the threshold, this will be indicated with a red triangle at
+          the bottom of the plot. This might be an indication that the copy
+          number is lower than the real copy number.
+        </p>
 
-          <section class="chromosome-view plot-section">
-            <h2>
-              Chromosome view
-              <a
-                class="no-print help-link"
-                href="#help-copy-number-plots"
-                onclick="showHelp()"
-                ><i class="bi bi-question-circle-fill"></i
-              ></a>
-            </h2>
-            <p class="no-print">
-              Click and drag to zoom along x-axis. Click the plot to reset zoom.
-            </p>
-            <div class="no-print">
-  <div>
+        {% if metadata.show_table %}
+        <h2 id="help-results-table">Results table</h2>
+        <p>
+          The results table presents copy number variants that have been
+          called by the selected caller.
+        </p>
+        <p>
+          Note that variants labelled as COPY_NORMAL can be present in the
+          filtered table. This indicates that there is a variant covering the
+          same gene that has been called by a different caller.
+        </p>
+        <p>
+          By checking the "Filter table" checkbox (checked by default), only
+          copy number variants in the filtered callset will be presented.
+          Unchecking it will show all variants.
+        </p>
+        <p>
+          Click the magnifying glass to zoom in on the region in question.
+          Hover over the copy number to see what results other callers got for
+          this gene.
+        </p>
+        <p>
+          BAF values outside the range 0&ndash;1 might indicate that the tumor
+          cell content is underestimated.
+        </p>
+        <p>
+          Clicking the position will copy the string to the system clipboard,
+          and the format should be compatible with most genome viewers.
+        </p>
+        {% endif %}
+      </section>
+    </dialog>
+    <header>
+      <h1>CNV report</h1>
+      <p class="metadata-line">
+        Sample: {{ metadata.sample }} | Date: <time>{{ metadata.date }}</time> | Tumor cell content: {{ metadata.tc if metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }})
+      </p>
+      <!-- x-release-please-start-version -->
+      <p class="fix-right">
+        <small>
+          <a href="https://github.com/hydra-genetics/reports/tree/v0.10.0">hydra-genetics/reports v0.10.0</a>
+        </small>
+        <br />
+        <a href="#" onclick="showHelp();" class="no-print help-link"><i class="bi bi-question-circle-fill"></i> Help</a>
+      </p>
+      <!-- x-release-please-end-version -->
+    </header>
+
+    <div class="app-container">
+      <div class="plot-container">
+        <section class="genome-view plot-section">
+          <h2>
+            Genome view
+            <a class="no-print help-link" href="#help-copy-number-plots" onclick="showHelp()"><i
+                class="bi bi-question-circle-fill"></i></a>
+          </h2>
+          <p class="no-print">Click a chromosome to visualise it below.</p>
+          <svg id="genome-view"></svg>
+        </section>
+
+        <section class="chromosome-view plot-section">
+          <h2>
+            Chromosome view
+            <a class="no-print help-link" href="#help-copy-number-plots" onclick="showHelp()"><i
+                class="bi bi-question-circle-fill"></i></a>
+          </h2>
+          <p class="no-print">
+            Click and drag to zoom along x-axis. Click the plot to reset zoom.
+          </p>
+          <div class="no-print controls-grid">
+            <div class="control-column">
+              <div class="control-group">
                 <input type="checkbox" id="chromosome-fit-to-data" />
                 <label for="chromosome-fit-to-data">Zoom to data extent</label>
-                <i
-                  class="data-range-warning bi-exclamation-triangle-fill"
-                  title="There are data points outside the current range"
-                ></i>
+                <i class="data-range-warning bi-exclamation-triangle-fill"
+                  title="There are data points outside the current range"></i>
               </div>
-              <div>
+              
+              <div class="control-group">
                 <input type="checkbox" id="chromosome-equal-distance" />
-                <label for="chromosome-equal-distance">Equal distance view</label>
+                <label for="chromosome-equal-distance">Normalized Spacing</label>
               </div>
-              <div>
-                <label for="gene-search">Search gene: </label>
-                <input
-                  type="text"
-                  id="gene-search"
-                  list="gene-list"
-                  placeholder="Enter gene name"
-                />
-                <datalist id="gene-list"></datalist>
-                <i id="gene-search-error" class="bi bi-exclamation-circle-fill" style="display: none; color: red;" title="Gene not found"></i>
-              </div>
-              <div>
+              
+              <div class="control-group">
                 <input type="checkbox" id="chromosome-show-all-datapoints" />
-                <label for="chromosome-show-all-datapoints"
-                  >Show all data points</label
-                >
+                <label for="chromosome-show-all-datapoints">Show all data points</label>
               </div>
-              <div>
+              
+              <div class="control-group">
+                <input type="checkbox" id="simulate-purity" />
+                <label for="simulate-purity">Simulate purity</label>
+              </div>
+            </div>
+            
+            <div class="control-column">
+              <div class="control-group">
+                <label for="gene-search">Search gene: </label>
+                <input type="text" id="gene-search" list="gene-list" placeholder="Enter gene name" />
+                <datalist id="gene-list"></datalist>
+                <i id="gene-search-error" class="bi bi-exclamation-circle-fill" style="display: none; color: red;"
+                  title="Gene not found"></i>
+              </div>
+              
+              <div class="control-group">
                 <label for="chromosome-baseline-offset">Baseline offset</label>
-                <input
-                  type="range"
-                  id="chromosome-baseline-offset"
-                  min="-2"
-                  max="2"
-                  step="0.05"
-                  value="0"
-                />
-                <input
-                  type="number"
-                  min="-2"
-                  max="2"
-                  step="0.05"
-                  id="current-baseline-offset"
-                  value="0.00"
-                />
+                <input type="range" id="chromosome-baseline-offset" min="-2" max="2" step="0.05" value="0" />
+                <input type="number" min="-2" max="2" step="0.05" id="current-baseline-offset" value="0.00" />
                 <button id="reset-baseline-offset" disabled>Reset</button>
               </div>
-              <div>
-                <label for="simulate-purity">Simulate purity</label>
-                <input type="checkbox" id="simulate-purity" />
+              
+              <div class="control-group">
                 <label for="tc-adjuster">Tumor cell content</label>
-                <input
-                  type="range"
-                  id="tc-adjuster"
-                  min="0.05"
-                  max="1"
-                  step="0.05"
-                  value="{{ metadata.tc if metadata.tc is not none else 1 }}"
-                  disabled
-                />
-                <input
-                  type="number"
-                  min="0.05"
-                  max="1"
-                  step="0.05"
-                  id="current-tc"
-                  value="{{ metadata.tc if metadata.tc is not none else 1 }}"
-                  disabled
-                />
+                <input type="range" id="tc-adjuster" min="0.05" max="1" step="0.05"
+                  value="{{ metadata.tc if metadata.tc is not none else 1 }}" disabled />
+                <input type="number" min="0.05" max="1" step="0.05" id="current-tc"
+                  value="{{ metadata.tc if metadata.tc is not none else 1 }}" disabled />
                 <button id="reset-tc" disabled>Reset</button>
               </div>
             </div>
-            <svg id="chromosome-view"></svg>
-            <dialog id="chromosome-view-dialog">
-              <a href="#" class="close"
-                ><i title="Close" class="bi bi-x"></i> Close</a
-              >
-            </dialog>
-          </section>
-        </div>
-
-        {% if metadata.show_table or extra_tables | length > 0 %}
-        <div class="table-container">
-          {% endif %} {% if metadata.show_table %}
-          <section>
-            <h2>
-              Results table
-              <a
-                class="no-print help-link"
-                href="#help-results-table"
-                onclick="showHelp()"
-                ><i class="bi bi-question-circle-fill"></i
-              ></a>
-            </h2>
-            <input type="checkbox" id="table-filter-toggle" checked />
-            <label
-              for="table-filter-toggle"
-              title="Apply predefined filters to the table"
-              >Filter table</label
-            >
-            <table id="cnv-table"></table>
-          </section>
-          {% endif %} {% if extra_tables | length > 0 %}
-          <section>
-            <h2>Additional tables</h2>
-
-            {% for table in extra_tables %}
-            <section>
-              <h3>{{ table.name }}</h3>
-              <p>{{ table.description }}</p>
-              <table id="extra-table-{{ loop.index }}">
-                <thead>
-                  <tr>
-                    {% for k in table.header %}
-                    <th>{{ k }}</th>
-                    {% endfor %}
-                  </tr>
-                </thead>
-                <tbody>
-                  {% if table.data | length > 0 %} {% for row in table.data %}
-                  <tr>
-                    {% for h in table.header %}
-                    <td>{{ row[h] }}</td>
-                    {% endfor %}
-                  </tr>
-                  {% endfor %} {% else %}
-                  <tr>
-                    <td colspan="{{ table.header | length }}">
-                      No data available in table
-                    </td>
-                  </tr>
-                  {% endif %}
-                </tbody>
-              </table>
-            </section>
-            {% endfor %}
-          </section>
-          {% endif %} {% if metadata.show_table or extra_tables | length > 0 %}
-        </div>
-        {% endif %}
+            
+            <div class="control-column">
+              <fieldset id="dataset-picker">
+                <legend>CNV dataset</legend>
+              </fieldset>
+            </div>
+          </div>
+          <svg id="chromosome-view"></svg>
+          <dialog id="chromosome-view-dialog">
+            <a href="#" class="close"><i title="Close" class="bi bi-x"></i> Close</a>
+          </dialog>
+        </section>
       </div>
+
+      {% if metadata.show_table or extra_tables | length > 0 %}
+      <div class="table-container">
+        {% endif %} {% if metadata.show_table %}
+        <section>
+          <h2>
+            Results table
+            <a class="no-print help-link" href="#help-results-table" onclick="showHelp()"><i
+                class="bi bi-question-circle-fill"></i></a>
+          </h2>
+          <input type="checkbox" id="table-filter-toggle" checked />
+          <label for="table-filter-toggle" title="Apply predefined filters to the table">Filter table</label>
+          <table id="cnv-table"></table>
+        </section>
+        {% endif %} {% if extra_tables | length > 0 %}
+        <section>
+          <h2>Additional tables</h2>
+
+          {% for table in extra_tables %}
+          <section>
+            <h3>{{ table.name }}</h3>
+            <p>{{ table.description }}</p>
+            <table id="extra-table-{{ loop.index }}">
+              <thead>
+                <tr>
+                  {% for k in table.header %}
+                  <th>{{ k }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% if table.data | length > 0 %} {% for row in table.data %}
+                <tr>
+                  {% for h in table.header %}
+                  <td>{{ row[h] }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %} {% else %}
+                <tr>
+                  <td colspan="{{ table.header | length }}">
+                    No data available in table
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </section>
+          {% endfor %}
+        </section>
+        {% endif %} {% if metadata.show_table or extra_tables | length > 0 %}
+      </div>
+      {% endif %}
     </div>
-    <script>
-      let cnvData = {{ json | trim | indent(width=8) }};
-      const originalTc = {{ metadata.tc if tc is not none else 1 }};
-    </script>
-    <!-- prettier-ignore -->
-    <script>
-      {{ js | indent(width = 8) }}
-    </script>
-  </body>
+  </div>
+  <script>
+    let cnvData = {{ json | trim | indent(width = 8) }};
+    const originalTc = {{ metadata.tc if tc is not none else 1 }};
+  </script>
+  <!-- prettier-ignore -->
+  <script>
+    {{ js | indent(width=8) }}
+  </script>
+</body>
+
 </html>

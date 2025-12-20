@@ -105,6 +105,59 @@ def parse_cytobands(filename, cytoband_colors, cytoband_centromere="acen", skip=
     return cytobands
 
 
+def parse_ref_genes(filename, skip=None):
+    """Parse UCSC refGene.txt format to create a gene search index.
+    
+    Args:
+        filename: Path to refGene.txt file
+        skip: Set of chromosomes to skip
+        
+    Returns:
+        Dict mapping gene names to {chrom, start, end}
+    """
+    if not filename:
+        return {}
+        
+    genes = defaultdict(lambda: {"chrom": None, "start": float("inf"), "end": float("-inf")})
+    
+    with open(filename) as f:
+        # UCSC refGene.txt format (tab-separated):
+        # col 2: chrom
+        # col 4: txStart
+        # col 5: txEnd
+        # col 12: name2 (gene symbol)
+        
+        for line in f:
+            if line.startswith("#"):
+                continue
+            parts = line.strip().split("\t")
+            if len(parts) < 13:
+                continue
+                
+            chrom = parts[2]
+            if skip is not None and chrom in skip:
+                continue
+                
+            try:
+                txStart = int(parts[4])
+                txEnd = int(parts[5])
+                name = parts[12]
+                
+                # Update gene extent (merge overlapping transcripts)
+                if genes[name]["chrom"] is None:
+                    genes[name]["chrom"] = chrom
+                
+                # Only merge if on same chromosome
+                if genes[name]["chrom"] == chrom:
+                    genes[name]["start"] = min(genes[name]["start"], txStart)
+                    genes[name]["end"] = max(genes[name]["end"], txEnd)
+            except (ValueError, IndexError):
+                continue
+
+    # Convert to standard dict and cleanup
+    return {k: v for k, v in genes.items() if v["chrom"] is not None}
+
+
 def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
     if skip is None:
         skip = []
@@ -231,7 +284,7 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
     return sort_cnvs(cnvs)
 
 
-def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs):
+def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs, gene_index=None):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
         cnvkit="cnvkit",
@@ -295,6 +348,10 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
     for v in cnvs.values():
         v["callers"] = list(v["callers"].values())
 
+    # Attach gene search index to first chromosome if available
+    if gene_index and chromosomes:
+        cnvs[chromosomes[0][0]]["gene_search_index"] = gene_index
+
     return list(cnvs.values())
 
 
@@ -311,6 +368,7 @@ def main():
     filtered_cnv_vcf_files = snakemake.input["filtered_cnv_vcfs"]
     cnv_vcf_files = snakemake.input["cnv_vcfs"]
     cytoband_file = snakemake.input["cytobands"]
+    ref_genes_file = snakemake.input.get("ref_genes", "")
 
     if len(germline_vcf) == 0:
         germline_vcf = None
@@ -338,10 +396,11 @@ def main():
         with open(fname) as f:
             cnv_dicts.append(json.load(f))
 
-    fai = parse_fai(fasta_index_file, skip_chromosomes)
+    fai = list(parse_fai(fasta_index_file, skip_chromosomes))
     vaf = None
     if germline_vcf is not None:
         vaf = get_vaf(germline_vcf, skip_chromosomes)
+
     annot_parser = annotation_parser()
     annotations = []
     for filename in annotation_beds:
@@ -350,6 +409,11 @@ def main():
     cytobands = []
     if cytoband_file and show_cytobands:
         cytobands = parse_cytobands(cytoband_file, cytoband_colors, cytoband_centromere, skip_chromosomes)
+
+    # Parse gene index for comprehensive search
+    gene_index = {}
+    if ref_genes_file:
+        gene_index = parse_ref_genes(ref_genes_file, skip_chromosomes)
 
     if len(filtered_cnv_vcf_files) != len(cnv_vcf_files):
         print(
@@ -364,7 +428,7 @@ def main():
         filtered_cnv_vcfs.append(get_cnvs(f_vcf, skip_chromosomes))
         unfiltered_cnv_vcfs.append(get_cnvs(uf_vcf, skip_chromosomes))
 
-    cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs)
+    cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs, gene_index)
 
     with open(output_file, "w") as f:
         print(json.dumps(cnvs, default=vars), file=f)

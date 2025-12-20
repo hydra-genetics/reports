@@ -5,7 +5,7 @@
 }
 
 header {
-  margin: 3em 0;
+  margin: 1em 0 0.5em 0;
 }
 
 header .fix-right {
@@ -13,6 +13,50 @@ header .fix-right {
   text-align: right;
   top: 0;
   right: 1em;
+}
+
+header .metadata-line {
+  margin: 0.5em 0 0 0;
+  font-size: 0.95rem;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.control-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.control-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.control-group input[type="checkbox"] {
+  margin-right: 0.2rem;
+}
+
+.control-group label {
+  margin-right: 0.5rem;
+}
+
+#dataset-picker {
+  margin-top: 0;
+  padding: 0.5rem;
+  border: 1px solid #999;
+}
+
+#dataset-picker legend {
+  padding: 0 0.3rem;
+  font-size: 0.9rem;
 }
 
 .plot-container div,
@@ -171,6 +215,7 @@ svg .cursor-label {
 
 /* Narrow view */
 @media screen and (max-width: 600px) {
+
   .plot-container .x-label,
   .plot-container .y-label {
     font-size: 1rem;
