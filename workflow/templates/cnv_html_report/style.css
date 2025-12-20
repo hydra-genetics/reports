@@ -1,7 +1,15 @@
-.container {
+.relative-container {
   position: relative;
-  width: 90%;
-  margin: 0 auto;
+  width: 100%;
+}
+
+.plot-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+  display: block;
 }
 
 header {
@@ -421,7 +429,7 @@ tbody tr:hover {
 
   .plot-container,
   .app-container {
-    display: block;
+    display: none;
   }
 
   .no-print {
@@ -434,5 +442,9 @@ tbody tr:hover {
 
   .table-container {
     break-before: page;
+  }
+
+  .print-visible {
+    display: block !important;
   }
 }

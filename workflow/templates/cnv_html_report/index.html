@@ -81,7 +81,8 @@
     <header>
       <h1>CNV report</h1>
       <p class="metadata-line">
-        Sample: {{ metadata.sample }} | Date: <time>{{ metadata.date }}</time> | Tumor cell content: {{ metadata.tc if metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }})
+        Sample: {{ metadata.sample }} | Date: <time>{{ metadata.date }}</time> | Tumor cell content: {{ metadata.tc if
+        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }})
       </p>
       <!-- x-release-please-start-version -->
       <p class="fix-right">
@@ -102,8 +103,9 @@
             <a class="no-print help-link" href="#help-copy-number-plots" onclick="showHelp()"><i
                 class="bi bi-question-circle-fill"></i></a>
           </h2>
-          <p class="no-print">Click a chromosome to visualise it below.</p>
-          <svg id="genome-view"></svg>
+          <div id="genome-view-container" class="relative-container">
+            <svg id="genome-view"></svg>
+          </div>
         </section>
 
         <section class="chromosome-view plot-section">
@@ -123,23 +125,23 @@
                 <i class="data-range-warning bi-exclamation-triangle-fill"
                   title="There are data points outside the current range"></i>
               </div>
-              
+
               <div class="control-group">
                 <input type="checkbox" id="chromosome-equal-distance" />
                 <label for="chromosome-equal-distance">Normalized Spacing</label>
               </div>
-              
+
               <div class="control-group">
                 <input type="checkbox" id="chromosome-show-all-datapoints" />
                 <label for="chromosome-show-all-datapoints">Show all data points</label>
               </div>
-              
+
               <div class="control-group">
                 <input type="checkbox" id="simulate-purity" />
                 <label for="simulate-purity">Simulate purity</label>
               </div>
             </div>
-            
+
             <div class="control-column">
               <div class="control-group">
                 <label for="gene-search">Search gene: </label>
@@ -148,14 +150,14 @@
                 <i id="gene-search-error" class="bi bi-exclamation-circle-fill" style="display: none; color: red;"
                   title="Gene not found"></i>
               </div>
-              
+
               <div class="control-group">
                 <label for="chromosome-baseline-offset">Baseline offset</label>
                 <input type="range" id="chromosome-baseline-offset" min="-2" max="2" step="0.05" value="0" />
                 <input type="number" min="-2" max="2" step="0.05" id="current-baseline-offset" value="0.00" />
                 <button id="reset-baseline-offset" disabled>Reset</button>
               </div>
-              
+
               <div class="control-group">
                 <label for="tc-adjuster">Tumor cell content</label>
                 <input type="range" id="tc-adjuster" min="0.05" max="1" step="0.05"
@@ -165,14 +167,16 @@
                 <button id="reset-tc" disabled>Reset</button>
               </div>
             </div>
-            
+
             <div class="control-column">
               <fieldset id="dataset-picker">
                 <legend>CNV dataset</legend>
               </fieldset>
             </div>
           </div>
-          <svg id="chromosome-view"></svg>
+          <div id="chromosome-view-container" class="relative-container">
+            <svg id="chromosome-view"></svg>
+          </div>
           <dialog id="chromosome-view-dialog">
             <a href="#" class="close"><i title="Close" class="bi bi-x"></i> Close</a>
           </dialog>
@@ -234,11 +238,11 @@
   </div>
   <script>
     let cnvData = {{ json | trim | indent(width = 8) }};
-    const originalTc = {{ metadata.tc if tc is not none else 1 }};
+    const originalTc = {{ metadata.tc if metadata.tc is not none else 1 }};
   </script>
   <!-- prettier-ignore -->
   <script>
-    {{ js | indent(width=8) }}
+    {{ js | indent(width = 8) }}
   </script>
 </body>
 

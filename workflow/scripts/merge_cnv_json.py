@@ -152,13 +152,13 @@ def parse_ref_genes(filename, skip=None):
 
             # Detect layout
             if parts[0].isdigit() and len(parts) >= 13:
-                # Likely has bin column
+                # Likely has bin column: 0:bin, 1:name, 2:chrom, 4:txStart, 5:txEnd, 12:name2
                 chrom_idx = 2
                 start_idx = 4
                 end_idx = 5
                 name_idx = 12
             elif parts[1].startswith("chr") or parts[1].isdigit() or parts[1].startswith(("X", "Y", "M")):
-                # Likely no bin column
+                # Likely no bin column: 0:name, 1:chrom, 3:txStart, 4:txEnd, 11:name2
                 chrom_idx = 1
                 start_idx = 3
                 end_idx = 4
@@ -169,6 +169,10 @@ def parse_ref_genes(filename, skip=None):
                 start_idx = 4
                 end_idx = 5
                 name_idx = 12
+
+            # Skip header row if present
+            if parts[start_idx] == "txStart" or parts[chrom_idx] == "chrom":
+                continue
 
             if name_idx >= len(parts):
                 continue
@@ -194,8 +198,9 @@ def parse_ref_genes(filename, skip=None):
                     genes[name]["start"] = min(genes[name]["start"], txStart)
                     genes[name]["end"] = max(genes[name]["end"], txEnd)
             except Exception as e:
-                if line_count < 10:
-                    print(f"DEBUG: Error parsing line {line_count}: {e}", file=sys.stderr)
+                # Log first few errors to help debugging, but don't crash the whole script
+                if line_count < 20:
+                    print(f"DEBUG: Error parsing line {line_count}: {e}. Row content: {parts[:6]}...", file=sys.stderr)
                 continue
 
     # Convert to standard dict and cleanup
@@ -204,7 +209,7 @@ def parse_ref_genes(filename, skip=None):
     return results
 
 
-def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
+def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
     if skip is None:
         skip = []
     vcf = pysam.VariantFile(str(vcf_filename))
@@ -212,12 +217,114 @@ def get_vaf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
         chrom = normalize_chrom(variant.chrom)
         if chrom in skip:
             continue
-        vaf = variant.info.get("AF")
-        if isinstance(vaf, float):
-            yield chrom, variant.pos, vaf
-        elif vaf is not None:
-            for f in vaf:
+        baf = variant.info.get("AF")
+        if isinstance(baf, float):
+            yield chrom, variant.pos, baf
+        elif baf is not None:
+            for f in baf:
                 yield chrom, variant.pos, f
+
+
+def bin_baf(baf_list, poi_regions, roi_bin_size=200, roi_flank_size_bp=10000, target_data_points=10000):
+    if not baf_list:
+        return []
+
+    if len(baf_list) <= target_data_points:
+        return [dict(pos=v[1], baf=v[2]) for v in baf_list]
+
+    # Calculate dynamic bin size for 'normal' regions
+    chrom_spans = defaultdict(lambda: [float('inf'), 0])
+    for chrom, pos, _ in baf_list:
+        if pos < chrom_spans[chrom][0]: chrom_spans[chrom][0] = pos
+        if pos > chrom_spans[chrom][1]: chrom_spans[chrom][1] = pos
+    
+    total_span = sum(m[1] - m[0] for m in chrom_spans.values() if m[0] != float('inf'))
+    bin_size_normal = max(1000, total_span // target_data_points)
+
+    # Group ROI by chromosome for faster lookup
+    poi_by_chrom = defaultdict(list)
+    for s in poi_regions:
+        if isinstance(s, dict):
+            start, end = s["start"], s["end"]
+            chrom = s["chromosome"]
+        else:
+            chrom, start, end = s[0], s[1], s[2]
+        poi_by_chrom[chrom].append((start - roi_flank_size_bp, start + roi_flank_size_bp))
+        poi_by_chrom[chrom].append((end - roi_flank_size_bp, end + roi_flank_size_bp))
+
+    # Sort each chrom's POIs
+    for chrom in poi_by_chrom:
+        poi_by_chrom[chrom].sort()
+
+    def is_in_poi(chrom, pos):
+        if chrom not in poi_by_chrom:
+            return False
+        for p_start, p_end in poi_by_chrom[chrom]:
+            if pos >= p_start and pos <= p_end:
+                return True
+            if p_start > pos:
+                break
+        return False
+
+    baf_list.sort(key=lambda x: (x[0], x[1]))
+
+    def bin_population(pop_list):
+        if not pop_list:
+            return []
+        
+        pop_binned = []
+        current_bin = []
+        current_bin_type = None
+        current_bin_start = 0
+
+        for chrom, pos, baf in pop_list:
+            in_poi = is_in_poi(chrom, pos)
+            rtype = 'poi' if in_poi else 'normal'
+            bsize = roi_bin_size if in_poi else bin_size_normal
+
+            if (current_bin and (rtype != current_bin_type or pos - current_bin_start >= bsize or chrom != current_bin[0][0])):
+                n = len(current_bin)
+                mean_baf = sum(x[2] for x in current_bin) / n
+                sd_baf = math.sqrt(sum((x[2] - mean_baf)**2 for x in current_bin) / n) if n > 1 else 0
+                start = current_bin[0][1]
+                end = current_bin[-1][1]
+                pop_binned.append(dict(
+                    pos=(start + end) // 2,
+                    start=start,
+                    end=end,
+                    baf=mean_baf,
+                    mean=mean_baf,
+                    sd=sd_baf
+                ))
+                current_bin = []
+
+            if not current_bin:
+                current_bin_start = pos
+                current_bin_type = rtype
+
+            current_bin.append((chrom, pos, baf))
+
+        if current_bin:
+            n = len(current_bin)
+            mean_baf = sum(x[2] for x in current_bin) / n
+            sd_baf = math.sqrt(sum((x[2] - mean_baf)**2 for x in current_bin) / n) if n > 1 else 0
+            start = current_bin[0][1]
+            end = current_bin[-1][1]
+            pop_binned.append(dict(
+                pos=(start + end) // 2,
+                start=start,
+                end=end,
+                baf=mean_baf,
+                mean=mean_baf,
+                sd=sd_baf
+            ))
+        return pop_binned
+
+    # Split into two populations to preserve distribution (bi-modal support)
+    hi_pop = [x for x in baf_list if x[2] >= 0.5]
+    lo_pop = [x for x in baf_list if x[2] < 0.5]
+
+    return bin_population(hi_pop) + bin_population(lo_pop)
 
 
 def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
@@ -326,7 +433,7 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
     return sort_cnvs(cnvs)
 
 
-def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs, gene_index=None):
+def merge_cnv_dicts(dicts, baf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs, gene_index=None, bin_params=None):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
         cnvkit="cnvkit",
@@ -339,7 +446,7 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
             chromosome=chrom,
             label=chrom,
             length=chrom_length,
-            vaf=[],
+            baf=[],
             annotations=[],
             callers={c: dict(name=c, label=caller_labels.get(c, c), ratios=[], segments=[], cnvs=[]) for c in callers},
         )
@@ -357,14 +464,19 @@ def merge_cnv_dicts(dicts, vaf, annotations, cytobands, chromosomes, filtered_cn
     for c in cytobands:
         cnvs[c]["cytobands"] = cytobands[c]
 
-    if vaf is not None:
-        for v in sorted(vaf, key=lambda x: x[1]):
-            cnvs[v[0]]["vaf"].append(
-                dict(
-                    pos=v[1],
-                    vaf=v[2],
-                )
-            )
+    if baf is not None:
+        baf = list(baf) # Consume generator
+        # Combine all interesting regions for BAF binning
+        poi_regions = []
+        for a in annotations:
+            poi_regions.extend(list(a))
+        for d in dicts:
+            poi_regions.extend(d["segments"])
+
+        for chrom_name, chrom_info in cnvs.items():
+            chrom_baf = [v for v in baf if v[0] == chrom_name]
+            chrom_poi = [p for p in poi_regions if (isinstance(p, dict) and p["chromosome"] == chrom_name) or (not isinstance(p, dict) and p[0] == chrom_name)]
+            cnvs[chrom_name]["baf"] = bin_baf(chrom_baf, chrom_poi, **(bin_params or {}))
 
     for cnv in merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
         cnvs[cnv.chromosome]["callers"][cnv.caller]["cnvs"].append(cnv)
@@ -450,9 +562,9 @@ def main():
             cnv_dicts.append(json.load(f))
 
     fai = list(parse_fai(fasta_index_file, skip_chromosomes))
-    vaf = None
+    baf = None
     if germline_vcf is not None:
-        vaf = get_vaf(germline_vcf, skip_chromosomes)
+        baf = get_baf(germline_vcf, skip_chromosomes)
 
     annot_parser = annotation_parser()
     annotations = []
@@ -481,7 +593,13 @@ def main():
         filtered_cnv_vcfs.append(get_cnvs(f_vcf, skip_chromosomes))
         unfiltered_cnv_vcfs.append(get_cnvs(uf_vcf, skip_chromosomes))
 
-    cnvs = merge_cnv_dicts(cnv_dicts, vaf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs, gene_index)
+    bin_params = {
+        "roi_bin_size": snakemake.params.get("roi_bin_size", 200),
+        "roi_flank_size_bp": snakemake.params.get("roi_flank_size_bp", 10000),
+        "target_data_points": snakemake.params.get("target_data_points", 10000),
+    }
+
+    cnvs = merge_cnv_dicts(cnv_dicts, baf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs, gene_index, bin_params)
 
     with open(output_file, "w") as f:
         print(json.dumps(cnvs, default=vars), file=f)

@@ -56,7 +56,7 @@ function summariseWindow(
   };
 }
 
-function slidingPixelWindowVAF(
+function slidingPixelWindowBAF(
   points,
   scale,
   posAttr = "pos",
@@ -66,11 +66,11 @@ function slidingPixelWindowVAF(
   points = points.filter(
     (p) => p[posAttr] >= scale.domain()[0] && p[posAttr] < scale.domain()[1]
   );
-  if (points[0]?.vaf instanceof Array) {
+  if (points[0]?.baf instanceof Array) {
     points = points
       .map((p) =>
-        p.vaf.map((v) => {
-          let dp = { vaf: v };
+        p.baf.map((v) => {
+          let dp = { baf: v };
           dp[posAttr] = p[posAttr];
           return dp;
         })
@@ -93,28 +93,28 @@ function slidingPixelWindowVAF(
     }
     let hist = Array(5).fill(0);
     window.forEach((p) => {
-      let bin = Math.floor(5 * p.vaf);
+      let bin = Math.floor(5 * p.baf);
       hist[bin] += 1;
     });
     let maxBin = hist.indexOf(Math.max(...hist));
     if (maxBin !== 2) {
       // potentially bimodal
-      let hiPoints = window.filter((p) => p.vaf >= 0.5);
+      let hiPoints = window.filter((p) => p.baf >= 0.5);
       if (hiPoints.length > 0) {
         reducedPoints.push(
-          summariseWindow(hiPoints, windowStart, windowSize, "vaf")
+          summariseWindow(hiPoints, windowStart, windowSize, "baf")
         );
       }
 
-      let loPoints = window.filter((p) => p.vaf < 0.5);
+      let loPoints = window.filter((p) => p.baf < 0.5);
       if (loPoints.length > 0) {
         reducedPoints.push(
-          summariseWindow(loPoints, windowStart, windowSize, "vaf")
+          summariseWindow(loPoints, windowStart, windowSize, "baf")
         );
       }
     } else {
       reducedPoints.push(
-        summariseWindow(window, windowStart, windowSize, "vaf")
+        summariseWindow(window, windowStart, windowSize, "baf")
       );
     }
     windowStart += windowSize;
