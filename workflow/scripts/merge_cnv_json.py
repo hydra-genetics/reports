@@ -218,6 +218,7 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
         chrom = normalize_chrom(variant.chrom)
         if chrom in skip:
             continue
+
         def get_variant_field(record, field, source="info"):
             if source == "info":
                 if field in record.header.info:
@@ -233,7 +234,7 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
             baf = get_variant_field(variant, "VAF", "info")
         if baf is None:
             baf = get_variant_field(variant, "AF", "info")
-        
+
         # If still None, check sample-level data
         if baf is None and variant.samples:
             # Try BAF, then VAF, then AF, then AD
@@ -241,7 +242,7 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
                 baf = get_variant_field(variant, field, "sample")
                 if baf is not None:
                     break
-            
+
             if baf is None and "AD" in variant.header.formats:
                 ad = variant.samples[0].get("AD")
                 if ad and len(ad) >= 2:
@@ -278,9 +279,11 @@ def bin_baf(baf_list, poi_regions, roi_bin_size=200, roi_flank_size_bp=10000, ta
     # Calculate dynamic bin size for 'normal' regions
     chrom_spans = defaultdict(lambda: [float('inf'), 0])
     for chrom, pos, _ in baf_list:
-        if pos < chrom_spans[chrom][0]: chrom_spans[chrom][0] = pos
-        if pos > chrom_spans[chrom][1]: chrom_spans[chrom][1] = pos
-    
+        if pos < chrom_spans[chrom][0]:
+            chrom_spans[chrom][0] = pos
+        if pos > chrom_spans[chrom][1]:
+            chrom_spans[chrom][1] = pos
+
     total_span = sum(m[1] - m[0] for m in chrom_spans.values() if m[0] != float('inf'))
     bin_size_normal = max(1000, total_span // target_data_points)
 
@@ -314,7 +317,7 @@ def bin_baf(baf_list, poi_regions, roi_bin_size=200, roi_flank_size_bp=10000, ta
     def bin_population(pop_list):
         if not pop_list:
             return []
-        
+
         pop_binned = []
         current_bin = []
         current_bin_type = None
@@ -476,7 +479,10 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
     return sort_cnvs(cnvs)
 
 
-def merge_cnv_dicts(dicts, baf, annotations, cytobands, chromosomes, filtered_cnvs, unfiltered_cnvs, gene_index=None, bin_params=None):
+def merge_cnv_dicts(
+    dicts, baf, annotations, cytobands, chromosomes,
+    filtered_cnvs, unfiltered_cnvs, gene_index=None, bin_params=None
+):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
         cnvkit="cnvkit",
@@ -508,7 +514,7 @@ def merge_cnv_dicts(dicts, baf, annotations, cytobands, chromosomes, filtered_cn
         cnvs[c]["cytobands"] = cytobands[c]
 
     if baf is not None:
-        baf = list(baf) # Consume generator
+        baf = list(baf)  # Consume generator
         # Combine all interesting regions for BAF binning
         poi_regions = []
         for a in annotations:
@@ -518,7 +524,12 @@ def merge_cnv_dicts(dicts, baf, annotations, cytobands, chromosomes, filtered_cn
 
         for chrom_name, chrom_info in cnvs.items():
             chrom_baf = [v for v in baf if v[0] == chrom_name]
-            chrom_poi = [p for p in poi_regions if (isinstance(p, dict) and p["chromosome"] == chrom_name) or (not isinstance(p, dict) and p[0] == chrom_name)]
+            chrom_poi = [
+                p for p in poi_regions if (
+                    isinstance(p, dict) and
+                    p["chromosome"] == chrom_name) or
+                (not isinstance(p, dict) and p[0] == chrom_name)
+            ]
             cnvs[chrom_name]["baf"] = bin_baf(chrom_baf, chrom_poi, **(bin_params or {}))
 
     for cnv in merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
@@ -642,7 +653,10 @@ def main():
         "target_data_points": snakemake.params.get("target_data_points", 10000),
     }
 
-    cnvs = merge_cnv_dicts(cnv_dicts, baf, annotations, cytobands, fai, filtered_cnv_vcfs, unfiltered_cnv_vcfs, gene_index, bin_params)
+    cnvs = merge_cnv_dicts(
+        cnv_dicts, baf, annotations, cytobands, fai, filtered_cnv_vcfs,
+        unfiltered_cnv_vcfs, gene_index, bin_params
+    )
 
     with open(output_file, "w") as f:
         print(json.dumps(cnvs, default=vars), file=f)

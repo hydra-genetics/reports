@@ -198,9 +198,11 @@ def bin_ratios(ratios, segments, roi_bin_size=200, roi_flank_size_bp=10000, targ
     chrom_spans = collections.defaultdict(lambda: [float('inf'), 0])
     for r in ratios:
         c = r["chromosome"]
-        if r["start"] < chrom_spans[c][0]: chrom_spans[c][0] = r["start"]
-        if r["end"] > chrom_spans[c][1]: chrom_spans[c][1] = r["end"]
-    
+        if r["start"] < chrom_spans[c][0]:
+            chrom_spans[c][0] = r["start"]
+        if r["end"] > chrom_spans[c][1]:
+            chrom_spans[c][1] = r["end"]
+
     total_span = sum(m[1] - m[0] for m in chrom_spans.values() if m[0] != float('inf'))
     # target_data_points is global; we want roughly this many points after binning.
     # Normal regions will take up the most space.
@@ -255,7 +257,14 @@ def bin_ratios(ratios, segments, roi_bin_size=200, roi_flank_size_bp=10000, targ
         bsize = roi_bin_size if in_poi else bin_size_normal
 
         # Check if we need to flush the current bin
-        if (current_bin and (rtype != current_bin_type or r["start"] - current_bin_start >= bsize or r["chromosome"] != current_bin[0]["chromosome"])):
+        if (
+            current_bin and
+            (
+                rtype != current_bin_type or
+                r["start"] - current_bin_start >= bsize or
+                r["chromosome"] != current_bin[0]["chromosome"]
+            )
+        ):
             n = len(current_bin)
             mean_log2 = sum(x["log2"] for x in current_bin) / n
             start = current_bin[0]["start"]
@@ -350,13 +359,13 @@ def main():
     # Perform smart binning for performance (especially for WGS)
     # Combine segments and annotations for POI identification
     poi_regions = segments + annotations
-    
+
     bin_params = {
         "roi_bin_size": snakemake.params.get("roi_bin_size", 200),
         "roi_flank_size_bp": snakemake.params.get("roi_flank_size_bp", 10000),
         "target_data_points": snakemake.params.get("target_data_points", 50000),
     }
-    
+
     ratios = bin_ratios(ratios, poi_regions, **bin_params)
 
     with open(output_filename, "w") as f:
