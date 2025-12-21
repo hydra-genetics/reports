@@ -733,12 +733,9 @@ class ChromosomePlot extends EventTarget {
         return tp;
       });
     } else {
+      const [x0, x1] = this.xScale.domain();
       ratioData = this.#data.callers[this.#activeCaller].ratios
-        .filter(
-          (p) =>
-            p.start >= this.xScale.domain()[0] &&
-            p.start <= this.xScale.domain()[1]
-        )
+        .filter((p) => (p.end ?? p.start) >= x0 && p.start <= x1)
         .map((p) => {
           let tp = { ...p };
           tp.log2 = self.transformLog2Ratio(tp.log2);
@@ -768,7 +765,7 @@ class ChromosomePlot extends EventTarget {
     this.#ctx.save();
     this.#ctx.translate(this.margin.left, this.margin.top);
     this.#ctx.fillStyle = "#333";
-    this.#ctx.globalAlpha = 0.3;
+    this.#ctx.globalAlpha = 0.4;
 
     ratioData.forEach((d) => {
       if (d.mean === undefined) {
@@ -814,7 +811,7 @@ class ChromosomePlot extends EventTarget {
             .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
           g.append("line")
-            .attr("class", "mean")
+            .attr("class", "mean-line")
             .attr("x1", (d) => this.xScale(d.start))
             .attr("x2", (d) => this.xScale(d.end))
             .attr("y1", (d) =>
@@ -824,27 +821,14 @@ class ChromosomePlot extends EventTarget {
               isNaN(d.mean) ? this.ratioYScale.range()[0] : this.ratioYScale(d.mean)
             )
             .attr("stroke", "#333")
-            .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
-
-          g.append("polygon")
-            .attr("class", "outlier")
-            .attr("points", (d) => {
-              const start = self.xScale(d.start);
-              const x0 = start + (self.xScale(d.end) - start) / 2;
-              const x1 = x0 - 2;
-              const x2 = x0 + 2;
-              const y0 = self.ratioYScale.range()[0];
-              const y1 = self.ratioYScale.range()[0] - 3;
-              return `${x0},${y0},${x1},${y1},${x2},${y1}`;
-            })
-            .attr("fill", "red")
-            .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
+            .attr("stroke-width", 2)
+            .attr("opacity", 0.5);
 
           return g.transition().duration(this.animationDuration).attr("opacity", 1);
         },
         (update) => {
           update
-            .selectAll(".mean")
+            .selectAll(".mean-line")
             .data((d) => [d])
             .transition()
             .duration(this.animationDuration)
@@ -856,7 +840,7 @@ class ChromosomePlot extends EventTarget {
             .attr("y2", (d) =>
               isNaN(d.mean) ? this.ratioYScale.range()[0] : this.ratioYScale(d.mean)
             )
-            .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
+            .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.5));
 
           update
             .selectAll(".variance-rect")
@@ -960,11 +944,9 @@ class ChromosomePlot extends EventTarget {
             p.start >= this.xScale.domain()[0] && p.start <= this.xScale.domain()[1]
         );
     } else {
+      const [x0, x1] = this.xScale.domain();
       bafData = this.#data.baf
-        .filter(
-          (p) =>
-            p.pos >= this.xScale.domain()[0] && p.pos <= this.xScale.domain()[1]
-        )
+        .filter((p) => (p.end ?? p.pos) >= x0 && (p.start ?? p.pos) <= x1)
         .map((p) => {
           let di = { ...p };
           di.baf = this.transformBAF(di.baf);
@@ -980,7 +962,7 @@ class ChromosomePlot extends EventTarget {
     this.#ctx.save();
     this.#ctx.translate(this.margin.left, this.margin.top + this.plotHeight + this.margin.between);
     this.#ctx.fillStyle = "#333";
-    this.#ctx.globalAlpha = 0.3;
+    this.#ctx.globalAlpha = 0.4;
 
     bafData.forEach((d) => {
       if (d.mean === undefined) {
@@ -1019,13 +1001,14 @@ class ChromosomePlot extends EventTarget {
             .attr("opacity", 0.3);
 
           g.append("line")
-            .attr("class", "mean")
+            .attr("class", "mean-line")
             .attr("x1", (d) => this.xScale(d.start))
             .attr("x2", (d) => this.xScale(d.end))
             .attr("y1", (d) => this.bafYScale(d.mean))
             .attr("y2", (d) => this.bafYScale(d.mean))
             .attr("stroke", "#333")
-            .attr("opacity", 0.5);
+            .attr("stroke-width", 2)
+            .attr("opacity", 0.8);
 
           return g.transition().duration(this.animationDuration).attr("opacity", 1);
         },
@@ -1037,18 +1020,18 @@ class ChromosomePlot extends EventTarget {
             .duration(this.animationDuration)
             .attr("x", (d) => this.xScale(d.start))
             .attr("y", (d) => this.bafYScale(d.mean + d.sd))
-            .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+            .attr("width", (d) => Math.max(2, this.xScale(d.end) - this.xScale(d.start)))
             .attr("height", (d) =>
-              this.bafYScale(this.bafYScale.domain()[1] - 2 * d.sd)
+              Math.max(2, this.bafYScale(this.bafYScale.domain()[1] - 2 * d.sd))
             );
 
           update
-            .selectAll(".mean")
+            .selectAll(".mean-line")
             .data((d) => [d])
             .transition()
             .duration(this.animationDuration)
             .attr("x1", (d) => this.xScale(d.start))
-            .attr("x2", (d) => this.xScale(d.end))
+            .attr("x2", (d) => Math.max(this.xScale(d.start) + 2, this.xScale(d.end)))
             .attr("y1", (d) => this.bafYScale(d.mean))
             .attr("y2", (d) => this.bafYScale(d.mean));
 

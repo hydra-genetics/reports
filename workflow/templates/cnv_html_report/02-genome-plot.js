@@ -351,7 +351,7 @@ class GenomePlot extends EventTarget {
     this.#ctx.save();
     this.#ctx.translate(this.margin.left, this.margin.top);
     this.#ctx.fillStyle = "#333";
-    this.#ctx.globalAlpha = 0.3;
+    this.#ctx.globalAlpha = 0.4;
 
     this.#data.forEach((chromData, i) => {
       const xOffset = i === 0 ? 0 : d3.sum(this.panelWidths.slice(0, i));
@@ -389,7 +389,12 @@ class GenomePlot extends EventTarget {
     this.#ctx.restore();
 
     this.ratioPanels.each(function (panelData, i) {
-      let panelRatios = panelData.callers[self.#activeCaller].ratios.map((d) => {
+      let panelRatios = panelData.callers[self.#activeCaller].ratios.filter(
+        (p) => {
+          const [x0, x1] = self.xScales[i].domain();
+          return (p.end ?? p.start) >= x0 && p.start <= x1;
+        }
+      ).map((d) => {
         let td = { ...d };
         td.log2 = self.transformLog2Ratio(td.log2);
         return td;
@@ -564,7 +569,7 @@ class GenomePlot extends EventTarget {
       this.margin.top + this.panelHeight + this.margin.between
     );
     this.#ctx.fillStyle = "#333";
-    this.#ctx.globalAlpha = 0.3;
+    this.#ctx.globalAlpha = 0.4;
 
     this.#data.forEach((chromData, i) => {
       const xOffset = i === 0 ? 0 : d3.sum(this.panelWidths.slice(0, i));
@@ -633,7 +638,8 @@ class GenomePlot extends EventTarget {
               .attr("y1", (d) => self.bafYScale(d.mean))
               .attr("y2", (d) => self.bafYScale(d.mean))
               .attr("stroke", "#333")
-              .attr("opacity", 0.5);
+              .attr("stroke-width", 2)
+              .attr("opacity", 0.8);
 
             return g.transition().duration(self.animationDuration).attr("opacity", 1);
           },

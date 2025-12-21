@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 import json
+import math
 from pathlib import Path
 import pysam
 import sys
@@ -217,12 +218,54 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
         chrom = normalize_chrom(variant.chrom)
         if chrom in skip:
             continue
-        baf = variant.info.get("AF")
-        if isinstance(baf, float):
-            yield chrom, variant.pos, baf
-        elif baf is not None:
-            for f in baf:
-                yield chrom, variant.pos, f
+        def get_variant_field(record, field, source="info"):
+            if source == "info":
+                if field in record.header.info:
+                    return record.info.get(field)
+            elif source == "sample":
+                if record.samples and field in record.header.formats:
+                    return record.samples[0].get(field)
+            return None
+
+        # Try BAF, then VAF, then AF from INFO
+        baf = get_variant_field(variant, "BAF", "info")
+        if baf is None:
+            baf = get_variant_field(variant, "VAF", "info")
+        if baf is None:
+            baf = get_variant_field(variant, "AF", "info")
+        
+        # If still None, check sample-level data
+        if baf is None and variant.samples:
+            # Try BAF, then VAF, then AF, then AD
+            for field in ["BAF", "VAF", "AF"]:
+                baf = get_variant_field(variant, field, "sample")
+                if baf is not None:
+                    break
+            
+            if baf is None and "AD" in variant.header.formats:
+                ad = variant.samples[0].get("AD")
+                if ad and len(ad) >= 2:
+                    total_depth = sum(f for f in ad if f is not None)
+                    if total_depth > 0:
+                        baf = ad[1] / total_depth
+
+        if baf is None:
+            continue
+
+        if isinstance(baf, (float, int)):
+            yield chrom, variant.pos, float(baf)
+        else:
+            try:
+                # Handle tuple/list (multi-allelic)
+                for f in baf:
+                    if f is not None:
+                        yield chrom, variant.pos, float(f)
+            except (TypeError, ValueError):
+                # Fallback
+                try:
+                    yield chrom, variant.pos, float(baf)
+                except (TypeError, ValueError):
+                    continue
 
 
 def bin_baf(baf_list, poi_regions, roi_bin_size=200, roi_flank_size_bp=10000, target_data_points=10000):

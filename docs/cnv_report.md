@@ -11,7 +11,7 @@ Optional input files are:
 
 - Filtered and unfiltered VCFs that each contain calls from all included callers for generating a table of CNV calls
 - BED files with annotations that should be added to plots
-- Germline VCF file for displaying VAF in plots
+- Germline VCF file for displaying BAF in plots
 - Cytoband definition for displaying in the chromosome plot
 
 ## Output files
@@ -65,6 +65,14 @@ Only full-length hexadecimal colours (without alpha channel), as shown above, ar
 ### Custom annotations
 
 Custom annotations can be added to the chromosome plot by specifying one or more bed-files in `annotations` under [`merge_cnv_json`](/softwares/#configuration_2). Only the four first columns of the file will be taken into account, and the value in the name column will be displayed in the plot.
+
+### Data Binning
+
+To maintain performance with high-density datasets (e.g., WGS), the report employs dynamic binning for both log<sub>2</sub> ratios and BAF data.
+
+- **Dynamic Resolution**: Bin sizes for "normal" regions are calculated dynamically to target a specific global point count (configured via `target_data_points`).
+- **Regions of Interest (ROI)**: High resolution is preserved around segments (breakpoints) and custom annotations. Data within these regions and their flanks (configured via `roi_flank_size_bp`) are binned at a much finer resolution (configured via `roi_bin_size`).
+- **Bi-modal BAF Support**: BAF data is binned separately for two populations (BAF < 0.5 and BAF >= 0.5). This ensures that the characteristic bi-modal distribution is preserved, preventing points at 0 and 1 from being averaged into a single point at 0.5.
 
 ## Customising the template
 

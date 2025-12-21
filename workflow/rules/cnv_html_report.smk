@@ -63,7 +63,7 @@ rule cnv_json:
         skip_chromosomes=config.get("reference", {}).get("skip_chrs"),
         roi_bin_size=config.get("cnv_json", {}).get("roi_bin_size", config.get("cnv_json", {}).get("bin_size_roi", 200)),
         roi_flank_size_bp=config.get("cnv_json", {}).get("roi_flank_size_bp", config.get("cnv_json", {}).get("roi_flank", 10000)),
-        target_data_points=config.get("cnv_json", {}).get("target_data_points", config.get("cnv_json", {}).get("target_points", config.get("cnv_json", {}).get("min_points", 50000))),
+        target_data_points=config.get("cnv_json", {}).get("target_data_points", config.get("cnv_json", {}).get("target_points", config.get("cnv_json", {}).get("min_points", 500000))),
         csv_field_size_limit=config.get("cnv_json", {}).get("csv_field_size_limit", 100000000),
     log:
         "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.log",
@@ -105,7 +105,7 @@ rule merge_cnv_json:
         cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
         roi_bin_size=config.get("merge_cnv_json", {}).get("roi_bin_size", config.get("merge_cnv_json", {}).get("bin_size_roi", 200)),
         roi_flank_size_bp=config.get("merge_cnv_json", {}).get("roi_flank_size_bp", config.get("merge_cnv_json", {}).get("roi_flank", 10000)),
-        target_data_points=config.get("merge_cnv_json", {}).get("target_data_points", config.get("merge_cnv_json", {}).get("target_points", config.get("merge_cnv_json", {}).get("min_points", 10000))),
+        target_data_points=config.get("merge_cnv_json", {}).get("target_data_points", config.get("merge_cnv_json", {}).get("target_points", config.get("merge_cnv_json", {}).get("min_points", 100000))),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
     benchmark:
