@@ -306,7 +306,8 @@ body {
   font-family: helvetica, arial, sans-serif;
 }
 
-.data-range-warning {
+.data-range-warning,
+.binned-data-warning {
   color: orange;
 }
 

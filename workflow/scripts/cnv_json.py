@@ -296,11 +296,12 @@ def bin_ratios(ratios, segments, roi_flank_size_bp=10000, target_data_points=500
     return binned
 
 
-def to_json(caller, ratios, segments):
+def to_json(caller, ratios, segments, is_binned=False):
     json_dict = dict(
         caller=caller,
         ratios=ratios,
         segments=segments,
+        is_binned=is_binned,
     )
     return json.dumps(json_dict)
 
@@ -368,10 +369,12 @@ def main():
         "roi_resolution_factor": snakemake.params["roi_resolution_factor"],
     }
 
+    original_ratio_count = len(ratios)
     ratios = bin_ratios(ratios, poi_regions, **bin_params)
+    is_binned = len(ratios) < original_ratio_count
 
     with open(output_filename, "w") as f:
-        print(to_json(caller, ratios, segments), file=f)
+        print(to_json(caller, ratios, segments, is_binned=is_binned), file=f)
 
 
 if __name__ == "__main__":

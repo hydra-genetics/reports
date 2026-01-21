@@ -117,6 +117,23 @@ const resultsTable = new ResultsTable(d3.select("#cnv-table"), {
   filter: d3.select("#table-filter-toggle").node().checked,
 });
 
+// Show binned data warning if any part of the dataset was downsampled by the backend
+if (cnvData[0].is_baf_binned || cnvData[0].is_log2_binned) {
+  d3.select(".binned-data-warning").classed("hidden", false);
+  
+  // Update tooltip to be specific about what was binned
+  let warningTitle = "Data has been downsampled for performance. 'Show all points' only shows the downsampled data.";
+  if (cnvData[0].is_baf_binned && cnvData[0].is_log2_binned) {
+    warningTitle = "Both BAF and Log2 data have been downsampled. 'Show all points' only shows the binned points.";
+  } else if (cnvData[0].is_baf_binned) {
+    warningTitle = "BAF data has been downsampled. 'Show all points' only shows the binned BAF points.";
+  } else if (cnvData[0].is_log2_binned) {
+    const callers = cnvData[0].binned_callers.join(", ");
+    warningTitle = `Log2 data for ${callers} has been downsampled. 'Show all points' only shows the binned Log2 points.`;
+  }
+  d3.select(".binned-data-warning").attr("title", warningTitle);
+}
+
 chromosomePlot.addEventListener("zoom", (e) => {
   d3.selectAll(".data-range-warning").classed(
     "hidden",

@@ -524,8 +524,10 @@ def merge_cnv_dicts(
     for c in cytobands:
         cnvs[c]["cytobands"] = cytobands[c]
 
+    baf_is_binned = False
     if baf is not None:
         baf = list(baf)  # Consume generator
+        original_baf_count = len(baf)
         # Combine all interesting regions for BAF binning
         # Annotations (genes) get full-region resolution
         # Segments (calls) get breakpoint resolution
@@ -541,6 +543,7 @@ def merge_cnv_dicts(
 
         # Bin ALL BAF data points globally using the budget
         global_binned_baf = bin_baf(baf, poi_regions, **(bin_params or {}))
+        baf_is_binned = len(global_binned_baf) < original_baf_count
         
         # Distribute binned points to chromosomes
         for b in global_binned_baf:
@@ -580,11 +583,18 @@ def merge_cnv_dicts(
     for v in cnvs.values():
         v["callers"] = list(v["callers"].values())
 
-    # Attach gene search index to first chromosome dictionary if available.
+    # Attach metadata to first chromosome dictionary if available.
     # The frontend expects to find it in the first element of the chromosome array.
-    if gene_index and cnvs:
+    if cnvs:
         first_chrom = next(iter(cnvs))
-        cnvs[first_chrom]["gene_search_index"] = gene_index
+        if gene_index:
+            cnvs[first_chrom]["gene_search_index"] = gene_index
+        
+        # Collect binning info from all callers
+        binned_callers = [d["caller"] for d in dicts if d.get("is_binned")]
+        cnvs[first_chrom]["is_baf_binned"] = baf_is_binned
+        cnvs[first_chrom]["is_log2_binned"] = len(binned_callers) > 0
+        cnvs[first_chrom]["binned_callers"] = binned_callers
 
     return list(cnvs.values())
 
