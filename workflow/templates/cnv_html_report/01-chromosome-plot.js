@@ -222,6 +222,7 @@ class ChromosomePlot extends EventTarget {
   #showAllData;
   #equalDistance;
   #highlightedRegion;
+  #highlightedRegions;
   #canvas;
   #ctx;
 
@@ -401,7 +402,7 @@ class ChromosomePlot extends EventTarget {
     const prevChromosome = this.data.chromosome;
 
     if (data && data.chromosome !== prevChromosome) {
-      this.#highlightedRegion = null;
+      // this.#highlightedRegions = []; // Do not clear on data change
       this.#data = data;
       if (!start && !end) {
         this.resetZoom();
@@ -1588,26 +1589,36 @@ class ChromosomePlot extends EventTarget {
     this.#plotAnnotations();
     this.#plotCytobands();
 
-    if (this.#highlightedRegion) {
-      this.#drawHighlight(
-        this.#highlightedRegion.start,
-        this.#highlightedRegion.end,
-        this.#highlightedRegion.name
-      );
-    }
+    this.#drawHighlights();
     return this;
   }
 
-  highlightRegion(start, end, name) {
-    this.#highlightedRegion = { start, end, name };
-    this.#drawHighlight(start, end, name);
+  highlightRegions(regions) {
+    // regions: Array of {start, end, name, chromosome}
+    this.#highlightedRegions = regions;
+    this.#drawHighlights();
   }
 
-  #drawHighlight(start, end, name) {
-    // Clear existing highlights first
+  // Deprecated single version for backward compat if needed, or just remove
+  highlightRegion(start, end, name, chromosome) {
+      this.highlightRegions([{start, end, name, chromosome}]);
+  }
+
+  #drawHighlights() {
+    // Clear existing highlights
     this.#plotArea.selectAll(".highlight-region").remove();
     this.#bafArea.selectAll(".highlight-region").remove();
 
+    if (!this.#highlightedRegions) return;
+
+    this.#highlightedRegions.forEach(region => {
+        if (region.chromosome === this.#data.chromosome) {
+            this.#drawHighlightSingle(region.start, region.end, region.name);
+        }
+    });
+  }
+
+  #drawHighlightSingle(start, end, name) {
     // Determine coordinates based on view mode (equal distance vs genomic)
     let xStart, xEnd;
     let s = start;
@@ -1642,55 +1653,16 @@ class ChromosomePlot extends EventTarget {
         .transition()
         .duration(300)
         .attr("opacity", 0.2);
+        
+      g.append("title").text(name); // Add tooltip for name
 
       return g;
     };
 
-    // Draw in Main Plot (LR)
     drawHighlight(this.#plotArea, this.plotHeight);
-
-    // Draw in BAF Plot
-    drawHighlight(this.#bafArea, this.plotHeight);
-
-    // Add Label - centered between plots with red text
-    if (name) {
-      const labelGroup = this.#plotArea.append("g")
-        .attr("class", "highlight-region");
-
-      const fontSize = "12px";
-      const [labelWidth, labelHeight] = getTextDimensions(name, fontSize);
-      const centerX = (xStart + xEnd) / 2;
-      const centerY = this.plotHeight + this.margin.between / 2;
-
-      // Draw box border (background)
-      labelGroup.append("rect")
-        .attr("x", centerX - labelWidth / 2 - 4)
-        .attr("y", centerY - labelHeight / 2 - 2)
-        .attr("width", labelWidth + 8)
-        .attr("height", labelHeight + 4)
-        .attr("fill", "white")
-        .attr("stroke", "red")
-        .attr("stroke-width", 1)
-        .attr("rx", 4)
-        .attr("opacity", 0)
-        .transition()
-        .duration(300)
-        .attr("opacity", 1);
-
-      // Draw text
-      labelGroup.append("text")
-        .attr("x", centerX)
-        .attr("y", centerY)
-        .attr("text-anchor", "middle")
-        .attr("dominant-baseline", "central")
-        .attr("fill", "red")
-        .attr("font-size", fontSize)
-        .attr("font-weight", "bold")
-        .attr("opacity", 0)
-        .text(name)
-        .transition()
-        .duration(300)
-        .attr("opacity", 1);
+    if (this.#bafArea) {
+         drawHighlight(this.#bafArea, this.plotHeight);
     }
   }
+
 }

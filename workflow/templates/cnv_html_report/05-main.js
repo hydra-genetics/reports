@@ -307,25 +307,31 @@ d3.select("#chromosome-equal-distance").on("change", (e) => {
 
 const genes = new Map();
 
+function addGeneLocation(gene, chromosome, start, end) {
+  if (!genes.has(gene)) {
+    genes.set(gene, []);
+  }
+  const locations = genes.get(gene);
+  // Avoid exact duplicates
+  const exists = locations.some(
+    (l) => l.chromosome === chromosome && l.start === start && l.end === end
+  );
+  if (!exists) {
+    locations.push({ chromosome, start, end });
+  }
+}
+
 // Add comprehensive gene index first (from RefSeq)
 if (cnvData[0].gene_search_index) {
   Object.entries(cnvData[0].gene_search_index).forEach(([gene, info]) => {
-    genes.set(gene, {
-      chromosome: info.chrom,
-      start: info.start,
-      end: info.end,
-    });
+    addGeneLocation(gene, info.chrom, info.start, info.end);
   });
 }
 
 // Add annotation genes (overwrites if duplicates, but usually same or better resolution on annotations)
 cnvData.forEach((chromData) => {
   chromData.annotations.forEach((anno) => {
-    genes.set(anno.name, {
-      chromosome: chromData.chromosome,
-      start: anno.start,
-      end: anno.end,
-    });
+    addGeneLocation(anno.name, chromData.chromosome, anno.start, anno.end);
   });
 });
 
@@ -336,15 +342,48 @@ Array.from(genes.keys())
     geneList.append("option").attr("value", gene);
   });
 
+let lastSearchTerm = "";
+let searchIndex = 0;
+
 d3.select("#gene-search").on("change", (e) => {
   const geneName = e.target.value;
-  const geneInfo = genes.get(geneName);
+  const geneLocations = genes.get(geneName);
   const errorIcon = d3.select("#gene-search-error");
 
-  if (geneInfo) {
+  if (geneLocations && geneLocations.length > 0) {
     errorIcon.style("display", "none");
+
+    // Group locations by chromosome
+    const locsByChrom = new Map();
+    geneLocations.forEach(loc => {
+        if (!locsByChrom.has(loc.chromosome)) {
+            locsByChrom.set(loc.chromosome, []);
+        }
+        locsByChrom.get(loc.chromosome).push(loc);
+    });
+    const chromosomes = Array.from(locsByChrom.keys()); // e.g. ["1", "17"]
+
+    // Cycle through chromosomes if same search
+    if (geneName === lastSearchTerm) {
+      searchIndex = (searchIndex + 1) % chromosomes.length;
+    } else {
+      searchIndex = 0;
+      lastSearchTerm = geneName;
+    }
+
+    const targetChrom = chromosomes[searchIndex];
+    const targetRegions = locsByChrom.get(targetChrom);
+    const firstRegion = targetRegions[0]; // For determining start/end zoom if desired? 
+    // Usually we just switch to chromosome. The plot handles zoom? 
+    // No, standard `selectChromosome` resets zoom to full chromosome unless specified.
+    // The previous code didn't zoom to gene, it just switched chromosome and highlighted.
+    
+    // We need to add "name" to each region for the plotter to use it as tooltip/label
+    // Pass ALL locations so highlights persist if user switches chromosome manually
+    const regionsWithName = geneLocations.map(r => ({...r, name: geneName}));
+
     const chromIndex = cnvData.findIndex(
-      (d) => d.chromosome === geneInfo.chromosome
+      (d) => d.chromosome === targetChrom
     );
     if (chromIndex !== -1) {
       // Switch chromosome if needed
@@ -352,14 +391,30 @@ d3.select("#gene-search").on("change", (e) => {
         genomePlot.selectChromosome(cnvData[chromIndex].chromosome);
       }
 
-      // Wait for chromosome switch to complete, then highlight
+      // Wait for chromosome switch to complete, then highlight ALL regions
       setTimeout(() => {
-        chromosomePlot.highlightRegion(geneInfo.start, geneInfo.end, geneName);
+        chromosomePlot.highlightRegions(regionsWithName);
       }, 50);
 
-      // Clear the input so the same gene can be selected again
-      e.target.value = "";
-      e.target.blur();
+      // Keep input populated but blur to allow "Enter" to trigger change again if desired?
+      // "change" only triggers on blur or enter committed change. 
+      // To allow re-triggering with Enter, we might need to keep focus or handle "keyup".
+      // But standard implementation: 
+      // If user types "TP53" [Enter], highlights 1. 
+      // If user hits [Enter] again, does "change" fire? No, only if value changed.
+      // So we clear value? If we clear value, next search is "fresh".
+      // User wants to see multiple hits.
+      
+      // Adaptation: Don't clear value. Let user press Enter again? 
+      // D3 "change" event only fires if value changed and lost focus or enter.
+      // If value is same, "change" might not fire on second Enter.
+      // We might need to listen to 'keydown' for Enter.
+      
+      // For now, let's keep the value. 
+      // e.target.value = ""; // Don't clear
+       e.target.blur(); // Blur to show we are done. 
+       // If they click and hit enter again, it might not trigger change if value is same.
+       // Let's add specific key listener for cycling.
     }
   } else {
     if (geneName !== "") {
@@ -368,4 +423,18 @@ d3.select("#gene-search").on("change", (e) => {
       errorIcon.style("display", "none");
     }
   }
+});
+
+// Add keydown listener to force cycle on Enter even if value hasn't changed
+d3.select("#gene-search").on("keydown", (e) => {
+    if (e.key === "Enter") {
+        e.preventDefault(); 
+        // Manually trigger the change logic if value is same as last search
+        if (e.target.value === lastSearchTerm) {
+             d3.select("#gene-search").dispatch("change");
+        } else {
+            // standard behavior will trigger change on Enter anyway
+             e.target.blur(); // Trigger change
+        }
+    }
 });
