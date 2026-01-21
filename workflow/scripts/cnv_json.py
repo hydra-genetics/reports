@@ -178,7 +178,14 @@ def parse_jumble_segments(file):
     return segments
 
 
-def bin_ratios(ratios, segments, roi_flank_size_bp=10000, target_data_points=50000, roi_budget_fraction=0.5, roi_resolution_factor=10):
+def bin_ratios(
+    ratios,
+    segments,
+    roi_flank_size_bp=10000,
+    target_data_points=50000,
+    roi_budget_fraction=0.5,
+    roi_resolution_factor=10
+):
     """
     Bin log2 ratios dynamically using a Budgeted ROI strategy.
     ROIs (genes) stay raw if they fit within a budget (X% of target).
@@ -204,7 +211,8 @@ def bin_ratios(ratios, segments, roi_flank_size_bp=10000, target_data_points=500
 
     for chrom in poi_by_chrom:
         intervals = sorted(poi_by_chrom[chrom])
-        if not intervals: continue
+        if not intervals:
+            continue
         merged = []
         curr_start, curr_end = intervals[0]
         for next_start, next_end in intervals[1:]:
@@ -218,11 +226,14 @@ def bin_ratios(ratios, segments, roi_flank_size_bp=10000, target_data_points=500
 
     def is_in_poi(r):
         chrom = r["chromosome"]
-        if chrom not in poi_by_chrom: return False
+        if chrom not in poi_by_chrom:
+            return False
         r_start, r_end = r["start"], r["end"]
         for p_start, p_end in poi_by_chrom[chrom]:
-            if r_start < p_end and r_end > p_start: return True
-            if p_start > r_end: break
+            if r_start < p_end and r_end > p_start:
+                return True
+            if p_start > r_end:
+                break
         return False
 
     # Separate populations
@@ -241,7 +252,7 @@ def bin_ratios(ratios, segments, roi_flank_size_bp=10000, target_data_points=500
     if use_raw_roi:
         target_normal = max(100, target_data_points - len(roi_points))
         k_normal = max(1, len(normal_points) / target_normal) if normal_points else 1
-        k_roi = 1 # Keep raw
+        k_roi = 1  # Keep raw
     else:
         k_roi = (len(roi_points) + len(normal_points) / roi_resolution_factor) / target_data_points
         k_roi = max(1, k_roi)
@@ -254,7 +265,7 @@ def bin_ratios(ratios, segments, roi_flank_size_bp=10000, target_data_points=500
     # Final Pass
     binned = []
     current_bin = []
-    current_bin_type = None # 'roi' or 'normal'
+    current_bin_type = None  # 'roi' or 'normal'
 
     for r in ratios:
         in_roi = is_in_poi(r)

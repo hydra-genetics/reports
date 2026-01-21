@@ -223,16 +223,22 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
         for record in records:
             # Try BAF, then VAF, then AF from INFO
             baf = None
-            if "BAF" in record.info: baf = record.info["BAF"]
-            elif "VAF" in record.info: baf = record.info["VAF"]
-            elif "AF" in record.info: baf = record.info["AF"]
+            if "BAF" in record.info:
+                baf = record.info["BAF"]
+            elif "VAF" in record.info:
+                baf = record.info["VAF"]
+            elif "AF" in record.info:
+                baf = record.info["AF"]
 
             if baf is None:
                 # Check sample
                 s = record.samples[sample]
-                if "BAF" in s: baf = s["BAF"]
-                elif "VAF" in s: baf = s["VAF"]
-                elif "AF" in s: baf = s["AF"]
+                if "BAF" in s:
+                    baf = s["BAF"]
+                elif "VAF" in s:
+                    baf = s["VAF"]
+                elif "AF" in s:
+                    baf = s["AF"]
                 elif "AD" in s and "DP" in s:
                     ad = s["AD"]
                     dp = s["DP"]
@@ -245,20 +251,28 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple
                     continue
                 if isinstance(baf, (list, tuple)):
                     for bb in baf:
-                        if bb is not None: variants.append((chrom, record.pos, float(bb)))
+                        if bb is not None:
+                            variants.append((chrom, record.pos, float(bb)))
                 else:
                     variants.append((chrom, record.pos, float(baf)))
                 vaf_count += 1
-        
+
         if vaf_count > 0:
             found_any = True
-            break # Found data for a sample
+            break  # Found data for a sample
 
     vcf.close()
     return variants
 
 
-def bin_baf(baf_list, poi_regions, roi_flank_size_bp=10000, target_data_points=10000, roi_budget_fraction=0.5, roi_resolution_factor=10):
+def bin_baf(
+    baf_list,
+    poi_regions,
+    roi_flank_size_bp=10000,
+    target_data_points=10000,
+    roi_budget_fraction=0.5,
+    roi_resolution_factor=10
+):
     if not baf_list:
         return []
 
@@ -276,7 +290,8 @@ def bin_baf(baf_list, poi_regions, roi_flank_size_bp=10000, target_data_points=1
             full_region = s.get("full_region", False)
         else:
             chrom, start, end = s[0], s[1], s[2]
-            if len(s) > 4: full_region = s[4]
+            if len(s) > 4:
+                full_region = s[4]
 
         if full_region:
             poi_by_chrom[chrom].append((start - roi_flank_size_bp, end + roi_flank_size_bp))
@@ -286,7 +301,8 @@ def bin_baf(baf_list, poi_regions, roi_flank_size_bp=10000, target_data_points=1
 
     for chrom in poi_by_chrom:
         intervals = sorted(poi_by_chrom[chrom])
-        if not intervals: continue
+        if not intervals:
+            continue
         merged = []
         curr_start, curr_end = intervals[0]
         for next_start, next_end in intervals[1:]:
@@ -300,18 +316,23 @@ def bin_baf(baf_list, poi_regions, roi_flank_size_bp=10000, target_data_points=1
         print(f"DEBUG: bin_baf - Chromosome {chrom} has {len(merged)} ROI intervals", file=sys.stderr)
 
     def is_in_poi(chrom, pos):
-        if chrom not in poi_by_chrom: return False
+        if chrom not in poi_by_chrom:
+            return False
         for p_start, p_end in poi_by_chrom[chrom]:
-            if pos >= p_start and pos <= p_end: return True
-            if p_start > pos: break
+            if pos >= p_start and pos <= p_end:
+                return True
+            if p_start > pos:
+                break
         return False
 
     # Separate populations only for budget calculation
     roi_points = []
     normal_points = []
     for p in baf_list:
-        if is_in_poi(p[0], p[1]): roi_points.append(p)
-        else: normal_points.append(p)
+        if is_in_poi(p[0], p[1]):
+            roi_points.append(p)
+        else:
+            normal_points.append(p)
 
     # Budget Decision
     roi_budget = target_data_points * roi_budget_fraction
@@ -335,7 +356,8 @@ def bin_baf(baf_list, poi_regions, roi_flank_size_bp=10000, target_data_points=1
     current_bin_type = None
 
     def flush_bin(bin_to_flush):
-        if not bin_to_flush: return
+        if not bin_to_flush:
+            return
         n = len(bin_to_flush)
         start, end = bin_to_flush[0][1], bin_to_flush[-1][1]
         chrom = bin_to_flush[0][0]
@@ -343,7 +365,7 @@ def bin_baf(baf_list, poi_regions, roi_flank_size_bp=10000, target_data_points=1
         # Mode detection: Unified if noisy centered around 0.5, Split if bimodal
         # Histogram-like check for central peak [0.4, 0.6]
         mid_count = sum(1 for x in bin_to_flush if 0.4 <= x[2] <= 0.6)
-        
+
         # If enough points are in the middle, keep it simple to avoid artificial splitting
         if mid_count > n * 0.4 or n < 4:
             mean = sum(x[2] for x in bin_to_flush) / n
@@ -357,7 +379,8 @@ def bin_baf(baf_list, poi_regions, roi_flank_size_bp=10000, target_data_points=1
             hi_sub = [x for x in bin_to_flush if x[2] >= 0.5]
             lo_sub = [x for x in bin_to_flush if x[2] < 0.5]
             for sub, tag in [(hi_sub, "Hi"), (lo_sub, "Lo")]:
-                if not sub: continue
+                if not sub:
+                    continue
                 sn = len(sub)
                 s_mean = sum(x[2] for x in sub) / sn
                 p = {"chromosome": chrom, "pos": (start + end) // 2, "start": start, "end": end, "baf": s_mean}
@@ -374,7 +397,7 @@ def bin_baf(baf_list, poi_regions, roi_flank_size_bp=10000, target_data_points=1
             if rtype != current_bin_type or chrom != current_bin[0][0] or len(current_bin) >= k_limit:
                 flush_bin(current_bin)
                 current_bin = []
-        
+
         if not current_bin:
             current_bin_type = rtype
         current_bin.append((chrom, pos, baf))
@@ -534,7 +557,12 @@ def merge_cnv_dicts(
         poi_regions = []
         for a in annotations:
             for item in a:
-                poi_regions.append({"chromosome": normalize_chrom(item[0]), "start": item[1], "end": item[2], "full_region": True})
+                poi_regions.append({
+                    "chromosome": normalize_chrom(item[0]),
+                    "start": item[1],
+                    "end": item[2],
+                    "full_region": True
+                })
         for d in dicts:
             for s in d["segments"]:
                 # Ensure chromosome is normalized from the loaded JSON
@@ -544,13 +572,13 @@ def merge_cnv_dicts(
         # Bin ALL BAF data points globally using the budget
         global_binned_baf = bin_baf(baf, poi_regions, **(bin_params or {}))
         baf_is_binned = len(global_binned_baf) < original_baf_count
-        
+
         # Distribute binned points to chromosomes
         for b in global_binned_baf:
             chrom = b["chromosome"]
             if chrom in cnvs:
                 # Remove chromosome key before adding to the per-chromosome list to keep JSON small
-                point = {k:v for k,v in b.items() if k != "chromosome"}
+                point = {k: v for k, v in b.items() if k != "chromosome"}
                 cnvs[chrom]["baf"].append(point)
 
     for cnv in merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
@@ -589,7 +617,7 @@ def merge_cnv_dicts(
         first_chrom = next(iter(cnvs))
         if gene_index:
             cnvs[first_chrom]["gene_search_index"] = gene_index
-        
+
         # Collect binning info from all callers
         binned_callers = [d["caller"] for d in dicts if d.get("is_binned")]
         cnvs[first_chrom]["is_baf_binned"] = baf_is_binned
