@@ -378,7 +378,7 @@ def bin_baf(
             # Bimodal (Split Hi/Lo)
             hi_sub = [x for x in bin_to_flush if x[2] >= 0.5]
             lo_sub = [x for x in bin_to_flush if x[2] < 0.5]
-            for sub, tag in [(hi_sub, "Hi"), (lo_sub, "Lo")]:
+            for sub in [hi_sub, lo_sub]:
                 if not sub:
                     continue
                 sn = len(sub)
