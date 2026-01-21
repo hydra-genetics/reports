@@ -71,7 +71,7 @@ Custom annotations can be added to the chromosome plot by specifying one or more
 To maintain performance with high-density datasets (e.g., WGS), the report employs dynamic binning for both log<sub>2</sub> ratios and BAF data.
 
 - **Dynamic Resolution**: Bin sizes for "normal" regions are calculated dynamically to target a specific global point count (configured via `target_data_points`).
-- **Regions of Interest (ROI)**: High resolution is preserved around segments (breakpoints) and custom annotations. Data within these regions and their flanks (configured via `roi_flank_size_bp`) are binned at a much finer resolution (configured via `roi_bin_size`).
+- **Regions of Interest (ROI)**: High resolution is preserved around segments (breakpoints) and custom annotations. Data within these regions and their flanks (configured via `roi_flank_size_bp`) are binned at a much finer resolution (configured via `roi_resolution_factor`).
 - **Bi-modal BAF Support**: BAF data is binned separately for two populations (BAF < 0.5 and BAF >= 0.5). This ensures that the characteristic bi-modal distribution is preserved, preventing points at 0 and 1 from being averaged into a single point at 0.5.
 
 ## Customising the template
