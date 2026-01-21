@@ -478,6 +478,9 @@ class ChromosomePlot extends EventTarget {
 
   getRatioIndex(pos) {
     const ratios = this.#data.callers[this.#activeCaller].ratios;
+    if (!ratios || ratios.length === 0) {
+      return 0;
+    }
     let l = 0;
     let r = ratios.length - 1;
     let mid;

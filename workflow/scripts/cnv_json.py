@@ -203,11 +203,11 @@ def bin_ratios(
         chrom = s["chromosome"]
         full_region = s.get("full_region", False)
         if full_region:
-            poi_by_chrom[chrom].append((s["start"] - roi_flank_size_bp, s["end"] + roi_flank_size_bp))
+            poi_by_chrom[chrom].append((max(0, s["start"] - roi_flank_size_bp), s["end"] + roi_flank_size_bp))
         else:
             # Only breakpoints
-            poi_by_chrom[chrom].append((s["start"] - roi_flank_size_bp, s["start"] + roi_flank_size_bp))
-            poi_by_chrom[chrom].append((s["end"] - roi_flank_size_bp, s["end"] + roi_flank_size_bp))
+            poi_by_chrom[chrom].append((max(0, s["start"] - roi_flank_size_bp), s["start"] + roi_flank_size_bp))
+            poi_by_chrom[chrom].append((max(0, s["end"] - roi_flank_size_bp), s["end"] + roi_flank_size_bp))
 
     for chrom in poi_by_chrom:
         intervals = sorted(poi_by_chrom[chrom])

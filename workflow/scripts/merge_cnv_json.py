@@ -5,7 +5,7 @@ import math
 from pathlib import Path
 import pysam
 import sys
-from typing import Dict, Generator, List, Union
+from typing import Dict, List, Union
 
 
 @dataclass
@@ -210,7 +210,7 @@ def parse_ref_genes(filename, skip=None):
     return results
 
 
-def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> Generator[tuple, None, None]:
+def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
     if skip is None:
         skip = []
     vcf = pysam.VariantFile(str(vcf_filename))
@@ -294,10 +294,10 @@ def bin_baf(
                 full_region = s[4]
 
         if full_region:
-            poi_by_chrom[chrom].append((start - roi_flank_size_bp, end + roi_flank_size_bp))
+            poi_by_chrom[chrom].append((max(0, start - roi_flank_size_bp), end + roi_flank_size_bp))
         else:
-            poi_by_chrom[chrom].append((start - roi_flank_size_bp, start + roi_flank_size_bp))
-            poi_by_chrom[chrom].append((end - roi_flank_size_bp, end + roi_flank_size_bp))
+            poi_by_chrom[chrom].append((max(0, start - roi_flank_size_bp), start + roi_flank_size_bp))
+            poi_by_chrom[chrom].append((max(0, end - roi_flank_size_bp), end + roi_flank_size_bp))
 
     for chrom in poi_by_chrom:
         intervals = sorted(poi_by_chrom[chrom])
