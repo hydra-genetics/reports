@@ -94,7 +94,7 @@ def parse_cnvkit_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=line[0],
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[5]),
@@ -109,7 +109,7 @@ def parse_cnvkit_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=line[0],
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),
@@ -124,7 +124,7 @@ def parse_gatk_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=line[0],
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[3]),
@@ -139,7 +139,7 @@ def parse_gatk_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=line[0],
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),
@@ -178,48 +178,33 @@ def parse_jumble_segments(file):
     return segments
 
 
-def bin_ratios(ratios, segments, roi_bin_size=200, roi_flank_size_bp=10000, target_data_points=50000):
+def bin_ratios(ratios, segments, roi_flank_size_bp=10000, target_data_points=50000, roi_budget_fraction=0.5, roi_resolution_factor=10):
     """
-    Bin log2 ratios dynamically. High resolution around breakpoints and genes (ROIs),
-    dynamic resolution elsewhere targeting a specific point count.
+    Bin log2 ratios dynamically using a Budgeted ROI strategy.
+    ROIs (genes) stay raw if they fit within a budget (X% of target).
+    Otherwise, they are binned with higher resolution (Y times) than normal regions.
     """
     if not ratios:
         return []
 
-    # If data is small enough, don't bin
-    if len(ratios) <= target_data_points:
-        for r in ratios:
-            if "pos" not in r:
-                r["pos"] = (r["start"] + r["end"]) // 2
-        return ratios
+    # Ensure ratios are sorted
+    ratios.sort(key=lambda x: (x["chromosome"], x["start"]))
 
-    # Calculate dynamic bin size for 'normal' regions
-    # Find genomic span of the data to target specific point count
-    chrom_spans = collections.defaultdict(lambda: [float('inf'), 0])
-    for r in ratios:
-        c = r["chromosome"]
-        if r["start"] < chrom_spans[c][0]:
-            chrom_spans[c][0] = r["start"]
-        if r["end"] > chrom_spans[c][1]:
-            chrom_spans[c][1] = r["end"]
-
-    total_span = sum(m[1] - m[0] for m in chrom_spans.values() if m[0] != float('inf'))
-    # target_data_points is global; we want roughly this many points after binning.
-    # Normal regions will take up the most space.
-    bin_size_normal = max(1000, total_span // target_data_points)
-
-    # Group ROI by chromosome for faster lookup
+    # Group ROI by chromosome
     poi_by_chrom = collections.defaultdict(list)
     for s in segments:
         chrom = s["chromosome"]
-        poi_by_chrom[chrom].append((s["start"] - roi_flank_size_bp, s["start"] + roi_flank_size_bp))
-        poi_by_chrom[chrom].append((s["end"] - roi_flank_size_bp, s["end"] + roi_flank_size_bp))
+        full_region = s.get("full_region", False)
+        if full_region:
+            poi_by_chrom[chrom].append((s["start"] - roi_flank_size_bp, s["end"] + roi_flank_size_bp))
+        else:
+            # Only breakpoints
+            poi_by_chrom[chrom].append((s["start"] - roi_flank_size_bp, s["start"] + roi_flank_size_bp))
+            poi_by_chrom[chrom].append((s["end"] - roi_flank_size_bp, s["end"] + roi_flank_size_bp))
 
-    # Sort each chrom's POIs and merge overlaps for efficiency
     for chrom in poi_by_chrom:
         intervals = sorted(poi_by_chrom[chrom])
-        if not intervals:
-            continue
+        if not intervals: continue
         merged = []
         curr_start, curr_end = intervals[0]
         for next_start, next_end in intervals[1:]:
@@ -233,68 +218,78 @@ def bin_ratios(ratios, segments, roi_bin_size=200, roi_flank_size_bp=10000, targ
 
     def is_in_poi(r):
         chrom = r["chromosome"]
-        if chrom not in poi_by_chrom:
-            return False
+        if chrom not in poi_by_chrom: return False
         r_start, r_end = r["start"], r["end"]
         for p_start, p_end in poi_by_chrom[chrom]:
-            if r_start < p_end and r_end > p_start:
-                return True
-            if p_start > r_end:
-                break
+            if r_start < p_end and r_end > p_start: return True
+            if p_start > r_end: break
         return False
 
-    # Ensure ratios are sorted
-    ratios.sort(key=lambda x: (x["chromosome"], x["start"]))
+    # Separate populations
+    roi_points = []
+    normal_points = []
+    for r in ratios:
+        if is_in_poi(r):
+            roi_points.append(r)
+        else:
+            normal_points.append(r)
 
+    # Budget Decision
+    roi_budget = target_data_points * roi_budget_fraction
+    use_raw_roi = len(roi_points) <= roi_budget
+
+    if use_raw_roi:
+        target_normal = max(100, target_data_points - len(roi_points))
+        k_normal = max(1, len(normal_points) / target_normal) if normal_points else 1
+        k_roi = 1 # Keep raw
+    else:
+        k_roi = (len(roi_points) + len(normal_points) / roi_resolution_factor) / target_data_points
+        k_roi = max(1, k_roi)
+        k_normal = k_roi * roi_resolution_factor
+
+    print(f"DEBUG: [log2] Total: {len(ratios)}, ROI: {len(roi_points)}, Normal: {len(normal_points)}", file=sys.stderr)
+    print(f"DEBUG: [log2] Target: {target_data_points}, Budget: {roi_budget}, UseRaw: {use_raw_roi}", file=sys.stderr)
+    print(f"DEBUG: [log2] k_roi: {k_roi:.2f}, k_normal: {k_normal:.2f}", file=sys.stderr)
+
+    # Final Pass
     binned = []
     current_bin = []
-    current_bin_type = None  # 'normal' or 'poi'
-    current_bin_start = 0
+    current_bin_type = None # 'roi' or 'normal'
 
     for r in ratios:
-        in_poi = is_in_poi(r)
-        rtype = 'poi' if in_poi else 'normal'
-        bsize = roi_bin_size if in_poi else bin_size_normal
+        in_roi = is_in_poi(r)
+        rtype = 'roi' if in_roi else 'normal'
+        k_limit = k_roi if in_roi else k_normal
 
-        # Check if we need to flush the current bin
-        if (
-            current_bin and
-            (
-                rtype != current_bin_type or
-                r["start"] - current_bin_start >= bsize or
-                r["chromosome"] != current_bin[0]["chromosome"]
-            )
-        ):
+        flush = False
+        if current_bin:
+            if rtype != current_bin_type or r["chromosome"] != current_bin[0]["chromosome"]:
+                flush = True
+            elif len(current_bin) >= k_limit:
+                flush = True
+
+        if flush and current_bin:
             n = len(current_bin)
             mean_log2 = sum(x["log2"] for x in current_bin) / n
-            start = current_bin[0]["start"]
-            end = current_bin[-1]["end"]
+            start, end = current_bin[0]["start"], current_bin[-1]["end"]
             binned.append({
                 "chromosome": current_bin[0]["chromosome"],
-                "start": start,
-                "end": end,
-                "pos": (start + end) // 2,
+                "start": start, "end": end, "pos": (start + end) // 2,
                 "log2": mean_log2
             })
             current_bin = []
 
         if not current_bin:
-            current_bin_start = r["start"]
             current_bin_type = rtype
-
         current_bin.append(r)
 
-    # Flush last bin
     if current_bin:
         n = len(current_bin)
         mean_log2 = sum(x["log2"] for x in current_bin) / n
-        start = current_bin[0]["start"]
-        end = current_bin[-1]["end"]
+        start, end = current_bin[0]["start"], current_bin[-1]["end"]
         binned.append({
             "chromosome": current_bin[0]["chromosome"],
-            "start": start,
-            "end": end,
-            "pos": (start + end) // 2,
+            "start": start, "end": end, "pos": (start + end) // 2,
             "log2": mean_log2
         })
 
@@ -325,7 +320,7 @@ def main():
 
     skip_chromosomes = snakemake.params["skip_chromosomes"]
 
-    csv.field_size_limit(snakemake.params.get('csv_field_size_limit', 100000000))
+    csv.field_size_limit(snakemake.params["csv_field_size_limit"])
 
     if caller not in PARSERS:
         print(f"error: no parser for {caller} implemented", file=sys.stderr)
@@ -358,12 +353,19 @@ def main():
 
     # Perform smart binning for performance (especially for WGS)
     # Combine segments and annotations for POI identification
-    poi_regions = segments + annotations
+    # Annotations (genes) get full-region resolution
+    # Segments (calls) get breakpoint resolution
+    poi_regions = [
+        {**s, "full_region": False} for s in segments
+    ] + [
+        {**a, "full_region": True} for a in annotations
+    ]
 
     bin_params = {
-        "roi_bin_size": snakemake.params.get("roi_bin_size", 200),
-        "roi_flank_size_bp": snakemake.params.get("roi_flank_size_bp", 10000),
-        "target_data_points": snakemake.params.get("target_data_points", 50000),
+        "roi_flank_size_bp": snakemake.params["roi_flank_size_bp"],
+        "target_data_points": snakemake.params["target_data_points"],
+        "roi_budget_fraction": snakemake.params["roi_budget_fraction"],
+        "roi_resolution_factor": snakemake.params["roi_resolution_factor"],
     }
 
     ratios = bin_ratios(ratios, poi_regions, **bin_params)

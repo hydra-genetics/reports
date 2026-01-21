@@ -1,4 +1,4 @@
-const MAX_POINTS = 300;
+const MAX_POINTS = 1000;
 const MIN_COPY_NUMBER = 0.001;
 const MIN_LOG2_RATIO = Math.log2(MIN_COPY_NUMBER / 2);
 

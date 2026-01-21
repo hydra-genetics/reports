@@ -743,7 +743,8 @@ class ChromosomePlot extends EventTarget {
         });
     }
 
-    if (ratioData.length > MAX_POINTS && !this.#showAllData) {
+    const isSummarized = ratioData.length > MAX_POINTS && !this.#showAllData;
+    if (isSummarized) {
       ratioData = slidingPixelWindow(
         ratioData,
         this.xScale,
@@ -767,21 +768,22 @@ class ChromosomePlot extends EventTarget {
     this.#ctx.fillStyle = "#333";
     this.#ctx.globalAlpha = 0.4;
 
+    this.#ctx.beginPath();
     ratioData.forEach((d) => {
-      if (d.mean === undefined) {
+      if (!isSummarized || d.mean === undefined) {
         const x = this.xScale(this.equalDistance ? (d.start + d.end) / 2 : (d.pos !== undefined ? d.pos : (d.start + d.end) / 2));
         const y = this.ratioYScale(d.log2);
         if (x >= 0 && x <= this.width - this.margin.left - this.margin.right) {
-          this.#ctx.beginPath();
+          this.#ctx.moveTo(x + 2, y);
           this.#ctx.arc(x, y, 2, 0, 2 * Math.PI);
-          this.#ctx.fill();
         }
       }
     });
+    this.#ctx.fill();
     this.#ctx.restore();
 
     // Use SVG only for summarized data (means/rects)
-    const svgData = ratioData.filter((d) => d.mean !== undefined);
+    const svgData = isSummarized ? ratioData.filter((d) => d.mean !== undefined) : [];
 
     this.#ratios
       .selectAll(".data-point")
@@ -954,7 +956,8 @@ class ChromosomePlot extends EventTarget {
         });
     }
 
-    if (bafData.length > MAX_POINTS && !this.#showAllData) {
+    const isSummarized = bafData.length > MAX_POINTS && !this.#showAllData;
+    if (isSummarized) {
       bafData = slidingPixelWindowBAF(bafData, this.xScale, this.equalDistance ? "start" : "pos");
     }
 
@@ -964,21 +967,22 @@ class ChromosomePlot extends EventTarget {
     this.#ctx.fillStyle = "#333";
     this.#ctx.globalAlpha = 0.4;
 
+    this.#ctx.beginPath();
     bafData.forEach((d) => {
-      if (d.mean === undefined) {
+      if (!isSummarized || d.mean === undefined) {
         const x = this.xScale(this.equalDistance ? (d.start + d.end) / 2 : (d.pos !== undefined ? d.pos : (d.start + d.end) / 2));
         const y = this.bafYScale(d.baf);
         if (x >= 0 && x <= this.width - this.margin.left - this.margin.right) {
-          this.#ctx.beginPath();
+          this.#ctx.moveTo(x + 2, y);
           this.#ctx.arc(x, y, 2, 0, 2 * Math.PI);
-          this.#ctx.fill();
         }
       }
     });
+    this.#ctx.fill();
     this.#ctx.restore();
 
     // Use SVG only for summarized BAF data
-    const svgData = bafData.filter((d) => d.mean !== undefined);
+    const svgData = isSummarized ? bafData.filter((d) => d.mean !== undefined) : [];
 
     this.#bafArea
       .selectAll(".data-point")
