@@ -774,7 +774,7 @@ class ChromosomePlot extends EventTarget {
     this.#ctx.rect(0, 0, this.width - this.margin.left - this.margin.right, this.plotHeight);
     this.#ctx.clip();
     this.#ctx.fillStyle = "#333";
-    this.#ctx.globalAlpha = 0.4;
+    this.#ctx.globalAlpha = 0.5;
 
     this.#ctx.beginPath();
     ratioData.forEach((d) => {
@@ -782,8 +782,8 @@ class ChromosomePlot extends EventTarget {
         const x = this.xScale(this.equalDistance ? (d.start + d.end) / 2 : (d.pos !== undefined ? d.pos : (d.start + d.end) / 2));
         const y = this.ratioYScale(d.log2);
         if (x >= 0 && x <= this.width - this.margin.left - this.margin.right) {
-          this.#ctx.moveTo(x + 2, y);
-          this.#ctx.arc(x, y, 2, 0, 2 * Math.PI);
+          this.#ctx.moveTo(x + 1.5, y);
+          this.#ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
         }
       }
     });
@@ -969,20 +969,56 @@ class ChromosomePlot extends EventTarget {
       bafData = slidingPixelWindowBAF(bafData, this.xScale, this.equalDistance ? "start" : "pos");
     }
 
-    // Draw BAF on Canvas (scatter only)
+    // Draw BAF on Canvas as rectangles
     this.#ctx.save();
     this.#ctx.translate(this.margin.left, this.margin.top + this.plotHeight + this.margin.between);
+    // Clip the canvas to prevent rectangles from spilling out of the plot area
+    this.#ctx.beginPath();
+    this.#ctx.rect(0, 0, this.width - this.margin.left - this.margin.right, this.plotHeight);
+    this.#ctx.clip();
     this.#ctx.fillStyle = "#333";
-    this.#ctx.globalAlpha = 0.4;
+    this.#ctx.globalAlpha = 0.5;
 
     this.#ctx.beginPath();
     bafData.forEach((d) => {
       if (!isSummarized || d.mean === undefined) {
-        const x = this.xScale(this.equalDistance ? (d.start + d.end) / 2 : (d.pos !== undefined ? d.pos : (d.start + d.end) / 2));
-        const y = this.bafYScale(d.baf);
-        if (x >= 0 && x <= this.width - this.margin.left - this.margin.right) {
-          this.#ctx.moveTo(x + 2, y);
-          this.#ctx.arc(x, y, 2, 0, 2 * Math.PI);
+        // Check if this is binned data (has baf_min/baf_max) or unbinned
+        if (d.baf_min !== undefined && d.baf_max !== undefined) {
+          // Binned data: draw as TWO rectangles (mirrored around 0.5)
+          const xStart = this.xScale(d.start !== undefined ? d.start : d.pos);
+          const xEnd = this.xScale(d.end !== undefined ? d.end : d.pos);
+          
+          const rawWidth = xEnd - xStart;
+          const width = Math.max(3, rawWidth);
+          const xAdjusted = rawWidth < 3 ? xStart - (width - rawWidth) / 2 : xStart;
+          
+          // Draw upper rectangle (above 0.5)
+          const yMinUpper = this.bafYScale(d.baf_max);
+          const yMaxUpper = this.bafYScale(d.baf_min);
+          const heightUpper = Math.max(1, yMaxUpper - yMinUpper);
+          
+          if (xAdjusted >= -width && xAdjusted <= this.width - this.margin.left - this.margin.right) {
+            this.#ctx.fillRect(xAdjusted, yMinUpper, width, heightUpper);
+          }
+          
+          // Draw lower rectangle (mirrored below 0.5)
+          const baf_min_mirrored = 1 - d.baf_max;  // Mirror around 0.5
+          const baf_max_mirrored = 1 - d.baf_min;
+          const yMinLower = this.bafYScale(baf_max_mirrored);
+          const yMaxLower = this.bafYScale(baf_min_mirrored);
+          const heightLower = Math.max(1, yMaxLower - yMinLower);
+          
+          if (xAdjusted >= -width && xAdjusted <= this.width - this.margin.left - this.margin.right) {
+            this.#ctx.fillRect(xAdjusted, yMinLower, width, heightLower);
+          }
+        } else {
+          // Unbinned data: draw as point
+          const x = this.xScale(this.equalDistance ? (d.start + d.end) / 2 : (d.pos !== undefined ? d.pos : (d.start + d.end) / 2));
+          const y = this.bafYScale(d.baf);
+          if (x >= 0 && x <= this.width - this.margin.left - this.margin.right) {
+            this.#ctx.moveTo(x + 1.5, y);
+            this.#ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
+          }
         }
       }
     });

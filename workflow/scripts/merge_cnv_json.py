@@ -370,12 +370,31 @@ def bin_baf(
         # Use Median for robustness against outliers/noise
         med = statistics.median(mirrored_vals)
 
-        # Restore visual feel: flip every other point around 0.5
-        # If index is even, use median (top half). If odd, use 1 - median (bottom half).
-        final_baf = med if bin_index % 2 == 0 else (1 - med)
+        # Keep all values mirrored (above 0.5) - no alternating
+        final_baf = med
 
-        p = {"chromosome": chrom, "pos": (start + end) // 2, "start": start, "end": end, "baf": final_baf}
+        p = {
+            "chromosome": chrom,
+            "pos": (start + end) // 2,
+            "start": start,
+            "end": end,
+            "baf": final_baf
+        }
+        
         if n > 1:
+            # Calculate 5th and 95th percentiles for rectangle bounds (middle 90%)
+            sorted_mirrored = sorted(mirrored_vals)
+            p5_idx = max(0, int(n * 0.05))
+            p95_idx = min(n - 1, int(n * 0.95))
+            p5 = sorted_mirrored[p5_idx]
+            p95 = sorted_mirrored[p95_idx]
+            
+            # Keep percentile bounds mirrored (above 0.5)
+            baf_min = p5
+            baf_max = p95
+            
+            p["baf_min"] = baf_min
+            p["baf_max"] = baf_max
             p["mean"] = med
             # Calculate SD on the mirrored values to represent the spread of imbalance
             p["sd"] = math.sqrt(sum((x - med)**2 for x in mirrored_vals) / n)
