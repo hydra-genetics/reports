@@ -956,7 +956,12 @@ class ChromosomePlot extends EventTarget {
     } else {
       const [x0, x1] = this.xScale.domain();
       bafData = this.#data.baf
-        .filter((p) => (p.end ?? p.pos) >= x0 && (p.start ?? p.pos) <= x1)
+        .filter((p) => {
+          const pos = p.pos !== undefined ? p.pos : (p.start + p.end) / 2;
+          const endPos = p.end !== undefined ? p.end : pos;
+          const startPos = p.start !== undefined ? p.start : pos;
+          return endPos >= x0 && startPos <= x1;
+        })
         .map((p) => {
           let di = { ...p };
           di.baf = this.transformBAF(di.baf);

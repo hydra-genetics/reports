@@ -6,13 +6,15 @@ function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
   let offset = scale.domain()[0];
   let currentWindow = [];
   for (let p of points) {
-    if (p[posAttr] < offset) continue;
+    // Compute position from start/end if posAttr is missing
+    const pos = p[posAttr] !== undefined ? p[posAttr] : (p.start + p.end) / 2;
+    if (pos < offset) continue;
     if (offset > scale.domain()[1]) break;
 
-    if (p[posAttr] < offset + windowSize) {
+    if (pos < offset + windowSize) {
       currentWindow.push(p);
     } else {
-      while (p[posAttr] >= offset + windowSize) {
+      while (pos >= offset + windowSize) {
         yield { window: currentWindow, start: offset };
         offset += windowSize;
         currentWindow = [];
@@ -61,11 +63,20 @@ function summariseWindow(points, windowStart, windowSize, valAttr, minValue = un
 
 function slidingPixelWindowBAF(points, scale, posAttr = "pos", pixelWindowSize = 5, force = false) {
   const [d0, d1] = scale.domain();
-  points = points.filter(p => (p.end ?? p[posAttr]) >= d0 && (p.start ?? p[posAttr]) < d1);
+  // Compute position from start/end if posAttr is missing
+  points = points.filter(p => {
+    const pos = p[posAttr] !== undefined ? p[posAttr] : (p.start + p.end) / 2;
+    const endPos = p.end !== undefined ? p.end : pos;
+    return endPos >= d0 && (p.start !== undefined ? p.start : pos) <= d1;
+  });
   if (points.length === 0) return [];
 
   // Sort by position to ensure correct binning
-  points.sort((a, b) => (a[posAttr] ?? a.start) - (b[posAttr] ?? b.start));
+  points.sort((a, b) => {
+    const posA = a[posAttr] !== undefined ? a[posAttr] : (a.start + a.end) / 2;
+    const posB = b[posAttr] !== undefined ? b[posAttr] : (b.start + b.end) / 2;
+    return posA - posB;
+  });
 
   if (points[0]?.baf instanceof Array) {
     points = points.flatMap(p => p.baf.map(v => ({ ...p, baf: v })));

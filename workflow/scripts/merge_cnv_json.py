@@ -7,6 +7,8 @@ import pysam
 import sys
 from typing import Dict, List, Union
 import statistics
+import gzip
+import base64
 
 
 @dataclass
@@ -380,7 +382,7 @@ def bin_baf(
             "end": end,
             "baf": final_baf
         }
-        
+
         if n > 1:
             # Calculate 5th and 95th percentiles for rectangle bounds (middle 90%)
             sorted_mirrored = sorted(mirrored_vals)
@@ -388,11 +390,11 @@ def bin_baf(
             p95_idx = min(n - 1, int(n * 0.95))
             p5 = sorted_mirrored[p5_idx]
             p95 = sorted_mirrored[p95_idx]
-            
+
             # Keep percentile bounds mirrored (above 0.5)
             baf_min = p5
             baf_max = p95
-            
+
             p["baf_min"] = baf_min
             p["baf_max"] = baf_max
             p["mean"] = med
@@ -732,7 +734,43 @@ def main():
     )
 
     with open(output_file, "w") as f:
-        print(json.dumps(cnvs, default=vars), file=f)
+        # Round all floats to 3 decimal places before serialization
+        cnvs_rounded = round_floats(cnvs, precision=3)
+        cnvs_optimized = remove_redundant_fields(cnvs_rounded)
+        # Use compact separators to remove whitespace
+        json_str = json.dumps(cnvs_optimized, default=vars, separators=(',', ':'))
+
+        # Compress with gzip and encode as base64
+        json_bytes = json_str.encode('utf-8')
+        compressed = gzip.compress(json_bytes, compresslevel=9)
+        base64_encoded = base64.b64encode(compressed).decode('ascii')
+
+        # Write as compressed base64 string
+        f.write(base64_encoded)
+
+
+def round_floats(obj, precision=3):
+    """Recursively round floats in nested structures to reduce JSON size."""
+    if isinstance(obj, float):
+        return round(obj, precision)
+    elif isinstance(obj, dict):
+        return {k: round_floats(v, precision) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [round_floats(item, precision) for item in obj]
+    return obj
+
+
+def remove_redundant_fields(obj):
+    """Remove redundant fields to reduce JSON size."""
+    if isinstance(obj, dict):
+        # If both start/end exist and pos is just the midpoint, remove pos
+        if 'start' in obj and 'end' in obj and 'pos' in obj:
+            if obj['pos'] == (obj['start'] + obj['end']) // 2:
+                obj = {k: v for k, v in obj.items() if k != 'pos'}
+        return {k: remove_redundant_fields(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [remove_redundant_fields(item) for item in obj]
+    return obj
 
 
 if __name__ == "__main__":

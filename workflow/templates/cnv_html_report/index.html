@@ -243,8 +243,18 @@
       {% endif %}
     </div>
   </div>
+  <!-- Pako library for gzip decompression -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js" integrity="sha512-g2TeAWw5GPnX7z0Kn8nFbYfeHcvAu/tx6d6mrLe/90mkCxO+RcptyYpksUz35EO337F83bZwcmUyHiHamspkfg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script>
-    let cnvData = {{ json | trim | indent(width = 8) }};
+    // Decompress the gzip-compressed base64-encoded JSON data
+    const compressedData = '{{ json | trim }}';
+    const binaryString = atob(compressedData);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const decompressed = pako.inflate(bytes, { to: 'string' });
+    let cnvData = JSON.parse(decompressed);
     const originalTc = {{ metadata.tc if metadata.tc is not none else 1 }};
   </script>
   <!-- prettier-ignore -->
