@@ -769,6 +769,10 @@ class ChromosomePlot extends EventTarget {
     // Draw ratios on Canvas (scatter only)
     this.#ctx.save();
     this.#ctx.translate(this.margin.left, this.margin.top);
+    // Clip the canvas to prevent points from spilling out of the plot area
+    this.#ctx.beginPath();
+    this.#ctx.rect(0, 0, this.width - this.margin.left - this.margin.right, this.plotHeight);
+    this.#ctx.clip();
     this.#ctx.fillStyle = "#333";
     this.#ctx.globalAlpha = 0.4;
 
@@ -1658,6 +1662,29 @@ class ChromosomePlot extends EventTarget {
         .attr("opacity", 0.2);
         
       g.append("title").text(name); // Add tooltip for name
+
+      const center = (xStart + xEnd) / 2;
+      const [labelWidth, labelHeight] = getTextDimensions(name, "0.8rem");
+
+      // Background rectangle matching ROI style
+      g.append("rect")
+        .attr("x", center - labelWidth / 2 - 5)
+        .attr("y", this.plotHeight + this.margin.between / 2 - labelHeight / 2 - 2)
+        .attr("width", labelWidth + 10)
+        .attr("height", labelHeight + 4)
+        .attr("fill", "#EEE")
+        .attr("rx", 4)
+        .style("pointer-events", "none");
+
+      // Text label matching ROI style but red
+      g.append("text")
+        .attr("x", center)
+        .attr("y", this.plotHeight + this.margin.between / 2)
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "central")
+        .attr("fill", "red")
+        .style("pointer-events", "none")
+        .text(name);
 
       return g;
     };

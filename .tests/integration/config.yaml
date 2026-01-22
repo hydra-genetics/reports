@@ -10,7 +10,7 @@ reference:
   fasta: "reference/hg19.with.mt.fasta"
 
 cnv_json:
-  target_data_points: 1000
+  target_data_points: 3000
   roi_flank_size_bp: 100
   roi_budget_fraction: 0.5
   roi_resolution_factor: 10

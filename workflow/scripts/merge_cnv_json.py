@@ -6,6 +6,7 @@ from pathlib import Path
 import pysam
 import sys
 from typing import Dict, List, Union
+import statistics
 
 
 @dataclass
@@ -355,54 +356,50 @@ def bin_baf(
     current_bin = []
     current_bin_type = None
 
-    def flush_bin(bin_to_flush):
+    def flush_bin(bin_to_flush, bin_index):
         if not bin_to_flush:
             return
         n = len(bin_to_flush)
         start, end = bin_to_flush[0][1], bin_to_flush[-1][1]
         chrom = bin_to_flush[0][0]
 
-        # Mode detection: Unified if noisy centered around 0.5, Split if bimodal
-        # Histogram-like check for central peak [0.4, 0.6]
-        mid_count = sum(1 for x in bin_to_flush if 0.4 <= x[2] <= 0.6)
+        # Mirrored Transformation: |BAF - 0.5| + 0.5
+        # This folds the bottom half (0.0-0.5) onto the top half (0.5-1.0)
+        mirrored_vals = [abs(x[2] - 0.5) + 0.5 for x in bin_to_flush]
 
-        # If enough points are in the middle, keep it simple to avoid artificial splitting
-        if mid_count > n * 0.4 or n < 4:
-            mean = sum(x[2] for x in bin_to_flush) / n
-            p = {"chromosome": chrom, "pos": (start + end) // 2, "start": start, "end": end, "baf": mean}
-            if n > 1:
-                p["mean"] = mean
-                p["sd"] = math.sqrt(sum((x[2] - mean)**2 for x in bin_to_flush) / n)
-            binned_res.append(p)
-        else:
-            # Bimodal (Split Hi/Lo)
-            hi_sub = [x for x in bin_to_flush if x[2] >= 0.5]
-            lo_sub = [x for x in bin_to_flush if x[2] < 0.5]
-            for sub in [hi_sub, lo_sub]:
-                if not sub:
-                    continue
-                sn = len(sub)
-                s_mean = sum(x[2] for x in sub) / sn
-                p = {"chromosome": chrom, "pos": (start + end) // 2, "start": start, "end": end, "baf": s_mean}
-                if sn > 1:
-                    p["mean"] = s_mean
-                    p["sd"] = math.sqrt(sum((x[2] - s_mean)**2 for x in sub) / sn)
-                binned_res.append(p)
+        # Use Median for robustness against outliers/noise
+        med = statistics.median(mirrored_vals)
 
+        # Restore visual feel: flip every other point around 0.5
+        # If index is even, use median (top half). If odd, use 1 - median (bottom half).
+        final_baf = med if bin_index % 2 == 0 else (1 - med)
+
+        p = {"chromosome": chrom, "pos": (start + end) // 2, "start": start, "end": end, "baf": final_baf}
+        if n > 1:
+            p["mean"] = med
+            # Calculate SD on the mirrored values to represent the spread of imbalance
+            p["sd"] = math.sqrt(sum((x - med)**2 for x in mirrored_vals) / n)
+        
+        binned_res.append(p)
+
+    bin_counter = 0
     for chrom, pos, baf in baf_list:
         rtype = 'roi' if is_in_poi(chrom, pos) else 'normal'
         k_limit = k_roi if rtype == 'roi' else k_normal
 
         if current_bin:
+            # Check for rtype change, chrom change, or if bin is full
+            # Note: k_limit is now interpreted as "Target Heterozygous SNPs per bin"
             if rtype != current_bin_type or chrom != current_bin[0][0] or len(current_bin) >= k_limit:
-                flush_bin(current_bin)
+                flush_bin(current_bin, bin_counter)
+                bin_counter += 1
                 current_bin = []
 
         if not current_bin:
             current_bin_type = rtype
         current_bin.append((chrom, pos, baf))
 
-    flush_bin(current_bin)
+    flush_bin(current_bin, bin_counter)
     print(f"DEBUG: [BAF-Total] Result size: {len(binned_res)}", file=sys.stderr)
     return binned_res
 
