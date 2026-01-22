@@ -379,7 +379,7 @@ def bin_baf(
             p["mean"] = med
             # Calculate SD on the mirrored values to represent the spread of imbalance
             p["sd"] = math.sqrt(sum((x - med)**2 for x in mirrored_vals) / n)
-        
+
         binned_res.append(p)
 
     bin_counter = 0
