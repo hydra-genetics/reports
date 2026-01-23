@@ -183,13 +183,12 @@ def bin_ratios(
     segments,
     roi_flank_size_bp=10000,
     target_data_points=50000,
-    roi_budget_fraction=0.5,
-    roi_resolution_factor=10
+    roi_budget_fraction=0.5
 ):
     """
     Bin log2 ratios dynamically using a Budgeted ROI strategy.
     ROIs (genes) stay raw if they fit within a budget (X% of target).
-    Otherwise, they are binned with higher resolution (Y times) than normal regions.
+    Otherwise, they are binned to fit the budget.
     """
     if not ratios:
         return []
@@ -254,9 +253,9 @@ def bin_ratios(
         k_normal = max(1, len(normal_points) / target_normal) if normal_points else 1
         k_roi = 1  # Keep raw
     else:
-        k_roi = (len(roi_points) + len(normal_points) / roi_resolution_factor) / target_data_points
-        k_roi = max(1, k_roi)
-        k_normal = k_roi * roi_resolution_factor
+        k_roi = max(1, len(roi_points) / roi_budget)
+        normal_budget = max(100, target_data_points - roi_budget)
+        k_normal = max(1, len(normal_points) / normal_budget) if normal_points else 1
 
     print(f"DEBUG: [log2] Total: {len(ratios)}, ROI: {len(roi_points)}, Normal: {len(normal_points)}", file=sys.stderr)
     print(f"DEBUG: [log2] Target: {target_data_points}, Budget: {roi_budget}, UseRaw: {use_raw_roi}", file=sys.stderr)
@@ -377,7 +376,6 @@ def main():
         "roi_flank_size_bp": snakemake.params["roi_flank_size_bp"],
         "target_data_points": snakemake.params["target_data_points"],
         "roi_budget_fraction": snakemake.params["roi_budget_fraction"],
-        "roi_resolution_factor": snakemake.params["roi_resolution_factor"],
     }
 
     original_ratio_count = len(ratios)

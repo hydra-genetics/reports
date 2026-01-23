@@ -13,9 +13,9 @@ cnv_json:
   target_data_points: 8000
   roi_flank_size_bp: 100
   roi_budget_fraction: 0.5
-  roi_resolution_factor: 10
 
 cnv_html_report:
+  wide_plot_width: 2500
   cytobands: true
   show_table: true
   extra_tables:

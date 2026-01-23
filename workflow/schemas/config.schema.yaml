@@ -108,6 +108,16 @@ properties:
           required:
             - name
             - path
+      wide_plot_width:
+        oneOf:
+          - type: integer
+          - type: boolean
+            const: false
+        default: false
+        description: >
+          Fixed horizontal width for plots in pixels. If set, plots will stack
+          vertically and allow horizontal scrolling on smaller screens. Set to
+          `false` for responsive behavior.
     required:
       - show_table
 
@@ -133,10 +143,6 @@ properties:
         type: number
         default: 0.5
         description: Fraction of the data point budget allocated to ROIs.
-      roi_resolution_factor:
-        type: number
-        default: 10
-        description: Resolution factor for ROIs relative to normal regions.
 
   merge_cnv_json:
     type: object
@@ -157,9 +163,6 @@ properties:
       roi_budget_fraction:
         type: number
         description: Fraction of the data point budget allocated to ROIs.
-      roi_resolution_factor:
-        type: number
-        description: Resolution factor for ROIs relative to normal regions.
       annotations:
         type: array
         description: >

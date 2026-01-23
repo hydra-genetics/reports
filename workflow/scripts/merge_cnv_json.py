@@ -273,8 +273,7 @@ def bin_baf(
     poi_regions,
     roi_flank_size_bp=10000,
     target_data_points=10000,
-    roi_budget_fraction=0.5,
-    roi_resolution_factor=10
+    roi_budget_fraction=0.5
 ):
     if not baf_list:
         return []
@@ -346,9 +345,9 @@ def bin_baf(
         k_normal = max(1, len(normal_points) / target_normal) if normal_points else 1
         k_roi = 1
     else:
-        k_roi = (len(roi_points) + len(normal_points) / roi_resolution_factor) / target_data_points
-        k_roi = max(1, k_roi)
-        k_normal = k_roi * roi_resolution_factor
+        k_roi = max(1, len(roi_points) / roi_budget)
+        normal_budget = max(10, target_data_points - roi_budget)
+        k_normal = max(1, len(normal_points) / normal_budget) if normal_points else 1
 
     print(f"DEBUG: [BAF] Total: {len(baf_list)}, ROI: {len(roi_points)}, Normal: {len(normal_points)}", file=sys.stderr)
     print(f"DEBUG: [BAF] Target: {target_data_points}, Budget: {roi_budget}, UseRaw: {use_raw_roi}", file=sys.stderr)
@@ -372,8 +371,9 @@ def bin_baf(
         # Use Median for robustness against outliers/noise
         med = statistics.median(mirrored_vals)
 
-        # Keep all values mirrored (above 0.5) - no alternating
-        final_baf = med
+        # Restore visual feel: flip every other point around 0.5
+        # If index is even, use median (top half). If odd, use 1 - median (bottom half).
+        final_baf = med if bin_index % 2 == 0 else (1 - med)
 
         p = {
             "chromosome": chrom,
@@ -392,11 +392,9 @@ def bin_baf(
             p95 = sorted_mirrored[p95_idx]
 
             # Keep percentile bounds mirrored (above 0.5)
-            baf_min = p5
-            baf_max = p95
-
-            p["baf_min"] = baf_min
-            p["baf_max"] = baf_max
+            # These are used for the Canvas "rectangular bars"
+            p["baf_min"] = p5
+            p["baf_max"] = p95
             p["mean"] = med
             # Calculate SD on the mirrored values to represent the spread of imbalance
             p["sd"] = math.sqrt(sum((x - med)**2 for x in mirrored_vals) / n)
@@ -725,7 +723,6 @@ def main():
         "roi_flank_size_bp": snakemake.params["roi_flank_size_bp"],
         "target_data_points": snakemake.params["target_data_points"],
         "roi_budget_fraction": snakemake.params["roi_budget_fraction"],
-        "roi_resolution_factor": snakemake.params["roi_resolution_factor"],
     }
 
     cnvs = merge_cnv_dicts(

@@ -30,6 +30,7 @@ rule cnv_html_report:
         tc=get_tc,
         tc_method=lambda wildcards: wildcards.tc_method,
         include_cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
+        wide_plot_width=config.get("cnv_html_report", {}).get("wide_plot_width", False),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",
     benchmark:
@@ -64,7 +65,6 @@ rule cnv_json:
         roi_flank_size_bp=config.get("cnv_json", {}).get("roi_flank_size_bp", 10000),
         target_data_points=config.get("cnv_json", {}).get("target_data_points", 10000),
         roi_budget_fraction=config.get("cnv_json", {}).get("roi_budget_fraction", 0.5),
-        roi_resolution_factor=config.get("cnv_json", {}).get("roi_resolution_factor", 10),
         csv_field_size_limit=config.get("cnv_json", {}).get("csv_field_size_limit", 100000000),
     log:
         "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.log",
@@ -112,9 +112,6 @@ rule merge_cnv_json:
         ),
         roi_budget_fraction=config.get("merge_cnv_json", {}).get(
             "roi_budget_fraction", config.get("cnv_json", {}).get("roi_budget_fraction", 0.5)
-        ),
-        roi_resolution_factor=config.get("merge_cnv_json", {}).get(
-            "roi_resolution_factor", config.get("cnv_json", {}).get("roi_resolution_factor", 10)
         ),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",

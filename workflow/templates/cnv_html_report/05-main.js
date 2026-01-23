@@ -105,11 +105,13 @@ const chromosomePlot = new ChromosomePlot({
   element: document.querySelector("#chromosome-view"),
   data: cnvData[0],
   tc: originalTc,
+  widePlotWidth: widePlotWidth,
 });
 
 const genomePlot = new GenomePlot({
   element: document.querySelector("#genome-view"),
   data: cnvData,
+  widePlotWidth: widePlotWidth,
 });
 
 const resultsTable = new ResultsTable(d3.select("#cnv-table"), {

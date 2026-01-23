@@ -3,6 +3,27 @@
   width: 100%;
 }
 
+.full-width-plots .relative-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.full-width-plots .plot-container div,
+.full-width-plots .plot-container section,
+.full-width-plots .plot-container {
+  max-width: none !important;
+  width: 100%;
+}
+
+.full-width-plots.app-container {
+  flex-direction: column !important;
+}
+
+.full-width-plots .controls-grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  max-width: 1000px;
+}
+
 .plot-canvas {
   position: absolute;
   top: 0;

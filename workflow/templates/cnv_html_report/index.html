@@ -100,7 +100,7 @@
       <!-- x-release-please-end-version -->
     </header>
 
-    <div class="app-container">
+    <div class="app-container {{ 'full-width-plots' if metadata.wide_plot_width }}">
       <div class="plot-container">
         <section class="genome-view plot-section">
           <h2>
@@ -256,6 +256,7 @@
     const decompressed = pako.inflate(bytes, { to: 'string' });
     let cnvData = JSON.parse(decompressed);
     const originalTc = {{ metadata.tc if metadata.tc is not none else 1 }};
+    const widePlotWidth = {{ metadata.wide_plot_width | lower if metadata.wide_plot_width is boolean else metadata.wide_plot_width }};
   </script>
   <!-- prettier-ignore -->
   <script>

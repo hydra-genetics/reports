@@ -16,7 +16,8 @@ class GenomePlot extends EventTarget {
 
     this.element = config?.element ? config.element : document.body;
     this.height = config?.height ? config.height : 400;
-    this.width = config?.width ? config.width : 800;
+    this.widePlotWidth = config?.widePlotWidth ? config.widePlotWidth : false;
+    this.width = this.widePlotWidth ? this.widePlotWidth : (config?.width ? config.width : 800);
     this.#data = config?.data;
     this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
     this.#activeCaller = config?.caller ? config.caller : 0;
@@ -67,11 +68,19 @@ class GenomePlot extends EventTarget {
     this.ratioYAxis = (g) => g.call(d3.axisLeft(this.ratioYScale).ticks(5));
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
 
-    this.svg = d3
-      .select("#genome-view")
-      .attr("preserveAspectRatio", "xMinYMin meet")
-      .attr("viewBox", [0, 0, this.width, this.height])
-      .attr("style", "height: auto;");
+    this.svg = d3.select("#genome-view");
+    if (this.widePlotWidth) {
+      this.svg
+        .attr("width", this.width)
+        .attr("height", this.height)
+        .style("max-width", "none")
+        .style("height", "auto");
+    } else {
+      this.svg
+        .attr("preserveAspectRatio", "xMinYMin meet")
+        .attr("viewBox", [0, 0, this.width, this.height])
+        .attr("style", "height: auto;");
+    }
 
     this.#plotArea = this.svg
       .append("g")
@@ -586,12 +595,45 @@ class GenomePlot extends EventTarget {
 
       bafData.forEach((d) => {
         if (d.mean === undefined) {
-          const x = xOffset + xScale(d.pos !== undefined ? d.pos : (d.start + d.end) / 2);
-          const y = this.bafYScale(d.baf);
-          if (x >= xOffset && x <= xOffset + this.panelWidths[i]) {
-            this.#ctx.beginPath();
-            this.#ctx.arc(x, y, 1, 0, 2 * Math.PI);
-            this.#ctx.fill();
+          // Check if this is binned data (has baf_min/baf_max) or unbinned
+          if (d.baf_min !== undefined && d.baf_max !== undefined) {
+            // Binned data: draw as TWO rectangles (mirrored around 0.5)
+            const xStart = xScale(d.start !== undefined ? d.start : d.pos);
+            const xEnd = xScale(d.end !== undefined ? d.end : d.pos);
+            const x = xOffset + xStart;
+
+            const rawWidth = xEnd - xStart;
+            const width = Math.max(2, rawWidth);
+            const xAdjusted = rawWidth < 2 ? x - (width - rawWidth) / 2 : x;
+
+            // Draw upper rectangle (above 0.5)
+            const yMinUpper = this.bafYScale(d.baf_max);
+            const yMaxUpper = this.bafYScale(d.baf_min);
+            const heightUpper = Math.max(1, yMaxUpper - yMinUpper);
+
+            if (xAdjusted >= xOffset && xAdjusted <= xOffset + this.panelWidths[i]) {
+              this.#ctx.fillRect(xAdjusted, yMinUpper, width, heightUpper);
+            }
+
+            // Draw lower rectangle (mirrored below 0.5)
+            const baf_min_mirrored = 1 - d.baf_max;
+            const baf_max_mirrored = 1 - d.baf_min;
+            const yMinLower = this.bafYScale(baf_max_mirrored);
+            const yMaxLower = this.bafYScale(baf_min_mirrored);
+            const heightLower = Math.max(1, yMaxLower - yMinLower);
+
+            if (xAdjusted >= xOffset && xAdjusted <= xOffset + this.panelWidths[i]) {
+              this.#ctx.fillRect(xAdjusted, yMinLower, width, heightLower);
+            }
+          } else {
+            // Unbinned data: draw as point
+            const x = xOffset + xScale(d.pos !== undefined ? d.pos : (d.start + d.end) / 2);
+            const y = this.bafYScale(d.baf);
+            if (x >= xOffset && x <= xOffset + this.panelWidths[i]) {
+              this.#ctx.beginPath();
+              this.#ctx.arc(x, y, 1, 0, 2 * Math.PI);
+              this.#ctx.fill();
+            }
           }
         }
       });
@@ -718,7 +760,11 @@ class GenomePlot extends EventTarget {
     const dpr = window.devicePixelRatio || 1;
     this.#canvas.width = this.width * dpr;
     this.#canvas.height = this.height * dpr;
-    this.#canvas.style.width = "100%";
+    if (this.widePlotWidth) {
+      this.#canvas.style.width = this.width + "px";
+    } else {
+      this.#canvas.style.width = "100%";
+    }
     this.#canvas.style.height = "auto";
     this.#ctx.scale(dpr, dpr);
   }

@@ -248,7 +248,8 @@ class ChromosomePlot extends EventTarget {
       ? config.animationDuration
       : 500;
     this.height = config?.height ? config.height : 400;
-    this.width = config?.width ? config.width : 800;
+    this.widePlotWidth = config?.widePlotWidth ? config.widePlotWidth : false;
+    this.width = this.widePlotWidth ? this.widePlotWidth : (config?.width ? config.width : 800);
     this.margin = config?.margin
       ? config.margin
       : {
@@ -293,11 +294,19 @@ class ChromosomePlot extends EventTarget {
     this.cnYAxis = (g) => g.call(d3.axisRight(this.cnYScale).ticks(5));
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
 
-    this.svg = d3
-      .select(this.element)
-      .attr("preserveAspectRatio", "xMinYMin meet")
-      .attr("viewBox", [0, 0, this.width, this.height])
-      .attr("style", "height: auto; height: intrinsic;");
+    this.svg = d3.select(this.element);
+    if (this.widePlotWidth) {
+      this.svg
+        .attr("width", this.width)
+        .attr("height", this.height)
+        .style("max-width", "none")
+        .style("height", "intrinsic");
+    } else {
+      this.svg
+        .attr("preserveAspectRatio", "xMinYMin meet")
+        .attr("viewBox", [0, 0, this.width, this.height])
+        .attr("style", "height: auto; height: intrinsic;");
+    }
 
     this.#drawAxes();
 
@@ -1237,7 +1246,11 @@ class ChromosomePlot extends EventTarget {
     const dpr = window.devicePixelRatio || 1;
     this.#canvas.width = this.width * dpr;
     this.#canvas.height = this.height * dpr;
-    this.#canvas.style.width = "100%";
+    if (this.widePlotWidth) {
+      this.#canvas.style.width = this.width + "px";
+    } else {
+      this.#canvas.style.width = "100%";
+    }
     this.#canvas.style.height = "auto";
     this.#ctx.scale(dpr, dpr);
   }
