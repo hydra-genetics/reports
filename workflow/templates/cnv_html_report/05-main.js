@@ -101,16 +101,20 @@ d3.select("#dataset-picker")
     return e;
   });
 
+const initialCallerIndex = cnvData[0].callers.findIndex(c => c.name.toLowerCase() === 'jumble');
 const chromosomePlot = new ChromosomePlot({
   element: document.querySelector("#chromosome-view"),
   data: cnvData[0],
   tc: originalTc,
+  caller: initialCallerIndex !== -1 ? initialCallerIndex : 0,
   widePlotWidth: widePlotWidth,
 });
 
 const genomePlot = new GenomePlot({
   element: document.querySelector("#genome-view"),
   data: cnvData,
+  tc: originalTc,
+  caller: initialCallerIndex !== -1 ? initialCallerIndex : 0,
   widePlotWidth: widePlotWidth,
 });
 

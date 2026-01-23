@@ -376,9 +376,15 @@ class ChromosomePlot extends EventTarget {
   }
 
   set activeCaller(caller) {
-    this.#activeCaller = caller;
-    this.#ratios.attr("data-caller", caller);
-    this.update();
+    if (this.#activeCaller !== caller) {
+      this.#activeCaller = caller;
+      this.#ratios.attr("data-caller", caller);
+      // Reset zoom in equalDistance mode because index ranges change across callers
+      if (this.equalDistance) {
+        this.resetZoom();
+      }
+      this.update();
+    }
   }
 
   get activeCaller() {
@@ -446,16 +452,19 @@ class ChromosomePlot extends EventTarget {
   }
 
   transformLog2Ratio(x) {
+    if (x === undefined || x === null || isNaN(x)) return 0;
     let tx = x;
     if (this.simulatePurity) {
       const minCopyNumber = 1e-3;
       const adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
       tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
     }
-    return tx - this.baselineOffset;
+    const res = tx - this.baselineOffset;
+    return isFinite(res) ? res : (tx < 0 ? -10 : 10);
   }
 
   transformBAF(x) {
+    if (x === undefined || x === null || isNaN(x)) return 0.5;
     let tx = x;
     if (this.simulatePurity) {
       tx = (tx - 0.5 * (1 - this.tc)) / this.tc;
@@ -465,7 +474,7 @@ class ChromosomePlot extends EventTarget {
         tx = 1;
       }
     }
-    return tx;
+    return isFinite(tx) ? tx : 0.5;
   }
 
   get length() {
@@ -1534,11 +1543,11 @@ class ChromosomePlot extends EventTarget {
     if (xMin > 0 || xMax < this.length) {
       this.xScale.domain([Math.max(xMin, 0), Math.min(xMax, this.length)]);
 
-      let yValues;
+      let yValues = [];
       if (this.equalDistance) {
         yValues = this.#data.callers[this.#activeCaller].ratios.slice(
-          Math.max(xMin, 0),
-          Math.min(xMax, this.length)
+          Math.max(Math.floor(xMin), 0),
+          Math.min(Math.ceil(xMax), this.length)
         );
       } else {
         yValues = this.#data.callers[this.#activeCaller].ratios.filter(
@@ -1550,23 +1559,49 @@ class ChromosomePlot extends EventTarget {
         yMin = staticYMin;
         yMax = staticYMax;
       } else {
-        yMin = yValues
+        const transformedValues = yValues
           .map((d) => this.transformLog2Ratio(d.log2))
-          .reduce((a, d) => (d < a ? d : a));
-        yMax = yValues
-          .map((d) => this.transformLog2Ratio(d.log2))
-          .reduce((a, d) => (d > a ? d : a));
+          .filter((v) => !isNaN(v) && isFinite(v));
+        
+        if (transformedValues.length === 0) {
+          yMin = staticYMin;
+          yMax = staticYMax;
+        } else {
+          yMin = transformedValues[0];
+          yMax = transformedValues[0];
+          for (let i = 1; i < transformedValues.length; i++) {
+            if (transformedValues[i] < yMin) yMin = transformedValues[i];
+            if (transformedValues[i] > yMax) yMax = transformedValues[i];
+          }
+        }
       }
     } else {
-      [yMin, yMax] = d3.extent(
-        this.#data.callers[this.#activeCaller].ratios,
-        (d) => this.transformLog2Ratio(d.log2)
-      );
-      if (!yMin && !yMax) {
+      const transformedRatios = this.#data.callers[this.#activeCaller].ratios
+        .map((d) => this.transformLog2Ratio(d.log2))
+        .filter((v) => !isNaN(v) && isFinite(v));
+        
+      const transformedSegments = this.#data.callers[this.#activeCaller].segments
+        .map((d) => this.transformLog2Ratio(d.log2))
+        .filter((v) => !isNaN(v) && isFinite(v));
+
+      const transformedValues = [...transformedRatios, ...transformedSegments];
+
+      if (transformedValues.length === 0) {
         yMin = staticYMin;
         yMax = staticYMax;
+      } else {
+        yMin = transformedValues[0];
+        yMax = transformedValues[0];
+        for (let i = 1; i < transformedValues.length; i++) {
+          if (transformedValues[i] < yMin) yMin = transformedValues[i];
+          if (transformedValues[i] > yMax) yMax = transformedValues[i];
+        }
       }
     }
+
+    // Protection: Ensure yMin and yMax are valid numbers
+    if (isNaN(yMin) || !isFinite(yMin)) yMin = staticYMin;
+    if (isNaN(yMax) || !isFinite(yMax)) yMax = staticYMax;
 
     if (this.fitToData) {
       this.dispatchEvent(
@@ -1574,6 +1609,12 @@ class ChromosomePlot extends EventTarget {
           detail: { dataOutsideRange: false },
         })
       );
+      // Enforce a minimum range of 1.0 to avoid extreme zooms on flat data
+      if (yMax - yMin < 1.0) {
+          const mid = (yMin + yMax) / 2;
+          yMin = mid - 0.5;
+          yMax = mid + 0.5;
+      }
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
       this.cnYScale.domain([

@@ -37,6 +37,11 @@ class GenomePlot extends EventTarget {
         between: 20,
       };
 
+    this.simulatePurity = config?.simulatePurity
+      ? config.simulatePurity
+      : false;
+    this.tc = config?.tc ? config.tc : 1;
+
     this.totalLength = d3.sum(this.#data.map((d) => d.length));
 
     this.panelWidths = this.#data.map(
@@ -197,16 +202,19 @@ class GenomePlot extends EventTarget {
   }
 
   transformLog2Ratio(x) {
+    if (x === undefined || x === null || isNaN(x)) return 0;
     let tx = x;
     if (this.simulatePurity) {
       const minCopyNumber = 1e-3;
       const adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
       tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
     }
-    return tx - this.baselineOffset;
+    const res = tx - this.baselineOffset;
+    return isFinite(res) ? res : (tx < 0 ? -10 : 10);
   }
 
   transformBAF(x) {
+    if (x === undefined || x === null || isNaN(x)) return 0.5;
     let tx = x;
     if (this.simulatePurity) {
       tx = (tx - 0.5 * (1 - this.tc)) / this.tc;
@@ -216,7 +224,7 @@ class GenomePlot extends EventTarget {
         tx = 1;
       }
     }
-    return tx;
+    return isFinite(tx) ? tx : 0.5;
   }
   addPanels(g) {
     const panels = g
