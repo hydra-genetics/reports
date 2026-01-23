@@ -953,14 +953,21 @@ class ChromosomePlot extends EventTarget {
       bafData = this.#data.baf
         .map((p) => {
           let di = { ...p };
-          di.start = this.getRatioIndex(di.pos);
-          di.end = di.start + 1;
-          di.baf = this.transformBAF(di.baf);
+          const s = p.start !== undefined ? p.start : p.pos;
+          const e = p.end !== undefined ? p.end : p.pos;
+          di.start = this.getRatioIndex(s);
+          di.end = this.getRatioIndex(e);
+          if (di.end <= di.start) di.end = di.start + 1;
+          
+          if (di.baf !== undefined) di.baf = this.transformBAF(di.baf);
+          if (di.baf_min !== undefined) di.baf_min = this.transformBAF(di.baf_min);
+          if (di.baf_max !== undefined) di.baf_max = this.transformBAF(di.baf_max);
+          
           return di;
         })
         .filter(
           (p) =>
-            p.start >= this.xScale.domain()[0] && p.start <= this.xScale.domain()[1]
+            p.end >= this.xScale.domain()[0] && p.start <= this.xScale.domain()[1]
         );
     } else {
       const [x0, x1] = this.xScale.domain();
@@ -974,6 +981,8 @@ class ChromosomePlot extends EventTarget {
         .map((p) => {
           let di = { ...p };
           di.baf = this.transformBAF(di.baf);
+          if (di.baf_min !== undefined) di.baf_min = this.transformBAF(di.baf_min);
+          if (di.baf_max !== undefined) di.baf_max = this.transformBAF(di.baf_max);
           return di;
         });
     }

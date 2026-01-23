@@ -585,7 +585,9 @@ class GenomePlot extends EventTarget {
       const xScale = this.xScales[i];
       let bafData = chromData.baf.map((d) => {
         let td = { ...d };
-        td.baf = self.transformBAF(td.baf);
+        if (td.baf !== undefined) td.baf = self.transformBAF(td.baf);
+        if (td.baf_min !== undefined) td.baf_min = self.transformBAF(td.baf_min);
+        if (td.baf_max !== undefined) td.baf_max = self.transformBAF(td.baf_max);
         return td;
       });
 
@@ -643,7 +645,9 @@ class GenomePlot extends EventTarget {
     this.bafPanels.each(function (panelData, i) {
       let panelBaf = panelData.baf.map((d) => {
         let td = { ...d };
-        td.baf = self.transformBAF(td.baf);
+        if (td.baf !== undefined) td.baf = self.transformBAF(td.baf);
+        if (td.baf_min !== undefined) td.baf_min = self.transformBAF(td.baf_min);
+        if (td.baf_max !== undefined) td.baf_max = self.transformBAF(td.baf_max);
         return td;
       });
       if (bafPointsPerChromosome > MAX_POINTS) {
