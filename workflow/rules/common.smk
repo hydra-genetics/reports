@@ -131,9 +131,10 @@ def generate_copy_rules(output_spec):
     exec(compile("\n".join(rulestrings), "copy_result_files", "exec"), workflow.globals)
 
 
-with open(config["general_report"]) as f:
-    if f.name.endswith(".yaml"):
-        general_report = yaml.safe_load(f)
+if general_report in config:
+    with open(config["general_report"]) as f:
+        if f.name.endswith(".yaml"):
+            general_report = yaml.safe_load(f)
 
 if len(workflow.modules) == 0:
     # Only generate copy-rules if the workflow is executed directly.
