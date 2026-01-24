@@ -6,7 +6,7 @@ __license__ = "GPL-3"
 
 rule general_json_report:
     input:
-        files=[f["input"] for f in config.get("general_report", {}).get("files", [])],
+        files=[f'{filedef["input"]}' for filedef in general_report["files"]],
         output_files=config.get("general_report", {}),
     output:
         json="reports/general_json_report/{sample}_{type}.general.json",
