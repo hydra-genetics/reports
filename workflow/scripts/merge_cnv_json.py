@@ -268,7 +268,6 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
     return variants
 
 
-
 def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
@@ -412,16 +411,16 @@ def merge_cnv_dicts(
     baf_is_binned = False
     if baf is not None:
         baf = list(baf)  # Consume generator
-        
+
         # Add raw points directly
         for chrom, pos, val in baf:
             if chrom in cnvs:
-                 cnvs[chrom]["baf"].append({
-                     "start": pos,
-                     "end": pos,
-                     "pos": pos,
-                     "baf": val
-                 })
+                cnvs[chrom]["baf"].append({
+                    "start": pos,
+                    "end": pos,
+                    "pos": pos,
+                    "baf": val
+                })
 
     for cnv in merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
         cnvs[cnv.chromosome]["callers"][cnv.caller]["cnvs"].append(cnv)

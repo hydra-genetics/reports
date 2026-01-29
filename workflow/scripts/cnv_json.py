@@ -178,9 +178,6 @@ def parse_jumble_segments(file):
     return segments
 
 
-
-
-
 def to_json(caller, ratios, segments, is_binned=False):
     json_dict = dict(
         caller=caller,
