@@ -62,9 +62,6 @@ rule cnv_json:
         json=temp("reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"),
     params:
         skip_chromosomes=config.get("reference", {}).get("skip_chrs"),
-        roi_flank_size_bp=config.get("cnv_json", {}).get("roi_flank_size_bp", 10000),
-        target_data_points=config.get("cnv_json", {}).get("target_data_points", 10000),
-        roi_budget_fraction=config.get("cnv_json", {}).get("roi_budget_fraction", 0.5),
         csv_field_size_limit=config.get("cnv_json", {}).get("csv_field_size_limit", 100000000),
     log:
         "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.log",
@@ -104,15 +101,7 @@ rule merge_cnv_json:
     params:
         skip_chromosomes=config.get("reference", {}).get("skip_chrs", []),
         cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
-        roi_flank_size_bp=config.get("merge_cnv_json", {}).get(
-            "roi_flank_size_bp", config.get("cnv_json", {}).get("roi_flank_size_bp", 10000)
-        ),
-        target_data_points=config.get("merge_cnv_json", {}).get(
-            "target_data_points", config.get("cnv_json", {}).get("target_data_points", 10000)
-        ),
-        roi_budget_fraction=config.get("merge_cnv_json", {}).get(
-            "roi_budget_fraction", config.get("cnv_json", {}).get("roi_budget_fraction", 0.5)
-        ),
+
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
     benchmark:

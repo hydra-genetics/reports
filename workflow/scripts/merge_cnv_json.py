@@ -268,160 +268,6 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
     return variants
 
 
-def bin_baf(
-    baf_list,
-    poi_regions,
-    roi_flank_size_bp=10000,
-    target_data_points=10000,
-    roi_budget_fraction=0.5
-):
-    if not baf_list:
-        return []
-
-    print(f"DEBUG: bin_baf - Input points: {len(baf_list)}, Target: {target_data_points}", file=sys.stderr)
-
-    # Ensure baf_list is sorted by position
-    baf_list.sort(key=lambda x: (x[0], x[1]))
-
-    # Group ROI by chromosome and cover the entire region
-    poi_by_chrom = defaultdict(list)
-    for s in poi_regions:
-        full_region = False
-        if isinstance(s, dict):
-            start, end, chrom = s["start"], s["end"], s["chromosome"]
-            full_region = s.get("full_region", False)
-        else:
-            chrom, start, end = s[0], s[1], s[2]
-            if len(s) > 4:
-                full_region = s[4]
-
-        if full_region:
-            poi_by_chrom[chrom].append((max(0, start - roi_flank_size_bp), end + roi_flank_size_bp))
-        else:
-            poi_by_chrom[chrom].append((max(0, start - roi_flank_size_bp), start + roi_flank_size_bp))
-            poi_by_chrom[chrom].append((max(0, end - roi_flank_size_bp), end + roi_flank_size_bp))
-
-    for chrom in poi_by_chrom:
-        intervals = sorted(poi_by_chrom[chrom])
-        if not intervals:
-            continue
-        merged = []
-        curr_start, curr_end = intervals[0]
-        for next_start, next_end in intervals[1:]:
-            if next_start <= curr_end:
-                curr_end = max(curr_end, next_end)
-            else:
-                merged.append((curr_start, curr_end))
-                curr_start, curr_end = next_start, next_end
-        merged.append((curr_start, curr_end))
-        poi_by_chrom[chrom] = merged
-        print(f"DEBUG: bin_baf - Chromosome {chrom} has {len(merged)} ROI intervals", file=sys.stderr)
-
-    def is_in_poi(chrom, pos):
-        if chrom not in poi_by_chrom:
-            return False
-        for p_start, p_end in poi_by_chrom[chrom]:
-            if pos >= p_start and pos <= p_end:
-                return True
-            if p_start > pos:
-                break
-        return False
-
-    # Separate populations only for budget calculation
-    roi_points = []
-    normal_points = []
-    for p in baf_list:
-        if is_in_poi(p[0], p[1]):
-            roi_points.append(p)
-        else:
-            normal_points.append(p)
-
-    # Budget Decision
-    roi_budget = target_data_points * roi_budget_fraction
-    use_raw_roi = len(roi_points) <= roi_budget
-
-    if use_raw_roi:
-        target_normal = max(10, target_data_points - len(roi_points))
-        k_normal = max(1, len(normal_points) / target_normal) if normal_points else 1
-        k_roi = 1
-    else:
-        k_roi = max(1, len(roi_points) / roi_budget)
-        normal_budget = max(10, target_data_points - roi_budget)
-        k_normal = max(1, len(normal_points) / normal_budget) if normal_points else 1
-
-    print(f"DEBUG: [BAF] Total: {len(baf_list)}, ROI: {len(roi_points)}, Normal: {len(normal_points)}", file=sys.stderr)
-    print(f"DEBUG: [BAF] Target: {target_data_points}, Budget: {roi_budget}, UseRaw: {use_raw_roi}", file=sys.stderr)
-    print(f"DEBUG: [BAF] k_roi: {k_roi:.2f}, k_normal: {k_normal:.2f}", file=sys.stderr)
-
-    binned_res = []
-    current_bin = []
-    current_bin_type = None
-
-    def flush_bin(bin_to_flush, bin_index):
-        if not bin_to_flush:
-            return
-        n = len(bin_to_flush)
-        start, end = bin_to_flush[0][1], bin_to_flush[-1][1]
-        chrom = bin_to_flush[0][0]
-
-        # Mirrored Transformation: |BAF - 0.5| + 0.5
-        # This folds the bottom half (0.0-0.5) onto the top half (0.5-1.0)
-        mirrored_vals = [abs(x[2] - 0.5) + 0.5 for x in bin_to_flush]
-
-        # Use Median for robustness against outliers/noise
-        med = statistics.median(mirrored_vals)
-
-        # Restore visual feel: flip every other point around 0.5
-        # If index is even, use median (top half). If odd, use 1 - median (bottom half).
-        final_baf = med if bin_index % 2 == 0 else (1 - med)
-
-        p = {
-            "chromosome": chrom,
-            "pos": (start + end) // 2,
-            "start": start,
-            "end": end,
-            "baf": final_baf
-        }
-
-        if n > 1:
-            # Calculate 5th and 95th percentiles for rectangle bounds (middle 90%)
-            sorted_mirrored = sorted(mirrored_vals)
-            p5_idx = max(0, int(n * 0.05))
-            p95_idx = min(n - 1, int(n * 0.95))
-            p5 = sorted_mirrored[p5_idx]
-            p95 = sorted_mirrored[p95_idx]
-
-            # Keep percentile bounds mirrored (above 0.5)
-            # These are used for the Canvas "rectangular bars"
-            p["baf_min"] = p5
-            p["baf_max"] = p95
-            p["mean"] = med
-            # Calculate SD on the mirrored values to represent the spread of imbalance
-            p["sd"] = math.sqrt(sum((x - med)**2 for x in mirrored_vals) / n)
-
-        binned_res.append(p)
-
-    bin_counter = 0
-    for chrom, pos, baf in baf_list:
-        rtype = 'roi' if is_in_poi(chrom, pos) else 'normal'
-        k_limit = k_roi if rtype == 'roi' else k_normal
-
-        if current_bin:
-            # Check for rtype change, chrom change, or if bin is full
-            # Note: k_limit is now interpreted as "Target Heterozygous SNPs per bin"
-            if rtype != current_bin_type or chrom != current_bin[0][0] or len(current_bin) >= k_limit:
-                flush_bin(current_bin, bin_counter)
-                bin_counter += 1
-                current_bin = []
-
-        if not current_bin:
-            current_bin_type = rtype
-        current_bin.append((chrom, pos, baf))
-
-    flush_bin(current_bin, bin_counter)
-    print(f"DEBUG: [BAF-Total] Result size: {len(binned_res)}", file=sys.stderr)
-    return binned_res
-
 
 def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
@@ -531,7 +377,7 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
 
 def merge_cnv_dicts(
     dicts, baf, annotations, cytobands, chromosomes,
-    filtered_cnvs, unfiltered_cnvs, gene_index=None, bin_params=None
+    filtered_cnvs, unfiltered_cnvs, gene_index=None
 ):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
@@ -566,36 +412,16 @@ def merge_cnv_dicts(
     baf_is_binned = False
     if baf is not None:
         baf = list(baf)  # Consume generator
-        original_baf_count = len(baf)
-        # Combine all interesting regions for BAF binning
-        # Annotations (genes) get full-region resolution
-        # Segments (calls) get breakpoint resolution
-        poi_regions = []
-        for a in annotations:
-            for item in a:
-                poi_regions.append({
-                    "chromosome": normalize_chrom(item[0]),
-                    "start": item[1],
-                    "end": item[2],
-                    "full_region": True
-                })
-        for d in dicts:
-            for s in d["segments"]:
-                # Ensure chromosome is normalized from the loaded JSON
-                s_normalized = {**s, "chromosome": normalize_chrom(s["chromosome"]), "full_region": False}
-                poi_regions.append(s_normalized)
-
-        # Bin ALL BAF data points globally using the budget
-        global_binned_baf = bin_baf(baf, poi_regions, **(bin_params or {}))
-        baf_is_binned = len(global_binned_baf) < original_baf_count
-
-        # Distribute binned points to chromosomes
-        for b in global_binned_baf:
-            chrom = b["chromosome"]
+        
+        # Add raw points directly
+        for chrom, pos, val in baf:
             if chrom in cnvs:
-                # Remove chromosome key before adding to the per-chromosome list to keep JSON small
-                point = {k: v for k, v in b.items() if k != "chromosome"}
-                cnvs[chrom]["baf"].append(point)
+                 cnvs[chrom]["baf"].append({
+                     "start": pos,
+                     "end": pos,
+                     "pos": pos,
+                     "baf": val
+                 })
 
     for cnv in merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
         cnvs[cnv.chromosome]["callers"][cnv.caller]["cnvs"].append(cnv)
@@ -719,15 +545,9 @@ def main():
         filtered_cnv_vcfs.append(get_cnvs(f_vcf, skip_chromosomes))
         unfiltered_cnv_vcfs.append(get_cnvs(uf_vcf, skip_chromosomes))
 
-    bin_params = {
-        "roi_flank_size_bp": snakemake.params["roi_flank_size_bp"],
-        "target_data_points": snakemake.params["target_data_points"],
-        "roi_budget_fraction": snakemake.params["roi_budget_fraction"],
-    }
-
     cnvs = merge_cnv_dicts(
         cnv_dicts, baf, annotations, cytobands, fai, filtered_cnv_vcfs,
-        unfiltered_cnv_vcfs, gene_index, bin_params
+        unfiltered_cnv_vcfs, gene_index
     )
 
     with open(output_file, "w") as f:

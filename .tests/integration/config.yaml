@@ -9,13 +9,8 @@ reference:
   fai: reference/ref.fai
   fasta: "reference/hg19.with.mt.fasta"
 
-cnv_json:
-  target_data_points: 8000
-  roi_flank_size_bp: 100
-  roi_budget_fraction: 0.5
-
 cnv_html_report:
-  wide_plot_width: 2500
+  wide_plot_width: 2000
   cytobands: true
   show_table: true
   extra_tables:

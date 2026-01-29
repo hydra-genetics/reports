@@ -131,18 +131,7 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
-      roi_flank_size_bp:
-        type: integer
-        default: 10000
-        description: Flanking region size around ROIs in base pairs.
-      target_data_points:
-        type: integer
-        default: 10000
-        description: Target total number of data points after binning.
-      roi_budget_fraction:
-        type: number
-        default: 0.5
-        description: Fraction of the data point budget allocated to ROIs.
+
 
   merge_cnv_json:
     type: object
@@ -154,15 +143,7 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
-      roi_flank_size_bp:
-        type: integer
-        description: Flanking region size around ROIs in base pairs.
-      target_data_points:
-        type: integer
-        description: Target total number of data points after binning for BAF.
-      roi_budget_fraction:
-        type: number
-        description: Fraction of the data point budget allocated to ROIs.
+
       annotations:
         type: array
         description: >
