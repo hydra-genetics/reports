@@ -25,6 +25,14 @@ import sys
 PARSERS = collections.defaultdict(dict)
 
 
+def normalize_chrom(chrom: str) -> str:
+    """Ensure chromosome name starts with 'chr' exactly once."""
+    c = str(chrom)
+    if c.startswith("chr"):
+        c = c[3:]
+    return f"chr{c}"
+
+
 def cnv_parser(file_format, header=True, skip=0, comment="#"):
     """
     Decorator for parsers of CNV result files. The first argument of
@@ -86,7 +94,7 @@ def parse_cnvkit_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=line[0],
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[5]),
@@ -101,7 +109,7 @@ def parse_cnvkit_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=line[0],
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),
@@ -116,7 +124,7 @@ def parse_gatk_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=line[0],
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[3]),
@@ -131,7 +139,7 @@ def parse_gatk_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=line[0],
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),
@@ -146,7 +154,7 @@ def parse_jumble_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=f"chr{line[0]}",
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[5]),
@@ -161,7 +169,7 @@ def parse_jumble_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=f"chr{line[0]}",
+                chromosome=normalize_chrom(line[0]),
                 start=int(line[1]),
                 end=int(line[2]),
                 log2=float(line[4]),
@@ -170,11 +178,12 @@ def parse_jumble_segments(file):
     return segments
 
 
-def to_json(caller, ratios, segments):
+def to_json(caller, ratios, segments, is_binned=False):
     json_dict = dict(
         caller=caller,
         ratios=ratios,
         segments=segments,
+        is_binned=is_binned,
     )
     return json.dumps(json_dict)
 
@@ -188,12 +197,13 @@ def main():
     caller = snakemake.wildcards["caller"]
     ratio_filename = snakemake.input["ratios"]
     segment_filename = snakemake.input["segments"]
+    annotation_filenames = snakemake.input["annotations"]
 
     output_filename = snakemake.output["json"]
 
     skip_chromosomes = snakemake.params["skip_chromosomes"]
 
-    csv.field_size_limit(snakemake.params.get('csv_field_size_limt', 100000000))
+    csv.field_size_limit(snakemake.params["csv_field_size_limit"])
 
     if caller not in PARSERS:
         print(f"error: no parser for {caller} implemented", file=sys.stderr)
@@ -202,12 +212,44 @@ def main():
     ratios = PARSERS[caller]["ratios"](ratio_filename)
     segments = PARSERS[caller]["segments"](segment_filename)
 
+    # Parse annotations to include as ROIs
+    annotations = []
+    for annot_file in annotation_filenames:
+        with open(annot_file, "r") as f:
+            for line in f:
+                if line.startswith("#") or not line.strip():
+                    continue
+                parts = line.strip().split("\t")
+                if len(parts) >= 3:
+                    chrom = normalize_chrom(parts[0])
+                    try:
+                        start = int(parts[1])
+                        end = int(parts[2])
+                        annotations.append({"chromosome": chrom, "start": start, "end": end})
+                    except ValueError:
+                        continue
+
     if skip_chromosomes is not None:
         ratios = [r for r in ratios if r["chromosome"] not in skip_chromosomes]
         segments = [s for s in segments if s["chromosome"] not in skip_chromosomes]
+        annotations = [a for a in annotations if a["chromosome"] not in skip_chromosomes]
+
+    # Perform smart binning for performance (especially for WGS)
+    # Combine segments and annotations for POI identification
+    # Annotations (genes) get full-region resolution
+    # Segments (calls) get breakpoint resolution
+    poi_regions = [
+        {**s, "full_region": False} for s in segments
+    ] + [
+        {**a, "full_region": True} for a in annotations
+    ]
+
+    # Sort ratios by position since we are not binning anymore
+    ratios.sort(key=lambda x: (x["chromosome"], x["start"]))
+    is_binned = False
 
     with open(output_filename, "w") as f:
-        print(to_json(caller, ratios, segments), file=f)
+        print(to_json(caller, ratios, segments, is_binned=is_binned), file=f)
 
 
 if __name__ == "__main__":

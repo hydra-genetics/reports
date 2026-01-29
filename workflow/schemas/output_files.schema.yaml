@@ -35,7 +35,7 @@ properties:
           type: array
           items:
             type: string
-            pattern: ^(N|T|R)$
+            pattern: ^(N|T|R|TN)$
       required:
         - name
         - input
