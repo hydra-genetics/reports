@@ -66,6 +66,16 @@ Only full-length hexadecimal colours (without alpha channel), as shown above, ar
 
 Custom annotations can be added to the chromosome plot by specifying one or more bed-files in `annotations` under [`merge_cnv_json`](/softwares/#configuration_2). Only the four first columns of the file will be taken into account, and the value in the name column will be displayed in the plot.
 
+### Wide Plots
+
+To support wider plots that stack vertically (instead of the default responsive layout), you can configure `wide_plot_width` under [`cnv_html_report`](/softwares/#configuration). This accepts an integer value in pixels.
+
+```yaml
+cnv_html_report:
+    wide_plot_width: 2000
+```
+
+
 ## Customising the template
 
 The template used can be found in [`workflow/templates/cnv_html_report`](https://github.com/hydra-genetics/reports/tree/develop/workflow/templates/cnv_html_report). This will be used by default. If you for some reason would like to customise the template, the input files will have to be redefined when importing the module. Below is an example where template files are redefined, while the input data remains the default:
