@@ -17,14 +17,6 @@
       <a href="#" class="close"><i title="Close" class="bi bi-x"></i> Close</a>
       <header>
         <h1>CNV report &mdash; Help</h1>
-        <ul>
-          <li>Sample: {{ metadata.sample }}</li>
-          <li>Date: <time>{{ metadata.date }}</time></li>
-          <li>
-            Tumor cell content: {{ metadata.tc if metadata.tc is not none else
-            "N/A" }} ({{ metadata.tc_method }})
-          </li>
-        </ul>
         <!-- x-release-please-start-version -->
         <p class="fix-right">
           <small>
