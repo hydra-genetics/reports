@@ -13,6 +13,7 @@ reference:
 cnv_html_report:
   cytobands: false
   show_table: true
+  wide_plot_width: 2000
 
 general_html_report:
   final_directory_depth: 3

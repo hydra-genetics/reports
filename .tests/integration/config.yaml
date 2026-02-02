@@ -10,6 +10,7 @@ reference:
   fasta: "reference/hg19.with.mt.fasta"
 
 cnv_html_report:
+  wide_plot_width: 2000
   cytobands: true
   show_table: true
   extra_tables:
@@ -41,6 +42,7 @@ merge_cnv_json:
     - config/loh_genes.bed
     - config/centromeres.bed
   cytobands: config/cytobands.txt
+  ref_genes: reference/refGene_hg19.txt
   filtered_cnv_vcfs:
     - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_amp_genes.filter.cnv_hard_filter_amp.vcf
     - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_loh_genes.filter.cnv_hard_filter_loh.vcf

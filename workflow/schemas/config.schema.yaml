@@ -108,6 +108,16 @@ properties:
           required:
             - name
             - path
+      wide_plot_width:
+        oneOf:
+          - type: integer
+          - type: boolean
+            const: false
+        default: false
+        description: >
+          Fixed horizontal width for plots in pixels. If set, plots will stack
+          vertically and allow horizontal scrolling on smaller screens. Set to
+          `false` for responsive behavior.
     required:
       - show_table
 
@@ -122,6 +132,7 @@ properties:
         type: string
         description: name or path to docker/singularity container
 
+
   merge_cnv_json:
     type: object
     description: parameters for merge_cnv_json
@@ -132,6 +143,7 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
+
       annotations:
         type: array
         description: >
@@ -215,7 +227,7 @@ properties:
         type: string
         format: uri-reference
         description: >
-          Path to a germline VCF file that will be used to display VAFs in the
+          Path to a germline VCF file that will be used to display BAFs in the
           plots of the report. The path supports the wildcards `sample` and
           `type` wildcards.
       unfiltered_cnv_vcfs:
