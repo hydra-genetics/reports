@@ -248,31 +248,6 @@ properties:
             `filtered_cnv_vcfs`. The path supports `sample`, `type` and
             `tc_method` wildcards.
 
-allOf:
-  - if:
-      properties:
-        cnv_html_report:
-          properties:
-            show_table:
-              const: true
-    then:
-      properties:
-        merge_cnv_json:
-          required:
-            - filtered_cnv_vcfs
-            - unfiltered_cnv_vcfs
-
-  - if:
-      properties:
-        cnv_html_report:
-          properties:
-            cytobands:
-              const: true
-    then:
-      properties:
-        merge_cnv_json:
-          required:
-            - cytobands
 
 required:
   - samples
