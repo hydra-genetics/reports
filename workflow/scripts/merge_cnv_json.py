@@ -568,11 +568,15 @@ def main():
 def round_floats(obj, precision=3):
     """Recursively round floats in nested structures to reduce JSON size."""
     if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
         return round(obj, precision)
     elif isinstance(obj, dict):
         return {k: round_floats(v, precision) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [round_floats(item, precision) for item in obj]
+    elif hasattr(obj, "__dict__"):
+        return {k: round_floats(v, precision) for k, v in vars(obj).items()}
     return obj
 
 
