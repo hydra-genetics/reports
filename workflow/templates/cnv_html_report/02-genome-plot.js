@@ -367,8 +367,8 @@ class GenomePlot extends EventTarget {
     // Draw ratios on Canvas (scatter only)
     this.#ctx.save();
     this.#ctx.translate(this.margin.left, this.margin.top);
-    this.#ctx.fillStyle = "#333";
-    this.#ctx.globalAlpha = 0.4;
+    this.#ctx.fillStyle = "#000";
+    this.#ctx.globalAlpha = 1.0;
 
     this.#data.forEach((chromData, i) => {
       const xOffset = i === 0 ? 0 : d3.sum(this.panelWidths.slice(0, i));
@@ -393,11 +393,15 @@ class GenomePlot extends EventTarget {
 
       panelRatios.forEach((d) => {
         if (d.mean === undefined) {
-          const x = xOffset + xScale(d.pos !== undefined ? d.pos : (d.start + d.end) / 2);
-          const y = this.ratioYScale(d.log2);
+          const rawX = xOffset + xScale(d.pos !== undefined ? d.pos : (d.start + d.end) / 2);
+          const rawY = this.ratioYScale(d.log2);
+          
+          const x = Math.round(rawX);
+          const y = Math.round(rawY);
+          
           if (x >= xOffset && x <= xOffset + this.panelWidths[i]) {
             this.#ctx.beginPath();
-            this.#ctx.arc(x, y, 1, 0, 2 * Math.PI);
+            this.#ctx.rect(x - 1, y - 1, 3, 3);
             this.#ctx.fill();
           }
         }
@@ -450,7 +454,7 @@ class GenomePlot extends EventTarget {
               .attr("height", (d) =>
                 self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
               )
-              .attr("fill", "#333")
+              .attr("fill", "#000")
               .attr("opacity", 0.3);
 
             g.append("line")
@@ -459,7 +463,7 @@ class GenomePlot extends EventTarget {
               .attr("x2", (d) => self.xScales[i](d.end))
               .attr("y1", (d) => self.ratioYScale(d.mean))
               .attr("y2", (d) => self.ratioYScale(d.mean))
-              .attr("stroke", "#333")
+              .attr("stroke", "#000")
               .attr("opacity", 0.5);
 
             g.append("polygon")
@@ -585,8 +589,8 @@ class GenomePlot extends EventTarget {
       this.margin.left,
       this.margin.top + this.panelHeight + this.margin.between
     );
-    this.#ctx.fillStyle = "#333";
-    this.#ctx.globalAlpha = 0.4;
+    this.#ctx.fillStyle = "#000";
+    this.#ctx.globalAlpha = 1.0;
 
     this.#data.forEach((chromData, i) => {
       const xOffset = i === 0 ? 0 : d3.sum(this.panelWidths.slice(0, i));
@@ -608,40 +612,44 @@ class GenomePlot extends EventTarget {
           // Check if this is binned data (has baf_min/baf_max) or unbinned
           if (d.baf_min !== undefined && d.baf_max !== undefined) {
             // Binned data: draw as TWO rectangles (mirrored around 0.5)
-            const xStart = xScale(d.start !== undefined ? d.start : d.pos);
-            const xEnd = xScale(d.end !== undefined ? d.end : d.pos);
+            const xStart = Math.round(xScale(d.start !== undefined ? d.start : d.pos));
+            const xEnd = Math.round(xScale(d.end !== undefined ? d.end : d.pos));
             const x = xOffset + xStart;
 
             const rawWidth = xEnd - xStart;
             const width = Math.max(2, rawWidth);
-            const xAdjusted = rawWidth < 2 ? x - (width - rawWidth) / 2 : x;
+            const xAdjusted = rawWidth < 2 ? x - Math.floor((width - rawWidth) / 2) : x;
 
             // Draw upper rectangle (above 0.5)
-            const yMinUpper = this.bafYScale(d.baf_max);
-            const yMaxUpper = this.bafYScale(d.baf_min);
-            const heightUpper = Math.max(1, yMaxUpper - yMinUpper);
+            const yMinUpper = Math.round(this.bafYScale(d.baf_max));
+            const yMaxUpper = Math.round(this.bafYScale(d.baf_min));
+            const heightUpper = Math.max(2, yMaxUpper - yMinUpper);
 
             if (xAdjusted >= xOffset && xAdjusted <= xOffset + this.panelWidths[i]) {
-              this.#ctx.fillRect(xAdjusted, yMinUpper, width, heightUpper);
+              this.#ctx.fillRect(xAdjusted, yMinUpper, width, Math.max(2, heightUpper));
             }
 
             // Draw lower rectangle (mirrored below 0.5)
             const baf_min_mirrored = 1 - d.baf_max;
             const baf_max_mirrored = 1 - d.baf_min;
-            const yMinLower = this.bafYScale(baf_max_mirrored);
-            const yMaxLower = this.bafYScale(baf_min_mirrored);
+            const yMinLower = Math.round(this.bafYScale(baf_max_mirrored));
+            const yMaxLower = Math.round(this.bafYScale(baf_min_mirrored));
             const heightLower = Math.max(1, yMaxLower - yMinLower);
 
             if (xAdjusted >= xOffset && xAdjusted <= xOffset + this.panelWidths[i]) {
-              this.#ctx.fillRect(xAdjusted, yMinLower, width, heightLower);
+              this.#ctx.fillRect(xAdjusted, yMinLower, width, Math.max(2, heightLower));
             }
           } else {
-            // Unbinned data: draw as point
-            const x = xOffset + xScale(d.pos !== undefined ? d.pos : (d.start + d.end) / 2);
-            const y = this.bafYScale(d.baf);
+            // Unbinned data: draw as square
+            const rawX = xOffset + xScale(d.pos !== undefined ? d.pos : (d.start + d.end) / 2);
+            const rawY = this.bafYScale(d.baf);
+            
+            const x = Math.round(rawX);
+            const y = Math.round(rawY);
+            
             if (x >= xOffset && x <= xOffset + this.panelWidths[i]) {
               this.#ctx.beginPath();
-              this.#ctx.arc(x, y, 1, 0, 2 * Math.PI);
+              this.#ctx.rect(x - 1, y - 1, 3, 3);
               this.#ctx.fill();
             }
           }
@@ -682,7 +690,7 @@ class GenomePlot extends EventTarget {
               .attr("height", (d) =>
                 self.bafYScale(self.bafYScale.domain()[1] - 2 * d.sd)
               )
-              .attr("fill", "#333")
+              .attr("fill", "#000")
               .attr("opacity", 0.3);
 
             g.append("line")
@@ -691,7 +699,7 @@ class GenomePlot extends EventTarget {
               .attr("x2", (d) => self.xScales[i](d.end))
               .attr("y1", (d) => self.bafYScale(d.mean))
               .attr("y2", (d) => self.bafYScale(d.mean))
-              .attr("stroke", "#333")
+              .attr("stroke", "#000")
               .attr("stroke-width", 2)
               .attr("opacity", 0.8);
 
