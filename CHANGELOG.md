@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/hydra-genetics/reports/compare/v1.0.0...v1.0.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* **cnv_html_report:** bugfix of NaN breaking figures and better data point visibility ([#133](https://github.com/hydra-genetics/reports/issues/133)) ([#134](https://github.com/hydra-genetics/reports/issues/134)) ([f068276](https://github.com/hydra-genetics/reports/commit/f068276145b0b5b577b840293241935a73f47f57))
+
 ## [0.11.0](https://github.com/hydra-genetics/reports/compare/v0.10.1...v0.11.0) (2026-02-02)
 
 
