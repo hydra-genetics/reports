@@ -791,7 +791,7 @@ class ChromosomePlot extends EventTarget {
     this.#ctx.beginPath();
     this.#ctx.rect(0, 0, this.width - this.margin.left - this.margin.right, this.plotHeight);
     this.#ctx.clip();
-    this.#ctx.fillStyle = "#000";
+    this.#ctx.fillStyle = "#888";
     this.#ctx.globalAlpha = 1.0;
 
     this.#ctx.beginPath();
@@ -799,14 +799,17 @@ class ChromosomePlot extends EventTarget {
       if (!isSummarized || d.mean === undefined) {
         const rawX = this.xScale(this.equalDistance ? (d.start + d.end) / 2 : (d.pos !== undefined ? d.pos : (d.start + d.end) / 2));
         const rawY = this.ratioYScale(d.log2);
-        
+        const domain = this.ratioYScale.domain();
+        if (d.log2 < domain[0] || d.log2 > domain[1]) return;
+
         // Pixel alignment
         const x = Math.round(rawX);
         const y = Math.round(rawY);
         
         if (x >= 0 && x <= this.width - this.margin.left - this.margin.right) {
-          // Sharp 3x3 squares instead of 2x2
-          this.#ctx.rect(x - 1, y - 1, 3, 3);
+          // Sharp radius 1.2 circles instead of 3x3 squares
+          this.#ctx.moveTo(x + 1.2, y);
+          this.#ctx.arc(x, y, 1.2, 0, 2 * Math.PI);
         }
       }
     });
@@ -840,7 +843,7 @@ class ChromosomePlot extends EventTarget {
                 ? 0
                 : this.ratioYScale(this.ratioYScale.domain()[1] - 2 * d.sd)
             )
-            .attr("fill", "#000")
+            .attr("fill", "#888")
             .attr("opacity", (d) => (isNaN(d.mean) ? 0 : 0.3));
 
           g.append("line")
@@ -853,7 +856,7 @@ class ChromosomePlot extends EventTarget {
             .attr("y2", (d) =>
               isNaN(d.mean) ? this.ratioYScale.range()[0] : this.ratioYScale(d.mean)
             )
-            .attr("stroke", "#000")
+            .attr("stroke", "#444")
             .attr("stroke-width", 2)
             .attr("opacity", 0.5);
 
@@ -1013,7 +1016,7 @@ class ChromosomePlot extends EventTarget {
     this.#ctx.beginPath();
     this.#ctx.rect(0, 0, this.width - this.margin.left - this.margin.right, this.plotHeight);
     this.#ctx.clip();
-    this.#ctx.fillStyle = "#000";
+    this.#ctx.fillStyle = "#888";
     this.#ctx.globalAlpha = 1.0;
 
     this.#ctx.beginPath();
@@ -1030,8 +1033,10 @@ class ChromosomePlot extends EventTarget {
           const xAdjusted = rawWidth < 3 ? xStart - Math.floor((width - rawWidth) / 2) : xStart;
           
           // Draw upper rectangle (above 0.5)
-          const yMinUpper = Math.round(this.bafYScale(d.baf_max));
-          const yMaxUpper = Math.round(this.bafYScale(d.baf_min));
+          const bafMaxClamped = Math.min(1.0, d.baf_max);
+          const bafMinClamped = Math.max(0.0, d.baf_min);
+          const yMinUpper = Math.round(this.bafYScale(bafMaxClamped));
+          const yMaxUpper = Math.round(this.bafYScale(bafMinClamped));
           const heightUpper = Math.max(3, yMaxUpper - yMinUpper);
           
           if (xAdjusted >= -width && xAdjusted <= this.width - this.margin.left - this.margin.right) {
@@ -1039,8 +1044,8 @@ class ChromosomePlot extends EventTarget {
           }
           
           // Draw lower rectangle (mirrored below 0.5)
-          const baf_min_mirrored = 1 - d.baf_max;  // Mirror around 0.5
-          const baf_max_mirrored = 1 - d.baf_min;
+          const baf_min_mirrored = Math.max(0.0, 1 - d.baf_max);  // Mirror around 0.5
+          const baf_max_mirrored = Math.min(1.0, 1 - d.baf_min);
           const yMinLower = Math.round(this.bafYScale(baf_max_mirrored));
           const yMaxLower = Math.round(this.bafYScale(baf_min_mirrored));
           const heightLower = Math.max(3, yMaxLower - yMinLower);
@@ -1051,13 +1056,14 @@ class ChromosomePlot extends EventTarget {
         } else {
           // Unbinned data: draw as square
           const rawX = this.xScale(this.equalDistance ? (d.start + d.end) / 2 : (d.pos !== undefined ? d.pos : (d.start + d.end) / 2));
-          const rawY = this.bafYScale(d.baf);
+          const rawY = this.bafYScale(Math.max(0.0, Math.min(1.0, d.baf)));
           
           const x = Math.round(rawX);
           const y = Math.round(rawY);
           
           if (x >= 0 && x <= this.width - this.margin.left - this.margin.right) {
-            this.#ctx.rect(x - 1, y - 1, 3, 3);
+            this.#ctx.moveTo(x + 1.2, y);
+            this.#ctx.arc(x, y, 1.2, 0, 2 * Math.PI);
           }
         }
       }
@@ -1080,12 +1086,14 @@ class ChromosomePlot extends EventTarget {
           g.append("rect")
             .attr("class", "variance-rect")
             .attr("x", (d) => this.xScale(d.start))
-            .attr("y", (d) => this.bafYScale(d.mean + d.sd))
+            .attr("y", (d) => this.bafYScale(Math.min(1, d.mean + d.sd)))
             .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
-            .attr("height", (d) =>
-              this.bafYScale(this.bafYScale.domain()[1] - 2 * d.sd)
-            )
-            .attr("fill", "#000")
+            .attr("height", (d) => {
+              const yTop = this.bafYScale(Math.min(1, d.mean + d.sd));
+              const yBottom = this.bafYScale(Math.max(0, d.mean - d.sd));
+              return Math.max(2, yBottom - yTop);
+            })
+            .attr("fill", "#888")
             .attr("opacity", 0.3);
 
           g.append("line")
@@ -1094,7 +1102,7 @@ class ChromosomePlot extends EventTarget {
             .attr("x2", (d) => this.xScale(d.end))
             .attr("y1", (d) => this.bafYScale(d.mean))
             .attr("y2", (d) => this.bafYScale(d.mean))
-            .attr("stroke", "#000")
+            .attr("stroke", "#444")
             .attr("stroke-width", 2)
             .attr("opacity", 0.8);
 
@@ -1107,11 +1115,13 @@ class ChromosomePlot extends EventTarget {
             .transition()
             .duration(this.animationDuration)
             .attr("x", (d) => this.xScale(d.start))
-            .attr("y", (d) => this.bafYScale(d.mean + d.sd))
+            .attr("y", (d) => this.bafYScale(Math.min(1, d.mean + d.sd)))
             .attr("width", (d) => Math.max(2, this.xScale(d.end) - this.xScale(d.start)))
-            .attr("height", (d) =>
-              Math.max(2, this.bafYScale(this.bafYScale.domain()[1] - 2 * d.sd))
-            );
+            .attr("height", (d) => {
+              const yTop = this.bafYScale(Math.min(1, d.mean + d.sd));
+              const yBottom = this.bafYScale(Math.max(0, d.mean - d.sd));
+              return Math.max(2, yBottom - yTop);
+            });
 
           update
             .selectAll(".mean-line")
@@ -1159,9 +1169,9 @@ class ChromosomePlot extends EventTarget {
                   "height",
                   this.height - this.margin.top - this.margin.bottom
                 )
-                .attr("stroke", "#000")
+                .attr("stroke", "#444")
                 .attr("stroke-width", 0.5)
-                .attr("fill", "#000")
+                .attr("fill", "#888")
                 .attr("fill-opacity", 0.05)
                 .attr("pointer-events", "none")
             )

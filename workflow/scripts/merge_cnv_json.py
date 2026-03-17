@@ -19,8 +19,8 @@ class CNV:
     start: int
     length: int
     type: str
-    cn: float
-    baf: float
+    cn: Union[float, None]
+    baf: Union[float, None]
     passed_filter: bool = False
 
     def end(self):
@@ -255,9 +255,11 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
                 if isinstance(baf, (list, tuple)):
                     for bb in baf:
                         if bb is not None:
-                            variants.append((chrom, record.pos, float(bb)))
+                            clamped_bb = max(0.0, min(1.0, float(bb)))
+                            variants.append((chrom, record.pos, clamped_bb))
                 else:
-                    variants.append((chrom, record.pos, float(baf)))
+                    clamped_baf = max(0.0, min(1.0, float(baf)))
+                    variants.append((chrom, record.pos, clamped_baf))
                 vaf_count += 1
 
         if vaf_count > 0:
@@ -271,6 +273,17 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
 def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
+
+    def safe_baf(v):
+        if v is None:
+            return None
+        if isinstance(v, (list, tuple)):
+            v = v[0]
+        try:
+            return max(0.0, min(1.0, float(v)))
+        except (ValueError, TypeError):
+            return None
+
     for variant in vcf.fetch():
         chrom = normalize_chrom(variant.chrom)
         if skip is not None and chrom in skip:
@@ -291,7 +304,7 @@ def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
             variant.info.get("SVLEN"),
             variant.info.get("SVTYPE"),
             variant.info.get("CORR_CN"),
-            variant.info.get("BAF"),
+            safe_baf(variant.info.get("BAF")),
         )
         cnvs[chrom][caller].append(cnv)
     return cnvs
