@@ -255,9 +255,11 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
                 if isinstance(baf, (list, tuple)):
                     for bb in baf:
                         if bb is not None:
-                            variants.append((chrom, record.pos, float(bb)))
+                            clamped_bb = max(0.0, min(1.0, float(bb)))
+                            variants.append((chrom, record.pos, clamped_bb))
                 else:
-                    variants.append((chrom, record.pos, float(baf)))
+                    clamped_baf = max(0.0, min(1.0, float(baf)))
+                    variants.append((chrom, record.pos, clamped_baf))
                 vaf_count += 1
 
         if vaf_count > 0:
@@ -291,7 +293,7 @@ def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
             variant.info.get("SVLEN"),
             variant.info.get("SVTYPE"),
             variant.info.get("CORR_CN"),
-            variant.info.get("BAF"),
+            max(0.0, min(1.0, float(variant.info.get("BAF")))) if variant.info.get("BAF") is not None else None,
         )
         cnvs[chrom][caller].append(cnv)
     return cnvs
