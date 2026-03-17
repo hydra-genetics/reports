@@ -1,3 +1,5 @@
+const MAX_POINTS_GENOME = 400;
+
 class GenomePlot extends EventTarget {
   #data;
   #activeCaller;
@@ -10,6 +12,7 @@ class GenomePlot extends EventTarget {
   #selectedChromosome;
   #canvas;
   #ctx;
+  #showAllData;
 
   constructor(config) {
     super();
@@ -19,6 +22,7 @@ class GenomePlot extends EventTarget {
     this.widePlotWidth = config?.widePlotWidth ? config.widePlotWidth : false;
     this.width = this.widePlotWidth ? this.widePlotWidth : (config?.width ? config.width : 800);
     this.#data = config?.data;
+    this.#showAllData = config?.showAllData ? config.showAllData : false;
     this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
     this.#activeCaller = config?.caller ? config.caller : 0;
     this.#selectedChromosome = config?.selectedChromosome
@@ -246,7 +250,7 @@ class GenomePlot extends EventTarget {
       .attr("width", (_, i) => this.panelWidths[i])
       .attr("height", this.panelHeight)
       .attr("fill", "#FFF")
-      .attr("stroke", "#333");
+      .attr("stroke", "#444");
 
     return panels;
   }
@@ -367,7 +371,7 @@ class GenomePlot extends EventTarget {
     // Draw ratios on Canvas (scatter only)
     this.#ctx.save();
     this.#ctx.translate(this.margin.left, this.margin.top);
-    this.#ctx.fillStyle = "#000";
+    this.#ctx.fillStyle = "#888";
     this.#ctx.globalAlpha = 1.0;
 
     this.#data.forEach((chromData, i) => {
@@ -379,7 +383,7 @@ class GenomePlot extends EventTarget {
         return td;
       });
 
-      if (ratioPointsPerChromosome > MAX_POINTS) {
+      if (ratioPointsPerChromosome > MAX_POINTS_GENOME) {
         panelRatios = slidingPixelWindow(
           panelRatios,
           xScale,
@@ -401,7 +405,7 @@ class GenomePlot extends EventTarget {
           
           if (x >= xOffset && x <= xOffset + this.panelWidths[i]) {
             this.#ctx.beginPath();
-            this.#ctx.rect(x - 1, y - 1, 3, 3);
+            this.#ctx.arc(x, y, 1.0, 0, 2 * Math.PI);
             this.#ctx.fill();
           }
         }
@@ -421,7 +425,7 @@ class GenomePlot extends EventTarget {
         return td;
       });
 
-      if (ratioPointsPerChromosome > MAX_POINTS) {
+      if (ratioPointsPerChromosome > MAX_POINTS_GENOME) {
         panelRatios = slidingPixelWindow(
           panelRatios,
           self.xScales[i],
@@ -454,7 +458,7 @@ class GenomePlot extends EventTarget {
               .attr("height", (d) =>
                 self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
               )
-              .attr("fill", "#000")
+              .attr("fill", "#888")
               .attr("opacity", 0.3);
 
             g.append("line")
@@ -463,7 +467,7 @@ class GenomePlot extends EventTarget {
               .attr("x2", (d) => self.xScales[i](d.end))
               .attr("y1", (d) => self.ratioYScale(d.mean))
               .attr("y2", (d) => self.ratioYScale(d.mean))
-              .attr("stroke", "#000")
+              .attr("stroke", "#444")
               .attr("opacity", 0.5);
 
             g.append("polygon")
@@ -589,7 +593,7 @@ class GenomePlot extends EventTarget {
       this.margin.left,
       this.margin.top + this.panelHeight + this.margin.between
     );
-    this.#ctx.fillStyle = "#000";
+    this.#ctx.fillStyle = "#888";
     this.#ctx.globalAlpha = 1.0;
 
     this.#data.forEach((chromData, i) => {
@@ -603,7 +607,7 @@ class GenomePlot extends EventTarget {
         return td;
       });
 
-      if (bafPointsPerChromosome > MAX_POINTS) {
+      if (bafPointsPerChromosome > MAX_POINTS_GENOME) {
         bafData = slidingPixelWindowBAF(bafData, xScale, "pos", 3, true);
       }
 
@@ -649,7 +653,7 @@ class GenomePlot extends EventTarget {
             
             if (x >= xOffset && x <= xOffset + this.panelWidths[i]) {
               this.#ctx.beginPath();
-              this.#ctx.rect(x - 1, y - 1, 3, 3);
+              this.#ctx.arc(x, y, 1.0, 0, 2 * Math.PI);
               this.#ctx.fill();
             }
           }
@@ -666,7 +670,7 @@ class GenomePlot extends EventTarget {
         if (td.baf_max !== undefined) td.baf_max = self.transformBAF(td.baf_max);
         return td;
       });
-      if (bafPointsPerChromosome > MAX_POINTS) {
+      if (bafPointsPerChromosome > MAX_POINTS_GENOME) {
         panelBaf = slidingPixelWindowBAF(panelBaf, self.xScales[i], "pos", 3, true);
       }
 
@@ -690,7 +694,7 @@ class GenomePlot extends EventTarget {
               .attr("height", (d) =>
                 self.bafYScale(self.bafYScale.domain()[1] - 2 * d.sd)
               )
-              .attr("fill", "#000")
+              .attr("fill", "#888")
               .attr("opacity", 0.3);
 
             g.append("line")
@@ -699,7 +703,7 @@ class GenomePlot extends EventTarget {
               .attr("x2", (d) => self.xScales[i](d.end))
               .attr("y1", (d) => self.bafYScale(d.mean))
               .attr("y2", (d) => self.bafYScale(d.mean))
-              .attr("stroke", "#000")
+              .attr("stroke", "#444")
               .attr("stroke-width", 2)
               .attr("opacity", 0.8);
 
@@ -762,6 +766,11 @@ class GenomePlot extends EventTarget {
         },
       })
     );
+  }
+
+  set showAllData(value) {
+    this.#showAllData = value;
+    this.update();
   }
 
   setBaselineOffset(dy) {

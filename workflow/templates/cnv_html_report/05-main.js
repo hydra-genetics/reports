@@ -186,6 +186,7 @@ d3.select("#chromosome-fit-to-data").on("change", (e) => {
 
 d3.select("#chromosome-show-all-datapoints").on("change", (e) => {
   chromosomePlot.showAllData = e.target.checked;
+  genomePlot.showAllData = e.target.checked;
 });
 
 const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
