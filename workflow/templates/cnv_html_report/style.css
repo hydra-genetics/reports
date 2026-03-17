@@ -451,7 +451,7 @@ tbody tr:hover {
 
   .plot-container,
   .app-container {
-    display: none;
+    display: block;
   }
 
   .no-print {
