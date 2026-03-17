@@ -371,7 +371,11 @@ class GenomePlot extends EventTarget {
     // Draw ratios on Canvas (scatter only)
     this.#ctx.save();
     this.#ctx.translate(this.margin.left, this.margin.top);
+<<<<<<< HEAD
     this.#ctx.fillStyle = "#888";
+=======
+    this.#ctx.fillStyle = "#000";
+>>>>>>> main
     this.#ctx.globalAlpha = 1.0;
 
     this.#data.forEach((chromData, i) => {
@@ -397,9 +401,12 @@ class GenomePlot extends EventTarget {
 
       panelRatios.forEach((d) => {
         if (d.mean === undefined) {
+<<<<<<< HEAD
           const domain = this.ratioYScale.domain();
           if (d.log2 < domain[0] || d.log2 > domain[1]) return;
 
+=======
+>>>>>>> main
           const rawX = xOffset + xScale(d.pos !== undefined ? d.pos : (d.start + d.end) / 2);
           const rawY = this.ratioYScale(d.log2);
           
@@ -408,7 +415,11 @@ class GenomePlot extends EventTarget {
           
           if (x >= xOffset && x <= xOffset + this.panelWidths[i]) {
             this.#ctx.beginPath();
+<<<<<<< HEAD
             this.#ctx.arc(x, y, 1.0, 0, 2 * Math.PI);
+=======
+            this.#ctx.rect(x - 1, y - 1, 3, 3);
+>>>>>>> main
             this.#ctx.fill();
           }
         }
@@ -461,7 +472,11 @@ class GenomePlot extends EventTarget {
               .attr("height", (d) =>
                 self.ratioYScale(self.ratioYScale.domain()[1] - 2 * d.sd)
               )
+<<<<<<< HEAD
               .attr("fill", "#888")
+=======
+              .attr("fill", "#000")
+>>>>>>> main
               .attr("opacity", 0.3);
 
             g.append("line")
@@ -470,7 +485,11 @@ class GenomePlot extends EventTarget {
               .attr("x2", (d) => self.xScales[i](d.end))
               .attr("y1", (d) => self.ratioYScale(d.mean))
               .attr("y2", (d) => self.ratioYScale(d.mean))
+<<<<<<< HEAD
               .attr("stroke", "#444")
+=======
+              .attr("stroke", "#000")
+>>>>>>> main
               .attr("opacity", 0.5);
 
             g.append("polygon")
@@ -596,7 +615,11 @@ class GenomePlot extends EventTarget {
       this.margin.left,
       this.margin.top + this.panelHeight + this.margin.between
     );
+<<<<<<< HEAD
     this.#ctx.fillStyle = "#888";
+=======
+    this.#ctx.fillStyle = "#000";
+>>>>>>> main
     this.#ctx.globalAlpha = 1.0;
 
     this.#data.forEach((chromData, i) => {
@@ -628,10 +651,15 @@ class GenomePlot extends EventTarget {
             const xAdjusted = rawWidth < 2 ? x - Math.floor((width - rawWidth) / 2) : x;
 
             // Draw upper rectangle (above 0.5)
+<<<<<<< HEAD
             const bafMaxClamped = Math.min(1.0, d.baf_max);
             const bafMinClamped = Math.max(0.0, d.baf_min);
             const yMinUpper = Math.round(this.bafYScale(bafMaxClamped));
             const yMaxUpper = Math.round(this.bafYScale(bafMinClamped));
+=======
+            const yMinUpper = Math.round(this.bafYScale(d.baf_max));
+            const yMaxUpper = Math.round(this.bafYScale(d.baf_min));
+>>>>>>> main
             const heightUpper = Math.max(2, yMaxUpper - yMinUpper);
 
             if (xAdjusted >= xOffset && xAdjusted <= xOffset + this.panelWidths[i]) {
@@ -639,8 +667,13 @@ class GenomePlot extends EventTarget {
             }
 
             // Draw lower rectangle (mirrored below 0.5)
+<<<<<<< HEAD
             const baf_min_mirrored = Math.max(0.0, 1 - d.baf_max);
             const baf_max_mirrored = Math.min(1.0, 1 - d.baf_min);
+=======
+            const baf_min_mirrored = 1 - d.baf_max;
+            const baf_max_mirrored = 1 - d.baf_min;
+>>>>>>> main
             const yMinLower = Math.round(this.bafYScale(baf_max_mirrored));
             const yMaxLower = Math.round(this.bafYScale(baf_min_mirrored));
             const heightLower = Math.max(1, yMaxLower - yMinLower);
@@ -651,14 +684,22 @@ class GenomePlot extends EventTarget {
           } else {
             // Unbinned data: draw as square
             const rawX = xOffset + xScale(d.pos !== undefined ? d.pos : (d.start + d.end) / 2);
+<<<<<<< HEAD
             const rawY = this.bafYScale(Math.max(0.0, Math.min(1.0, d.baf)));
+=======
+            const rawY = this.bafYScale(d.baf);
+>>>>>>> main
             
             const x = Math.round(rawX);
             const y = Math.round(rawY);
             
             if (x >= xOffset && x <= xOffset + this.panelWidths[i]) {
               this.#ctx.beginPath();
+<<<<<<< HEAD
               this.#ctx.arc(x, y, 1.0, 0, 2 * Math.PI);
+=======
+              this.#ctx.rect(x - 1, y - 1, 3, 3);
+>>>>>>> main
               this.#ctx.fill();
             }
           }
@@ -696,12 +737,19 @@ class GenomePlot extends EventTarget {
                 "width",
                 (d) => self.xScales[i](d.end) - self.xScales[i](d.start)
               )
+<<<<<<< HEAD
               .attr("height", (d) => {
                 const yTop = self.bafYScale(Math.min(1, d.mean + d.sd));
                 const yBottom = self.bafYScale(Math.max(0, d.mean - d.sd));
                 return Math.max(2, yBottom - yTop);
               })
               .attr("fill", "#888")
+=======
+              .attr("height", (d) =>
+                self.bafYScale(self.bafYScale.domain()[1] - 2 * d.sd)
+              )
+              .attr("fill", "#000")
+>>>>>>> main
               .attr("opacity", 0.3);
 
             g.append("line")
@@ -710,7 +758,11 @@ class GenomePlot extends EventTarget {
               .attr("x2", (d) => self.xScales[i](d.end))
               .attr("y1", (d) => self.bafYScale(d.mean))
               .attr("y2", (d) => self.bafYScale(d.mean))
+<<<<<<< HEAD
               .attr("stroke", "#444")
+=======
+              .attr("stroke", "#000")
+>>>>>>> main
               .attr("stroke-width", 2)
               .attr("opacity", 0.8);
 

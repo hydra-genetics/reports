@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.1](https://github.com/hydra-genetics/reports/compare/v1.0.0...v1.0.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* **cnv_html_report:** bugfix of NaN breaking figures and better data point visibility ([#133](https://github.com/hydra-genetics/reports/issues/133)) ([#134](https://github.com/hydra-genetics/reports/issues/134)) ([f068276](https://github.com/hydra-genetics/reports/commit/f068276145b0b5b577b840293241935a73f47f57))
+
+## [0.11.0](https://github.com/hydra-genetics/reports/compare/v0.10.1...v0.11.0) (2026-02-02)
+
+
+### Features
+
+* Cnv_html_report with Canvas, gene search and linear chr view ([#126](https://github.com/hydra-genetics/reports/issues/126)) ([6a4b756](https://github.com/hydra-genetics/reports/commit/6a4b756657c1edfdfe3d784ec942bb110f00b2c4))
+
+
+### Bug Fixes
+
+* add ONT and PACBIO ([#123](https://github.com/hydra-genetics/reports/issues/123)) ([72181ea](https://github.com/hydra-genetics/reports/commit/72181ea3fd0e2f383aaff7a974ef3f7ae72afb08))
+* fix help text ([c808ad8](https://github.com/hydra-genetics/reports/commit/c808ad8db338e36ea0ea3e4b5b0647c491351d8f))
+* fix help text ([457dc76](https://github.com/hydra-genetics/reports/commit/457dc76d16bee23fe341038628186475bd333ff3))
+* improve handling of complex sample names by get_sample_name ([#124](https://github.com/hydra-genetics/reports/issues/124)) ([f5ff8bd](https://github.com/hydra-genetics/reports/commit/f5ff8bde067a4d10c81eb021c685fa75ef34d541))
+* resolve conflicts ([b58e436](https://github.com/hydra-genetics/reports/commit/b58e4367042f3303f91d5c7461c57d51efa6c5f1))
+
 ## [0.10.1](https://github.com/hydra-genetics/reports/compare/v0.10.0...v0.10.1) (2025-05-07)
 
 
