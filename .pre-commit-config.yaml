@@ -1,3 +1,4 @@
+default_install_hook_types: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
@@ -13,13 +14,38 @@ repos:
     hooks:
       - id: black
         args: [--line-length=130]
-  - repo: https://github.com/snakemake/snakefmt
-    rev: v0.8.4
-    hooks:
-      - id: snakefmt
-        args: [--line-length=130]
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v2.7.1
     hooks:
       - id: prettier
         types_or: [css, html, javascript, yaml, json]
+  - repo: local
+    hooks:
+      - id: snakefmt
+        name: snakefmt
+        entry: snakefmt --check --config .github/linters/.snakefmt.toml
+        language: system
+        files: (\.smk$|(^|/)Snakefile$)
+
+      - id: pycodestyle
+        name: pycodestyle
+        entry: pycodestyle
+        language: system
+        args: [--max-line-length=130, --statistics]
+        files: workflow/scripts/.*\.py$
+
+      - id: snakemake-lint
+        name: Snakemake lint
+        entry: bash -c 'cd .tests/integration && snakemake --lint -n -s ../../workflow/Snakefile --configfiles ../../config/config.yaml config.yaml'
+        language: system
+        pass_filenames: false
+        files: ^(workflow/|\.tests/integration/config\.yaml|config/)
+        stages: [pre-push]
+
+      - id: snakemake-dry-run
+        name: Snakemake dry run
+        entry: bash -c 'cd .tests/integration && snakemake -n -s ../../workflow/Snakefile --configfiles ../../config/config.yaml config.yaml && snakemake -n -s Snakefile_module --configfiles ../../config/config.yaml config.yaml'
+        language: system
+        pass_filenames: false
+        files: ^(workflow/|\.tests/integration/config\.yaml|config/)
+        stages: [pre-push]
