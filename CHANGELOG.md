@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.3](https://github.com/hydra-genetics/reports/compare/v1.0.2...v1.0.3) (2026-03-18)
+
+
+### Bug Fixes
+
+* browser pixelation issues ([bac02a1](https://github.com/hydra-genetics/reports/commit/bac02a1ff1a049c65f529fd84185f9743f110cf9))
+* browser pixelation issues ([#144](https://github.com/hydra-genetics/reports/issues/144)) ([2de0379](https://github.com/hydra-genetics/reports/commit/2de03792125128ed1e15dbee0e7094f5238e2284))
+* cnv_report issues ([0049888](https://github.com/hydra-genetics/reports/commit/0049888f5f0a1d93b2a945ea3459303ab20ff005))
+
 ## [1.0.2](https://github.com/hydra-genetics/reports/compare/v1.0.1...v1.0.2) (2026-03-17)
 
 
