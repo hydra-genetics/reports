@@ -189,6 +189,54 @@ d3.select("#chromosome-show-all-datapoints").on("change", (e) => {
   genomePlot.showAllData = e.target.checked;
 });
 
+const cancerGeneColoringToggle = d3.select("#chromosome-cancer-gene-coloring");
+
+cancerGeneColoringToggle.on("change", (e) => {
+  chromosomePlot.cancerGeneColoring = e.target.checked;
+  const legend = d3.select("#cancer-gene-legend");
+  legend.classed("hidden", !e.target.checked);
+  if (e.target.checked) {
+    updateCancerGeneLegend(cnvData);
+  }
+});
+
+function updateCancerGeneLegend(data) {
+  const legend = d3.select("#cancer-gene-legend");
+  legend.html(""); // Clear existing
+
+  const roles = new Map();
+
+  // Collect unique roles and their colors from all chromosomes
+  data.forEach(chrom => {
+    if (chrom.annotations) {
+      chrom.annotations.forEach(ann => {
+        if (ann.role && ann.color_simple && !roles.has(ann.role)) {
+          roles.set(ann.role, ann.color_simple);
+        }
+      });
+    }
+  });
+
+  if (roles.size === 0) {
+    legend.classed("hidden", true);
+    return;
+  }
+
+  // Sort roles alphabetically
+  const sortedRoles = Array.from(roles.keys()).sort();
+
+  sortedRoles.forEach(role => {
+    const color = roles.get(role);
+    const item = legend.append("div").attr("class", "legend-item");
+    item.append("div")
+      .attr("class", "legend-color")
+      .style("background-color", color);
+    item.append("span")
+      .attr("class", "legend-label")
+      .text(role);
+  });
+}
+
 const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
 const currentBaselineOffset = d3.select("#current-baseline-offset");
 const baselineOffsetReset = d3.select("#reset-baseline-offset");

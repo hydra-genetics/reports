@@ -220,6 +220,11 @@ class ChromosomePlot extends EventTarget {
   #ratios;
   #segments;
   #showAllData;
+  #isZooming = false;
+  #animationFrameId = null;
+  #zoomEndTimeout = null;
+  #animationDurationOriginal = 500;
+  #cancerGeneColoring = false;
   #equalDistance;
   #highlightedRegion;
   #highlightedRegions;
@@ -1169,10 +1174,27 @@ class ChromosomePlot extends EventTarget {
                   "height",
                   this.height - this.margin.top - this.margin.bottom
                 )
-                .attr("stroke", "#444")
+                .attr("stroke", (d) => {
+                  if (this.#cancerGeneColoring) {
+                    const color = d.color_simple;
+                    if (color) return color;
+                  }
+                  return "#444";
+                })
                 .attr("stroke-width", 0.5)
-                .attr("fill", "#888")
-                .attr("fill-opacity", 0.05)
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring) {
+                    const color = d.color_simple;
+                    if (color) return color;
+                  }
+                  return "#888";
+                })
+                .attr("fill-opacity", (d) => {
+                  if (this.#cancerGeneColoring && d.color_simple) {
+                    return 0.15;
+                  }
+                  return 0.05;
+                })
                 .attr("pointer-events", "none")
             )
             .call((enter) =>
@@ -1204,7 +1226,12 @@ class ChromosomePlot extends EventTarget {
                   "height",
                   (d) => getTextDimensions(d.name, "0.8rem")[1] + 4
                 )
-                .attr("fill", "#EEE")
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.color_simple) {
+                    return d.color_simple;
+                  }
+                  return "#EEE";
+                })
                 .attr("rx", 4)
             )
             .call((enter) =>
@@ -1212,6 +1239,14 @@ class ChromosomePlot extends EventTarget {
                 .append("text")
                 .attr("class", "annotation-label")
                 .text((d) => d.name)
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.color_simple) {
+                    // Simple contrast check: if color is dark, use light text
+                    // For now, just black text is usually fine if background is light-ish
+                    return "#000";
+                  }
+                  return "#000";
+                })
                 .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
                 .attr("y", this.plotHeight + this.margin.between / 2)
                 .attr("text-anchor", "middle")
@@ -1246,6 +1281,12 @@ class ChromosomePlot extends EventTarget {
                     5
                   );
                 })
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.color_simple) {
+                    return d.color_simple;
+                  }
+                  return "#EEE";
+                })
             )
             .call((update) =>
               update
@@ -1254,6 +1295,26 @@ class ChromosomePlot extends EventTarget {
                 .duration(this.animationDuration)
                 .attr("x", (d) => this.xScale(d.start))
                 .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+                .attr("stroke", (d) => {
+                  if (this.#cancerGeneColoring) {
+                    const color = d.color_simple;
+                    if (color) return color;
+                  }
+                  return "#444";
+                })
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring) {
+                    const color = d.color_simple;
+                    if (color) return color;
+                  }
+                  return "#888";
+                })
+                .attr("fill-opacity", (d) => {
+                  if (this.#cancerGeneColoring && d.color_simple) {
+                    return 0.15;
+                  }
+                  return 0.05;
+                })
             )
             .call((update) =>
               update
@@ -1702,6 +1763,15 @@ class ChromosomePlot extends EventTarget {
 
   setBaselineOffset(dy) {
     this.baselineOffset = dy;
+    this.update();
+  }
+
+  get cancerGeneColoring() {
+    return this.#cancerGeneColoring;
+  }
+
+  set cancerGeneColoring(value) {
+    this.#cancerGeneColoring = value;
     this.update();
   }
 

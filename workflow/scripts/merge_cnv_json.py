@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
+import csv
 import json
 import math
 from pathlib import Path
@@ -213,6 +214,48 @@ def parse_ref_genes(filename, skip=None):
     return results
 
 
+def parse_cancer_genes(filename):
+    """Parse common oncogene/TSG CSV format to create a color mapping.
+
+    Args:
+        filename: Path to CSV file
+
+    Returns:
+        Dict mapping gene names to {color_simple, color_detailed}
+    """
+    if not filename:
+        return {}
+
+    genes = {}
+    print(f"DEBUG: Opening cancer_genes file: {filename}", file=sys.stderr)
+
+    with open(filename) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if not row:
+                continue
+
+            # Use 'Gene' or the first column if 'Gene' is missing
+            name = row.get("Gene", "").strip()
+            if not name and reader.fieldnames:
+                name = row.get(reader.fieldnames[0], "").strip()
+
+            if not name:
+                continue
+
+            color_simple = row.get("Simple_Color", "").strip() or None
+            role = row.get("Role", "").strip() or None
+
+            if color_simple:
+                genes[name] = {
+                    "color_simple": color_simple,
+                    "role": role
+                }
+
+    print(f"Parsed {len(genes)} genes from {filename} into color mapping", file=sys.stderr)
+    return genes
+
+
 def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
     if skip is None:
         skip = []
@@ -389,7 +432,7 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
 
 def merge_cnv_dicts(
     dicts, baf, annotations, cytobands, chromosomes,
-    filtered_cnvs, unfiltered_cnvs, gene_index=None
+    filtered_cnvs, unfiltered_cnvs, gene_index=None, cancer_genes=None
 ):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
@@ -408,15 +451,61 @@ def merge_cnv_dicts(
             callers={c: dict(name=c, label=caller_labels.get(c, c), ratios=[], segments=[], cnvs=[]) for c in callers},
         )
 
+    highlighted_genes_by_chrom = {}
+
     for a in annotations:
         for item in a:
-            cnvs[item[0]]["annotations"].append(
-                dict(
-                    start=item[1],
-                    end=item[2],
-                    name=item[3],
+            chrom = item[0]
+            start = item[1]
+            end = item[2]
+            name = item[3]
+
+            if chrom not in highlighted_genes_by_chrom:
+                highlighted_genes_by_chrom[chrom] = set()
+            highlighted_genes_by_chrom[chrom].add(name)
+
+            color_simple = None
+            role = None
+            if cancer_genes and name in cancer_genes:
+                color_simple = cancer_genes[name].get("color_simple")
+                role = cancer_genes[name].get("role")
+
+            if chrom in cnvs:
+                cnvs[chrom]["annotations"].append(
+                    dict(
+                        start=start,
+                        end=end,
+                        name=name,
+                        color_simple=color_simple,
+                        role=role
+                    )
                 )
-            )
+
+    # Automatically add cancer genes from ref_genes index if not already in annotations
+    if cancer_genes and gene_index:
+        for gene_name, color_info in cancer_genes.items():
+            if gene_name in gene_index:
+                g = gene_index[gene_name]
+                chrom = g["chrom"]
+
+                if chrom not in highlighted_genes_by_chrom:
+                    highlighted_genes_by_chrom[chrom] = set()
+
+                # Check if this gene was already added from a BED file on this chromosome
+                if gene_name in highlighted_genes_by_chrom[chrom]:
+                    continue
+
+                if chrom in cnvs:
+                    cnvs[chrom]["annotations"].append(
+                        dict(
+                            start=g["start"],
+                            end=g["end"],
+                            name=gene_name,
+                            color_simple=color_info.get("color_simple"),
+                            role=color_info.get("role")
+                        )
+                    )
+                    highlighted_genes_by_chrom[chrom].add(gene_name)
 
     for c in cytobands:
         cnvs[c]["cytobands"] = cytobands[c]
@@ -495,6 +584,7 @@ def main():
     cnv_vcf_files = snakemake.input["cnv_vcfs"]
     cytoband_file = snakemake.input["cytobands"]
     ref_genes_file = snakemake.input.get("ref_genes", "")
+    cancer_genes_file = snakemake.input.get("cancer_genes", "")
 
     if len(germline_vcf) == 0:
         germline_vcf = None
@@ -544,6 +634,11 @@ def main():
     if ref_genes_file:
         gene_index = parse_ref_genes(ref_genes_file, skip_chromosomes)
 
+    # Parse cancer gene coloring
+    cancer_genes = {}
+    if cancer_genes_file:
+        cancer_genes = parse_cancer_genes(cancer_genes_file)
+
     if len(filtered_cnv_vcf_files) != len(cnv_vcf_files):
         print(
             f"error: the number of unfiltered vcf files ({len(filtered_cnv_vcf_files)}) "
@@ -559,7 +654,7 @@ def main():
 
     cnvs = merge_cnv_dicts(
         cnv_dicts, baf, annotations, cytobands, fai, filtered_cnv_vcfs,
-        unfiltered_cnv_vcfs, gene_index
+        unfiltered_cnv_vcfs, gene_index, cancer_genes
     )
 
     with open(output_file, "w") as f:

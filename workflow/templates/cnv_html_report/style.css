@@ -203,6 +203,14 @@ dialog.info p i {
   margin-right: 0.5rem;
 }
 
+#chromosome-cancer-gene-mode {
+  padding: 1px 3px;
+  font-size: 0.85rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
 input.invalid {
   background-color: #ff6762;
 }
@@ -440,6 +448,50 @@ tbody tr:hover {
 
 .hidden {
   display: none !important;
+}
+
+.legend-container {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  gap: 15px !important;
+  margin-top: 8px !important;
+  padding: 8px 12px !important;
+  background: #fdfdfd !important;
+  border-radius: 6px !important;
+  border: 1px solid #e0e0e0 !important;
+  font-size: 0.85rem !important;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  align-self: flex-start !important;
+  box-sizing: border-box !important;
+}
+
+.legend-container.hidden {
+  display: none !important;
+}
+
+.legend-item {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  white-space: nowrap !important;
+}
+
+.legend-color {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  border-radius: 2px !important;
+  border: 1px solid rgba(0,0,0,0.15) !important;
+  flex-shrink: 0 !important;
+}
+
+.legend-label {
+  color: #333 !important;
+  font-weight: 500 !important;
 }
 
 /* Print layout */

@@ -1,0 +1,7 @@
+Gene,Role,Simple_Color
+gene1,TSG_consensus,#4d79ff
+gene2,OG_consensus,#ff4d4d
+gene3,Dual_with_OG_bias,#ac33ff
+gene4,Fusion,#008000
+gene5,OG_single_source,#ff4d4d
+gene_ref_only,Oncogene,#ff00ff
