@@ -1145,14 +1145,17 @@ class ChromosomePlot extends EventTarget {
   }
 
   #plotAnnotations() {
-    const annotData = this.#data.annotations.map(d => {
-      let ad = { ...d };
-      if (this.equalDistance) {
-        ad.start = this.getRatioIndex(d.start);
-        ad.end = this.getRatioIndex(d.end);
-      }
-      return ad;
-    });
+    const annotData = this.#data.annotations
+      .filter(d => this.#cancerGeneColoring || !d.is_cancer_gene)
+      .map(d => {
+        let ad = { ...d };
+        if (this.equalDistance) {
+          ad.start = this.getRatioIndex(d.start);
+          ad.end = this.getRatioIndex(d.end);
+        }
+        return ad;
+      });
+
 
     this.annotations
       .selectAll(".annotation")

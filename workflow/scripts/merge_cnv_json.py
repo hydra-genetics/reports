@@ -501,9 +501,11 @@ def merge_cnv_dicts(
                             start=g["start"],
                             end=g["end"],
                             name=gene_name,
-                            color_simple=color_info.get("color_simple"),
-                            role=color_info.get("role")
-                        )
+                             color_simple=color_info.get("color_simple"),
+                             role=color_info.get("role"),
+                             is_cancer_gene=True
+                         )
+
                     )
                     highlighted_genes_by_chrom[chrom].add(gene_name)
 
@@ -585,13 +587,6 @@ def main():
     cytoband_file = snakemake.input["cytobands"]
     ref_genes_file = snakemake.input.get("ref_genes", "")
     cancer_genes_file = snakemake.input.get("cancer_genes", "")
-
-    print(f"DEBUG: snakemake.input keys: {list(snakemake.input.keys())}", file=sys.stderr)
-    print(f"DEBUG: cancer_genes_file value: {repr(cancer_genes_file)}", file=sys.stderr)
-    print(f"DEBUG: type(cancer_genes_file): {type(cancer_genes_file)}", file=sys.stderr)
-    if cancer_genes_file and hasattr(cancer_genes_file, "__len__"):
-         print(f"DEBUG: cancer_genes_file len: {len(cancer_genes_file)}", file=sys.stderr)
-
 
     if len(germline_vcf) == 0:
         germline_vcf = None
