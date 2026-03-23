@@ -501,10 +501,10 @@ def merge_cnv_dicts(
                             start=g["start"],
                             end=g["end"],
                             name=gene_name,
-                             color_simple=color_info.get("color_simple"),
-                             role=color_info.get("role"),
-                             is_cancer_gene=True
-                         )
+                            color_simple=color_info.get("color_simple"),
+                            role=color_info.get("role"),
+                            is_cancer_gene=True
+                        )
 
                     )
                     highlighted_genes_by_chrom[chrom].add(gene_name)
