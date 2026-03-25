@@ -389,7 +389,7 @@ class GenomePlot extends EventTarget {
           xScale,
           "start",
           "log2",
-          0,
+          this.baselineOffset,
           3,
           true
         );
@@ -434,7 +434,7 @@ class GenomePlot extends EventTarget {
           self.xScales[i],
           "start",
           "log2",
-          0,
+          self.baselineOffset,
           3,
           true
         );

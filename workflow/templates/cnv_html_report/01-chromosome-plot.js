@@ -778,7 +778,7 @@ class ChromosomePlot extends EventTarget {
         this.xScale,
         "start",
         "log2",
-        0,
+        this.baselineOffset,
         3,
         true
       );
