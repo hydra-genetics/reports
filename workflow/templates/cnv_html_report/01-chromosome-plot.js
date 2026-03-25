@@ -1533,10 +1533,20 @@ class ChromosomePlot extends EventTarget {
 
         const [xMin, xMax] = this.xScale.domain();
         const width = xMax - xMin;
+
+        if (!isFinite(width) || width <= 0) {
+          return;
+        }
+
         const [mouseX, _] = d3.pointer(e);
         const mouseGenomePos = this.xScale.invert(mouseX);
 
         let newWidth = width * factor;
+
+        // Ensure newWidth is valid
+        if (!isFinite(newWidth) || newWidth <= 0) {
+          return;
+        }
 
         // Limit zoom out to max length
         if (newWidth > this.length) {
@@ -1549,7 +1559,7 @@ class ChromosomePlot extends EventTarget {
         }
 
         // Calculate new xMin centered on mouse position
-        const ratio = (mouseGenomePos - xMin) / width;
+        const ratio = width > 0 ? (mouseGenomePos - xMin) / width : 0.5;
         let newXMin = mouseGenomePos - ratio * newWidth;
         let newXMax = newXMin + newWidth;
 
