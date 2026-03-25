@@ -243,12 +243,12 @@ def parse_cancer_genes(filename):
             if not name:
                 continue
 
-            color_simple = row.get("Simple_Color", "").strip() or None
+            color = row.get("Color", "").strip() or None
             role = row.get("Role", "").strip() or None
 
-            if color_simple:
+            if color:
                 genes[name] = {
-                    "color_simple": color_simple,
+                    "color": color,
                     "role": role
                 }
 
@@ -464,10 +464,10 @@ def merge_cnv_dicts(
                 highlighted_genes_by_chrom[chrom] = set()
             highlighted_genes_by_chrom[chrom].add(name)
 
-            color_simple = None
+            color = None
             role = None
             if cancer_genes and name in cancer_genes:
-                color_simple = cancer_genes[name].get("color_simple")
+                color = cancer_genes[name].get("color")
                 role = cancer_genes[name].get("role")
 
             if chrom in cnvs:
@@ -476,7 +476,7 @@ def merge_cnv_dicts(
                         start=start,
                         end=end,
                         name=name,
-                        color_simple=color_simple,
+                        color=color,
                         role=role
                     )
                 )
@@ -501,7 +501,7 @@ def merge_cnv_dicts(
                             start=g["start"],
                             end=g["end"],
                             name=gene_name,
-                            color_simple=color_info.get("color_simple"),
+                            color=color_info.get("color"),
                             role=color_info.get("role"),
                             is_cancer_gene=True
                         )

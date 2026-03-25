@@ -74,16 +74,16 @@ Gene coloring can be enabled in the chromosome plot by providing a CSV file with
 If a gene is listed in the `cancer_genes` CSV and is also present in the `ref_genes` index (but not in the `annotations` BED files), its coordinates will be automatically fetched from the reference index and it will be highlighted on the chromosome plot. This allows for highlighting a large set of genes without manually creating individual BED entries.
 - `Gene`: Standard gene name (e.g., TP53)
 - `Role`: Gene role (e.g., Oncogene, TSG)
-- `Simple_Color`: Hex color code for the gene (e.g., #ff0000)
+- `Color`: Hex color code for the gene (e.g., #ff0000)
 
 Example `cancer_genes.csv`:
 ```csv
-Gene,Role,Simple_Color
-TP53,TSG_consensus,#4d79ff
-MYC,OG_consensus,#ff4d4d
+Gene,Role,Color
+TP53,Dual role (OG and / or TSG),#ee82ee
+IKZF1,Tumor suppressor gene (TSG),#0000ff
 ```
 
-The report will then include a toggle and a mode selector (Simple/Detailed) to apply these colors to the annotations.
+The report will then include a toggle to apply these colors to the annotations.
 
 ### Wide Plots
 

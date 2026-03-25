@@ -210,8 +210,8 @@ function updateCancerGeneLegend(data) {
   data.forEach(chrom => {
     if (chrom.annotations) {
       chrom.annotations.forEach(ann => {
-        if (ann.role && ann.color_simple && !roles.has(ann.role)) {
-          roles.set(ann.role, ann.color_simple);
+        if (ann.role && ann.color && !roles.has(ann.role)) {
+          roles.set(ann.role, ann.color);
         }
       });
     }

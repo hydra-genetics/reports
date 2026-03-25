@@ -8,9 +8,9 @@
   overflow-y: hidden;
 }
 
-.full-width-plots .plot-container div,
-.full-width-plots .plot-container section,
-.full-width-plots .plot-container {
+.full-width-plots .relative-container,
+.full-width-plots .plot-container,
+.full-width-plots .plot-section {
   max-width: none !important;
   width: 100%;
 }
@@ -451,21 +451,21 @@ tbody tr:hover {
 }
 
 .legend-container {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: wrap !important;
-  gap: 15px !important;
-  margin-top: 8px !important;
-  padding: 8px 12px !important;
-  background: #fdfdfd !important;
-  border-radius: 6px !important;
-  border: 1px solid #e0e0e0 !important;
-  font-size: 0.85rem !important;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important;
-  width: fit-content !important;
-  max-width: 100% !important;
-  align-self: flex-start !important;
-  box-sizing: border-box !important;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fdfdfd;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  font-size: 0.85rem;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+  width: fit-content;
+  max-width: 100%;
+  align-self: flex-start;
+  box-sizing: border-box;
 }
 
 .legend-container.hidden {
@@ -473,25 +473,25 @@ tbody tr:hover {
 }
 
 .legend-item {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  white-space: nowrap !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .legend-color {
-  width: 14px !important;
-  height: 14px !important;
-  min-width: 14px !important;
-  min-height: 14px !important;
-  border-radius: 2px !important;
-  border: 1px solid rgba(0,0,0,0.15) !important;
-  flex-shrink: 0 !important;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.15);
+  flex-shrink: 0;
 }
 
 .legend-label {
-  color: #333 !important;
-  font-weight: 500 !important;
+  color: #333;
+  font-weight: 500;
 }
 
 /* Print layout */

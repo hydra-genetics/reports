@@ -1179,7 +1179,7 @@ class ChromosomePlot extends EventTarget {
                 )
                 .attr("stroke", (d) => {
                   if (this.#cancerGeneColoring) {
-                    const color = d.color_simple;
+                    const color = d.color;
                     if (color) return color;
                   }
                   return "#444";
@@ -1187,13 +1187,13 @@ class ChromosomePlot extends EventTarget {
                 .attr("stroke-width", 0.5)
                 .attr("fill", (d) => {
                   if (this.#cancerGeneColoring) {
-                    const color = d.color_simple;
+                    const color = d.color;
                     if (color) return color;
                   }
                   return "#888";
                 })
                 .attr("fill-opacity", (d) => {
-                  if (this.#cancerGeneColoring && d.color_simple) {
+                  if (this.#cancerGeneColoring && d.color) {
                     return 0.15;
                   }
                   return 0.05;
@@ -1230,8 +1230,8 @@ class ChromosomePlot extends EventTarget {
                   (d) => getTextDimensions(d.name, "0.8rem")[1] + 4
                 )
                 .attr("fill", (d) => {
-                  if (this.#cancerGeneColoring && d.color_simple) {
-                    return d.color_simple;
+                  if (this.#cancerGeneColoring && d.color) {
+                    return d.color;
                   }
                   return "#EEE";
                 })
@@ -1243,10 +1243,14 @@ class ChromosomePlot extends EventTarget {
                 .attr("class", "annotation-label")
                 .text((d) => d.name)
                 .attr("fill", (d) => {
-                  if (this.#cancerGeneColoring && d.color_simple) {
-                    // Simple contrast check: if color is dark, use light text
-                    // For now, just black text is usually fine if background is light-ish
-                    return "#000";
+                  if (this.#cancerGeneColoring && d.color) {
+                    // Calculate luminance to determine text color
+                    const hex = d.color.replace("#", "");
+                    const r = parseInt(hex.substring(0, 2), 16);
+                    const g = parseInt(hex.substring(2, 4), 16);
+                    const b = parseInt(hex.substring(4, 6), 16);
+                    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                    return luminance > 0.5 ? "#000" : "#fff";
                   }
                   return "#000";
                 })
@@ -1270,6 +1274,17 @@ class ChromosomePlot extends EventTarget {
                 .transition()
                 .duration(this.animationDuration)
                 .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.color) {
+                    const hex = d.color.replace("#", "");
+                    const r = parseInt(hex.substring(0, 2), 16);
+                    const g = parseInt(hex.substring(2, 4), 16);
+                    const b = parseInt(hex.substring(4, 6), 16);
+                    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                    return luminance > 0.5 ? "#000" : "#fff";
+                  }
+                  return "#000";
+                })
             )
             .call((update) =>
               update
@@ -1285,8 +1300,8 @@ class ChromosomePlot extends EventTarget {
                   );
                 })
                 .attr("fill", (d) => {
-                  if (this.#cancerGeneColoring && d.color_simple) {
-                    return d.color_simple;
+                  if (this.#cancerGeneColoring && d.color) {
+                    return d.color;
                   }
                   return "#EEE";
                 })
@@ -1300,20 +1315,20 @@ class ChromosomePlot extends EventTarget {
                 .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
                 .attr("stroke", (d) => {
                   if (this.#cancerGeneColoring) {
-                    const color = d.color_simple;
+                    const color = d.color;
                     if (color) return color;
                   }
                   return "#444";
                 })
                 .attr("fill", (d) => {
                   if (this.#cancerGeneColoring) {
-                    const color = d.color_simple;
+                    const color = d.color;
                     if (color) return color;
                   }
                   return "#888";
                 })
                 .attr("fill-opacity", (d) => {
-                  if (this.#cancerGeneColoring && d.color_simple) {
+                  if (this.#cancerGeneColoring && d.color) {
                     return 0.15;
                   }
                   return 0.05;
