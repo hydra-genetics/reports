@@ -225,6 +225,10 @@ class ChromosomePlot extends EventTarget {
   #highlightedRegions;
   #canvas;
   #ctx;
+  #isZooming = false;
+  #animationFrameId = null;
+  #zoomEndTimeout = null;
+  #animationDurationOriginal = 500;
 
   constructor(config) {
     super();
@@ -1514,6 +1518,84 @@ class ChromosomePlot extends EventTarget {
             this.update();
           })
       )
+      .on("wheel", (e) => {
+        e.preventDefault();
+
+        if (!this.#isZooming) {
+            this.#isZooming = true;
+            this.#animationDurationOriginal = this.animationDuration;
+            this.animationDuration = 0;
+        }
+
+        const zoomFactor = 0.1;
+        const direction = e.deltaY > 0 ? 1 : -1; // deltaY > 0 is scroll down (zoom out)
+        const factor = 1 + direction * zoomFactor;
+
+        const [xMin, xMax] = this.xScale.domain();
+        const width = xMax - xMin;
+
+        if (!isFinite(width) || width <= 0) {
+          return;
+        }
+
+        const [mouseX, _] = d3.pointer(e);
+        const mouseGenomePos = this.xScale.invert(mouseX);
+
+        let newWidth = width * factor;
+
+        // Ensure newWidth is valid
+        if (!isFinite(newWidth) || newWidth <= 0) {
+          return;
+        }
+
+        // Limit zoom out to max length
+        if (newWidth > this.length) {
+          newWidth = this.length;
+        }
+
+        // Limit zoom in to minZoomRange
+        if (newWidth < this.minZoomRange) {
+          newWidth = this.minZoomRange;
+        }
+
+        // Calculate new xMin centered on mouse position
+        const ratio = width > 0 ? (mouseGenomePos - xMin) / width : 0.5;
+        let newXMin = mouseGenomePos - ratio * newWidth;
+        let newXMax = newXMin + newWidth;
+
+        // Handle boundary constraints
+        if (newXMin < 0) {
+          newXMin = 0;
+          newXMax = newWidth;
+        }
+        if (newXMax > this.length) {
+          newXMax = this.length;
+          newXMin = newXMax - newWidth;
+        }
+
+        this.zoomTo(newXMin, newXMax);
+        
+        if (this.#animationFrameId) {
+            cancelAnimationFrame(this.#animationFrameId);
+        }
+
+        this.#animationFrameId = requestAnimationFrame(() => {
+            this.update();
+            this.#animationFrameId = null;
+        });
+
+        // Use a timeout to detect when zooming stops
+        if (this.#zoomEndTimeout) {
+            clearTimeout(this.#zoomEndTimeout);
+        }
+        this.#zoomEndTimeout = setTimeout(() => {
+            this.#isZooming = false;
+            this.animationDuration = this.#animationDurationOriginal;
+            // Final update to ensure everything is settled
+            this.update();
+            this.#zoomEndTimeout = null;
+        }, 150);
+      }, { passive: false })
       .on("click", (e) => {
         isDragging = false;
         const [xMin, xMax] = this.xScale.domain();
