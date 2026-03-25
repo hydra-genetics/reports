@@ -207,9 +207,9 @@ function updateCancerGeneLegend(data) {
   const roles = new Map();
 
   // Collect unique roles and their colors from all chromosomes
-  data.forEach(chrom => {
+  data.forEach((chrom) => {
     if (chrom.annotations) {
-      chrom.annotations.forEach(ann => {
+      chrom.annotations.forEach((ann) => {
         if (ann.role && ann.color && !roles.has(ann.role)) {
           roles.set(ann.role, ann.color);
         }
@@ -225,15 +225,36 @@ function updateCancerGeneLegend(data) {
   // Sort roles alphabetically
   const sortedRoles = Array.from(roles.keys()).sort();
 
-  sortedRoles.forEach(role => {
+  // Initialize active roles if empty
+  if (chromosomePlot.activeCancerGeneRoles.size === 0) {
+    chromosomePlot.activeCancerGeneRoles = new Set(sortedRoles);
+  }
+
+  sortedRoles.forEach((role) => {
     const color = roles.get(role);
     const item = legend.append("div").attr("class", "legend-item");
-    item.append("div")
+    const label = item.append("label").attr("class", "legend-item-label");
+
+    label
+      .append("input")
+      .attr("type", "checkbox")
+      .attr("class", "legend-checkbox")
+      .property("checked", chromosomePlot.activeCancerGeneRoles.has(role))
+      .on("change", (e) => {
+        const activeRoles = new Set(chromosomePlot.activeCancerGeneRoles);
+        if (e.target.checked) {
+          activeRoles.add(role);
+        } else {
+          activeRoles.delete(role);
+        }
+        chromosomePlot.activeCancerGeneRoles = activeRoles;
+      });
+
+    label
+      .append("div")
       .attr("class", "legend-color")
       .style("background-color", color);
-    item.append("span")
-      .attr("class", "legend-label")
-      .text(role);
+    label.append("span").attr("class", "legend-label").text(role);
   });
 }
 

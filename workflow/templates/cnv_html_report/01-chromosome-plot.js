@@ -230,6 +230,7 @@ class ChromosomePlot extends EventTarget {
   #highlightedRegions;
   #canvas;
   #ctx;
+  #activeCancerGeneRoles = new Set();
 
   constructor(config) {
     super();
@@ -1140,21 +1141,33 @@ class ChromosomePlot extends EventTarget {
 
           return update;
         },
-        (exit) => exit.transition().duration(this.animationDuration).attr("opacity", 0).remove()
       );
   }
 
   #plotAnnotations() {
-    const annotData = this.#data.annotations
-      .filter(d => this.#cancerGeneColoring || !d.is_cancer_gene)
-      .map(d => {
-        let ad = { ...d };
-        if (this.equalDistance) {
-          ad.start = this.getRatioIndex(d.start);
-          ad.end = this.getRatioIndex(d.end);
+    let annotData = this.#data.annotations;
+    if (this.#cancerGeneColoring) {
+      // In coloring mode, we show everything from standard sources.
+      // Auto-added cancer genes are only shown if their role is active.
+      annotData = annotData.filter((d) => {
+        if (d.is_cancer_gene) {
+          return d.role && this.#activeCancerGeneRoles.has(d.role);
         }
-        return ad;
+        return true;
       });
+    } else {
+      // If coloring is off, only show non-cancer genes (from standard sources)
+      annotData = annotData.filter((d) => !d.is_cancer_gene);
+    }
+
+    annotData = annotData.map((d) => {
+      let ad = { ...d };
+      if (this.equalDistance) {
+        ad.start = this.getRatioIndex(d.start);
+        ad.end = this.getRatioIndex(d.end);
+      }
+      return ad;
+    });
 
 
     this.annotations
@@ -1178,7 +1191,7 @@ class ChromosomePlot extends EventTarget {
                   this.height - this.margin.top - this.margin.bottom
                 )
                 .attr("stroke", (d) => {
-                  if (this.#cancerGeneColoring) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     const color = d.color;
                     if (color) return color;
                   }
@@ -1186,14 +1199,14 @@ class ChromosomePlot extends EventTarget {
                 })
                 .attr("stroke-width", 0.5)
                 .attr("fill", (d) => {
-                  if (this.#cancerGeneColoring) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     const color = d.color;
                     if (color) return color;
                   }
                   return "#888";
                 })
                 .attr("fill-opacity", (d) => {
-                  if (this.#cancerGeneColoring && d.color) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     return 0.15;
                   }
                   return 0.05;
@@ -1243,7 +1256,7 @@ class ChromosomePlot extends EventTarget {
                 .attr("class", "annotation-label")
                 .text((d) => d.name)
                 .attr("fill", (d) => {
-                  if (this.#cancerGeneColoring && d.color) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     // Calculate luminance to determine text color
                     const hex = d.color.replace("#", "");
                     const r = parseInt(hex.substring(0, 2), 16);
@@ -1275,7 +1288,7 @@ class ChromosomePlot extends EventTarget {
                 .duration(this.animationDuration)
                 .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
                 .attr("fill", (d) => {
-                  if (this.#cancerGeneColoring && d.color) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     const hex = d.color.replace("#", "");
                     const r = parseInt(hex.substring(0, 2), 16);
                     const g = parseInt(hex.substring(2, 4), 16);
@@ -1300,7 +1313,7 @@ class ChromosomePlot extends EventTarget {
                   );
                 })
                 .attr("fill", (d) => {
-                  if (this.#cancerGeneColoring && d.color) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     return d.color;
                   }
                   return "#EEE";
@@ -1314,21 +1327,21 @@ class ChromosomePlot extends EventTarget {
                 .attr("x", (d) => this.xScale(d.start))
                 .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
                 .attr("stroke", (d) => {
-                  if (this.#cancerGeneColoring) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     const color = d.color;
                     if (color) return color;
                   }
                   return "#444";
                 })
                 .attr("fill", (d) => {
-                  if (this.#cancerGeneColoring) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     const color = d.color;
                     if (color) return color;
                   }
                   return "#888";
                 })
                 .attr("fill-opacity", (d) => {
-                  if (this.#cancerGeneColoring && d.color) {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
                     return 0.15;
                   }
                   return 0.05;
@@ -1790,6 +1803,19 @@ class ChromosomePlot extends EventTarget {
 
   set cancerGeneColoring(value) {
     this.#cancerGeneColoring = value;
+    this.update();
+  }
+
+  get activeCancerGeneRoles() {
+    return this.#activeCancerGeneRoles;
+  }
+
+  set activeCancerGeneRoles(roles) {
+    if (Array.isArray(roles)) {
+      this.#activeCancerGeneRoles = new Set(roles);
+    } else {
+      this.#activeCancerGeneRoles = roles;
+    }
     this.update();
   }
 

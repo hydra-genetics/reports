@@ -10,7 +10,7 @@ reference:
   fasta: "reference/hg19.with.mt.fasta"
 
 cnv_html_report:
-  wide_plot_width: false
+  wide_plot_width: 2000
   cytobands: true
   show_table: true
   extra_tables:

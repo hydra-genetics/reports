@@ -474,9 +474,22 @@ tbody tr:hover {
 
 .legend-item {
   display: inline-flex;
+  white-space: nowrap;
+}
+
+.legend-item-label {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.legend-checkbox {
+  margin: 0;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
 }
 
 .legend-color {
