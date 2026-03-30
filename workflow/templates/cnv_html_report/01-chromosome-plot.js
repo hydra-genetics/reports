@@ -231,6 +231,7 @@ class ChromosomePlot extends EventTarget {
   #canvas;
   #ctx;
   #activeCancerGeneRoles = new Set();
+  #geneMenu = null;
 
   constructor(config) {
     super();
@@ -369,14 +370,28 @@ class ChromosomePlot extends EventTarget {
 
     this.#setLabels();
 
+    this.initialiseMousetrap();
+
     this.annotations = this.#plotArea
       .append("g")
       .attr("class", "annotation-container");
 
-    this.initialiseMousetrap();
-
     // Setup Canvas for high-performance scatter rendering
     this.#setupCanvas();
+
+    this.#geneMenu = d3.select("body").select(".gene-link-menu");
+    if (this.#geneMenu.empty()) {
+      this.#geneMenu = d3
+        .select("body")
+        .append("div")
+        .attr("class", "gene-link-menu hidden");
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".annotation-label, .annotation-label-background, .gene-link-menu")) {
+          this.#geneMenu.classed("hidden", true);
+        }
+      });
+    }
 
     this.update();
   }
@@ -1148,7 +1163,6 @@ class ChromosomePlot extends EventTarget {
     let annotData = this.#data.annotations;
     if (this.#cancerGeneColoring) {
       // In coloring mode, we show everything from standard sources.
-      // Auto-added cancer genes are only shown if their role is active.
       annotData = annotData.filter((d) => {
         if (d.is_cancer_gene) {
           return d.role && this.#activeCancerGeneRoles.has(d.role);
@@ -1162,6 +1176,7 @@ class ChromosomePlot extends EventTarget {
 
     annotData = annotData.map((d) => {
       let ad = { ...d };
+      ad.is_in_cancer_gene_list = ad.is_in_cancer_gene_list !== undefined ? ad.is_in_cancer_gene_list : !!ad.color;
       if (this.equalDistance) {
         ad.start = this.getRatioIndex(d.start);
         ad.end = this.getRatioIndex(d.end);
@@ -1180,6 +1195,24 @@ class ChromosomePlot extends EventTarget {
             .attr("class", "annotation")
             .attr("clip-path", "url(#annotation-clip)")
             .attr("opacity", 0)
+            .on("click", (e, d) => {
+              if (d.is_in_cancer_gene_list && this.#cancerGeneColoring && this.#geneMenu) {
+                e.stopPropagation();
+                const cbio = `https://www.cbioportal.org/results/cancerTypesSummary?cancer_study_list=laml_tcga_pan_can_atlas_2018%2Cacc_tcga_pan_can_atlas_2018%2Cblca_tcga_pan_can_atlas_2018%2Clgg_tcga_pan_can_atlas_2018%2Cbrca_tcga_pan_can_atlas_2018%2Ccesc_tcga_pan_can_atlas_2018%2Cchol_tcga_pan_can_atlas_2018%2Ccoadread_tcga_pan_can_atlas_2018%2Cdlbc_tcga_pan_can_atlas_2018%2Cesca_tcga_pan_can_atlas_2018%2Cgbm_tcga_pan_can_atlas_2018%2Chnsc_tcga_pan_can_atlas_2018%2Ckich_tcga_pan_can_atlas_2018%2Ckirc_tcga_pan_can_atlas_2018%2Ckirp_tcga_pan_can_atlas_2018%2Clihc_tcga_pan_can_atlas_2018%2Cluad_tcga_pan_can_atlas_2018%2Clusc_tcga_pan_can_atlas_2018%2Cmeso_tcga_pan_can_atlas_2018%2Cov_tcga_pan_can_atlas_2018%2Cpaad_tcga_pan_can_atlas_2018%2Cpcpg_tcga_pan_can_atlas_2018%2Cprad_tcga_pan_can_atlas_2018%2Csarc_tcga_pan_can_atlas_2018%2Cskcm_tcga_pan_can_atlas_2018%2Cstad_tcga_pan_can_atlas_2018%2Ctgct_tcga_pan_can_atlas_2018%2Cthym_tcga_pan_can_atlas_2018%2Cthca_tcga_pan_can_atlas_2018%2Cucs_tcga_pan_can_atlas_2018%2Cucec_tcga_pan_can_atlas_2018%2Cuvm_tcga_pan_can_atlas_2018&tab_index=tab_visualize&profileFilter=mutations%2Cgistic%2Cstructural_variants&case_set_id=all&Action=Submit&gene_list=${d.name}`;
+                const onco = `https://www.oncokb.org/gene/${d.name}/somatic`;
+                
+                this.#geneMenu.html(`
+                  <strong style="padding: 5px 15px; border-bottom: 1px solid #eee; margin-bottom: 5px;">${d.name}</strong>
+                  <a href="${cbio}" target="_blank">🔍 cBioPortal</a>
+                  <a href="${onco}" target="_blank">🧬 OncoKB</a>
+                `);
+                
+                this.#geneMenu
+                  .style("left", `${e.pageX + 10}px`)
+                  .style("top", `${e.pageY + 10}px`)
+                  .classed("hidden", false);
+              }
+            })
             .call((enter) =>
               enter
                 .append("rect")
@@ -1216,7 +1249,9 @@ class ChromosomePlot extends EventTarget {
             .call((enter) =>
               enter
                 .append("rect")
-                .attr("class", "annotation-label-background")
+                .attr("class", (d) => `annotation-label-background${d.is_in_cancer_gene_list && this.#cancerGeneColoring ? " clickable" : ""}`)
+                .style("cursor", (d) => (d.is_in_cancer_gene_list && this.#cancerGeneColoring ? "pointer" : "default"))
+                .style("pointer-events", "auto")
                 .attr("x", (d) => {
                   let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
                   return (
@@ -1253,7 +1288,9 @@ class ChromosomePlot extends EventTarget {
             .call((enter) =>
               enter
                 .append("text")
-                .attr("class", "annotation-label")
+                .attr("class", (d) => `annotation-label${d.is_in_cancer_gene_list && this.#cancerGeneColoring ? " clickable" : ""}`)
+                .style("cursor", (d) => (d.is_in_cancer_gene_list && this.#cancerGeneColoring ? "pointer" : "default"))
+                .style("pointer-events", "auto")
                 .text((d) => d.name)
                 .attr("fill", (d) => {
                   if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
@@ -1279,8 +1316,16 @@ class ChromosomePlot extends EventTarget {
                 .attr("opacity", 1)
             );
         },
-        (update) =>
-          update
+        (update) => {
+          update.selectAll(".annotation-label-background")
+            .attr("class", (d) => `annotation-label-background${d.is_in_cancer_gene_list && this.#cancerGeneColoring ? " clickable" : ""}`)
+            .style("cursor", (d) => (d.is_in_cancer_gene_list && this.#cancerGeneColoring ? "pointer" : "default"));
+
+          update.selectAll(".annotation-label")
+            .attr("class", (d) => `annotation-label${d.is_in_cancer_gene_list && this.#cancerGeneColoring ? " clickable" : ""}`)
+            .style("cursor", (d) => (d.is_in_cancer_gene_list && this.#cancerGeneColoring ? "pointer" : "default"));
+
+          return update
             .call((update) =>
               update
                 .selectAll(".annotation-label")
@@ -1352,7 +1397,8 @@ class ChromosomePlot extends EventTarget {
                 .transition()
                 .duration(this.animationDuration)
                 .attr("opacity", 1)
-            ),
+            );
+        },
         (exit) => {
           return exit
             .transition()
@@ -1477,9 +1523,9 @@ class ChromosomePlot extends EventTarget {
 
   initialiseMousetrap() {
     let isDragging = false;
-    const mouseTrap = this.svg
+    const mouseTrap = this.#plotArea
       .append("g")
-      .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
+      .attr("class", "mousetrap-container");
     mouseTrap
       .append("g")
       .attr("id", "lr-mousetrap")

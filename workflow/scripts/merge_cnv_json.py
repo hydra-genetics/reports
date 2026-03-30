@@ -477,7 +477,9 @@ def merge_cnv_dicts(
                         end=end,
                         name=name,
                         color=color,
-                        role=role
+                        role=role,
+                        is_cancer_gene=False,
+                        is_in_cancer_gene_list=(color is not None)
                     )
                 )
 
@@ -503,7 +505,8 @@ def merge_cnv_dicts(
                             name=gene_name,
                             color=color_info.get("color"),
                             role=color_info.get("role"),
-                            is_cancer_gene=True
+                            is_cancer_gene=True,
+                            is_in_cancer_gene_list=True
                         )
 
                     )
