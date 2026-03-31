@@ -95,7 +95,10 @@ class ResultsTable extends EventTarget {
       case "genes":
         return {
           class: "left",
-          format: (x) => x.join(", "),
+          format: (x) => {
+            if (!x) return "";
+            return x.join(", ");
+          },
         };
 
       case "position":
@@ -281,6 +284,7 @@ class ResultsTable extends EventTarget {
           }
         });
     });
+
 
     this.#body.selectAll(".view-region-link").on("click", (e) => {
       const rowData = e.target.parentNode.parentElement.dataset;

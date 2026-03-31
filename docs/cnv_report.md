@@ -66,6 +66,25 @@ Only full-length hexadecimal colours (without alpha channel), as shown above, ar
 
 Custom annotations can be added to the chromosome plot by specifying one or more bed-files in `annotations` under [`merge_cnv_json`](/softwares/#configuration_2). Only the four first columns of the file will be taken into account, and the value in the name column will be displayed in the plot.
 
+### Gene coloring
+
+Gene coloring can be enabled in the chromosome plot by providing a CSV file with gene roles and colors via `cancer_genes` under [`merge_cnv_json`](/softwares/#configuration_2).
+
+**Automatic Highlighting**:
+If a gene is listed in the `cancer_genes` CSV and is also present in the `ref_genes` index (but not in the `annotations` BED files), its coordinates will be automatically fetched from the reference index and it will be highlighted on the chromosome plot. This allows for highlighting a large set of genes without manually creating individual BED entries.
+- `Gene`: Standard gene name (e.g., TP53)
+- `Role`: Gene role (e.g., Oncogene, TSG)
+- `Color`: Hex color code for the gene (e.g., #ff0000)
+
+Example `cancer_genes.csv`:
+```csv
+Gene,Role,Color
+TP53,Dual role (OG and / or TSG),#ee82ee
+IKZF1,Tumor suppressor gene (TSG),#0000ff
+```
+
+The report will then include a toggle to apply these colors to the annotations.
+
 ### Wide Plots
 
 To support wider plots that stack vertically (instead of the default responsive layout), you can configure `wide_plot_width` under [`cnv_html_report`](/softwares/#configuration). This accepts an integer value in pixels.

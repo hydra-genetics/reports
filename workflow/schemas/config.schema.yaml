@@ -144,6 +144,13 @@ properties:
         type: string
         description: name or path to docker/singularity container
 
+      cancer_genes:
+        type: string
+        format: uri-reference
+        description: >
+          CSV file containing gene coloring information.
+          The CSV must have at least three columns with headers: "Gene" (gene name), "Role" (e.g., OG_consensus, TSG_consensus), and "Simple_Color" (hex color code).
+          If a gene in this file is also present in `ref_genes` (but not in `annotations`), its coordinates will be automatically fetched and it will be highlighted in the chromosome plot.
       annotations:
         type: array
         description: >

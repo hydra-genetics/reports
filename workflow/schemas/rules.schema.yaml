@@ -198,7 +198,12 @@ properties:
             description: >
               Optional path to a file with cytoband definitions. This file should
               conform to the UCSC schema for cytobands. See <https://www.genome.ucsc.edu/cgi-bin/hgTables?db=hg19&hgta_group=map&hgta_track=cytoBand&hgta_table=cytoBand&hgta_doSchema=describe+table+schema>
-
+          cancer_genes:
+            type: string
+            description: >
+              Optional path to a CSV file with cancer gene coloring definitions.
+              The CSV must have at least three columns with headers: "Gene" (gene name), "Role" (e.g., OG_consensus, TSG_consensus), and "Simple_Color" (hex color code).
+              If a gene in this file is also present in `ref_genes` (but not in `annotations`), its coordinates will be automatically fetched and it will be highlighted in the chromosome plot.
       output:
         type: object
         description: list of outputs
