@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/hydra-genetics/reports/compare/v1.0.3...v1.1.0) (2026-03-31)
+
+
+### Features
+
+* add mouse wheel zooming ([#147](https://github.com/hydra-genetics/reports/issues/147)) ([860f7b2](https://github.com/hydra-genetics/reports/commit/860f7b20f63fadb3c4c12e699905b06f78a331e1))
+* added highlightning of cancer genes with different colors ([ec8d590](https://github.com/hydra-genetics/reports/commit/ec8d590f0f0ecc4f8b6b488ed550b077053740fe))
+* added highlightning of cancer genes with different colors ([9d1e7f6](https://github.com/hydra-genetics/reports/commit/9d1e7f6a9b55c14b22a305795e32bd5235126943))
+* make it possible to highlight based on annotation ([da200da](https://github.com/hydra-genetics/reports/commit/da200da0bdb6652b24858d6664a20def2c0b336b))
+* make the cancer annotations clickable ([7b31c3a](https://github.com/hydra-genetics/reports/commit/7b31c3a864ab0e6bdea7293b6fbd994192f43ada))
+
+
+### Bug Fixes
+
+* bugfix of error bars when simulate purity was combine with a negative offset ([a6d2fdc](https://github.com/hydra-genetics/reports/commit/a6d2fdc4a3c87163aabf61f2c5f55de1a92c216d))
+* improvements in colors and legend handling ([42f3c66](https://github.com/hydra-genetics/reports/commit/42f3c66797f74b7640af750cb55b656f29b82b1d))
+* only show cancer genes when box is ticked ([9d011ae](https://github.com/hydra-genetics/reports/commit/9d011aef6895701f80997a4ba27abc0d4d409165))
+* Resolved merge conflicts from main regarding report version ([470f8f5](https://github.com/hydra-genetics/reports/commit/470f8f582198fb9eb676b30366bd51615c793a0a))
+
 ## [1.0.3](https://github.com/hydra-genetics/reports/compare/v1.0.2...v1.0.3) (2026-03-18)
 
 
