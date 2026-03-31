@@ -196,6 +196,25 @@ def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     return config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs", [])
 
 
+def get_cytobands(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return config.get("merge_cnv_json", {}).get("cytobands", [])
+
+
+def get_ref_genes(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return config.get("merge_cnv_json", {}).get("ref_genes", [])
+
+
+def get_cancer_genes(wildcards: Wildcards) -> List[Union[str, Path]]:
+    res = config.get("merge_cnv_json", {}).get("cancer_genes", [])
+    if isinstance(res, str) and not res:
+        return []
+    return res
+
+
+if not config.get("merge_cnv_json", {}).get("cancer_genes"):
+    print("WARNING: merge_cnv_json: cancer_genes not specified. Gene coloring will be disabled in the report.")
+
+
 def get_tc(wildcards):
     tc_method = wildcards.tc_method
     if tc_method == "pathology_purecn":

@@ -220,11 +220,22 @@ class ChromosomePlot extends EventTarget {
   #ratios;
   #segments;
   #showAllData;
+  #isZooming = false;
+  #animationFrameId = null;
+  #zoomEndTimeout = null;
+  #animationDurationOriginal = 500;
+  #cancerGeneColoring = false;
   #equalDistance;
   #highlightedRegion;
   #highlightedRegions;
   #canvas;
   #ctx;
+  #activeCancerGeneRoles = new Set();
+  #geneMenu = null;
+  #isZooming = false;
+  #animationFrameId = null;
+  #zoomEndTimeout = null;
+  #animationDurationOriginal = 500;
 
   constructor(config) {
     super();
@@ -363,14 +374,28 @@ class ChromosomePlot extends EventTarget {
 
     this.#setLabels();
 
+    this.initialiseMousetrap();
+
     this.annotations = this.#plotArea
       .append("g")
       .attr("class", "annotation-container");
 
-    this.initialiseMousetrap();
-
     // Setup Canvas for high-performance scatter rendering
     this.#setupCanvas();
+
+    this.#geneMenu = d3.select("body").select(".gene-link-menu");
+    if (this.#geneMenu.empty()) {
+      this.#geneMenu = d3
+        .select("body")
+        .append("div")
+        .attr("class", "gene-link-menu hidden");
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".annotation-label, .annotation-label-background, .gene-link-menu")) {
+          this.#geneMenu.classed("hidden", true);
+        }
+      });
+    }
 
     this.update();
   }
@@ -772,7 +797,7 @@ class ChromosomePlot extends EventTarget {
         this.xScale,
         "start",
         "log2",
-        0,
+        this.baselineOffset,
         3,
         true
       );
@@ -1135,19 +1160,34 @@ class ChromosomePlot extends EventTarget {
 
           return update;
         },
-        (exit) => exit.transition().duration(this.animationDuration).attr("opacity", 0).remove()
       );
   }
 
   #plotAnnotations() {
-    const annotData = this.#data.annotations.map(d => {
+    let annotData = this.#data.annotations;
+    if (this.#cancerGeneColoring) {
+      // In coloring mode, we show everything from standard sources.
+      annotData = annotData.filter((d) => {
+        if (d.is_cancer_gene) {
+          return d.role && this.#activeCancerGeneRoles.has(d.role);
+        }
+        return true;
+      });
+    } else {
+      // If coloring is off, only show non-cancer genes (from standard sources)
+      annotData = annotData.filter((d) => !d.is_cancer_gene);
+    }
+
+    annotData = annotData.map((d) => {
       let ad = { ...d };
+      ad.is_in_cancer_gene_list = ad.is_in_cancer_gene_list !== undefined ? ad.is_in_cancer_gene_list : !!ad.color;
       if (this.equalDistance) {
         ad.start = this.getRatioIndex(d.start);
         ad.end = this.getRatioIndex(d.end);
       }
       return ad;
     });
+
 
     this.annotations
       .selectAll(".annotation")
@@ -1159,6 +1199,24 @@ class ChromosomePlot extends EventTarget {
             .attr("class", "annotation")
             .attr("clip-path", "url(#annotation-clip)")
             .attr("opacity", 0)
+            .on("click", (e, d) => {
+              if (d.is_in_cancer_gene_list && this.#cancerGeneColoring && this.#geneMenu) {
+                e.stopPropagation();
+                const cbio = `https://www.cbioportal.org/results/cancerTypesSummary?cancer_study_list=laml_tcga_pan_can_atlas_2018%2Cacc_tcga_pan_can_atlas_2018%2Cblca_tcga_pan_can_atlas_2018%2Clgg_tcga_pan_can_atlas_2018%2Cbrca_tcga_pan_can_atlas_2018%2Ccesc_tcga_pan_can_atlas_2018%2Cchol_tcga_pan_can_atlas_2018%2Ccoadread_tcga_pan_can_atlas_2018%2Cdlbc_tcga_pan_can_atlas_2018%2Cesca_tcga_pan_can_atlas_2018%2Cgbm_tcga_pan_can_atlas_2018%2Chnsc_tcga_pan_can_atlas_2018%2Ckich_tcga_pan_can_atlas_2018%2Ckirc_tcga_pan_can_atlas_2018%2Ckirp_tcga_pan_can_atlas_2018%2Clihc_tcga_pan_can_atlas_2018%2Cluad_tcga_pan_can_atlas_2018%2Clusc_tcga_pan_can_atlas_2018%2Cmeso_tcga_pan_can_atlas_2018%2Cov_tcga_pan_can_atlas_2018%2Cpaad_tcga_pan_can_atlas_2018%2Cpcpg_tcga_pan_can_atlas_2018%2Cprad_tcga_pan_can_atlas_2018%2Csarc_tcga_pan_can_atlas_2018%2Cskcm_tcga_pan_can_atlas_2018%2Cstad_tcga_pan_can_atlas_2018%2Ctgct_tcga_pan_can_atlas_2018%2Cthym_tcga_pan_can_atlas_2018%2Cthca_tcga_pan_can_atlas_2018%2Cucs_tcga_pan_can_atlas_2018%2Cucec_tcga_pan_can_atlas_2018%2Cuvm_tcga_pan_can_atlas_2018&tab_index=tab_visualize&profileFilter=mutations%2Cgistic%2Cstructural_variants&case_set_id=all&Action=Submit&gene_list=${d.name}`;
+                const onco = `https://www.oncokb.org/gene/${d.name}/somatic`;
+                
+                this.#geneMenu.html(`
+                  <strong style="padding: 5px 15px; border-bottom: 1px solid #eee; margin-bottom: 5px;">${d.name}</strong>
+                  <a href="${cbio}" target="_blank">🔍 cBioPortal</a>
+                  <a href="${onco}" target="_blank">🧬 OncoKB</a>
+                `);
+                
+                this.#geneMenu
+                  .style("left", `${e.pageX + 10}px`)
+                  .style("top", `${e.pageY + 10}px`)
+                  .classed("hidden", false);
+              }
+            })
             .call((enter) =>
               enter
                 .append("rect")
@@ -1169,16 +1227,35 @@ class ChromosomePlot extends EventTarget {
                   "height",
                   this.height - this.margin.top - this.margin.bottom
                 )
-                .attr("stroke", "#444")
+                .attr("stroke", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    const color = d.color;
+                    if (color) return color;
+                  }
+                  return "#444";
+                })
                 .attr("stroke-width", 0.5)
-                .attr("fill", "#888")
-                .attr("fill-opacity", 0.05)
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    const color = d.color;
+                    if (color) return color;
+                  }
+                  return "#888";
+                })
+                .attr("fill-opacity", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    return 0.15;
+                  }
+                  return 0.05;
+                })
                 .attr("pointer-events", "none")
             )
             .call((enter) =>
               enter
                 .append("rect")
-                .attr("class", "annotation-label-background")
+                .attr("class", (d) => `annotation-label-background${d.is_in_cancer_gene_list && this.#cancerGeneColoring ? " clickable" : ""}`)
+                .style("cursor", (d) => (d.is_in_cancer_gene_list && this.#cancerGeneColoring ? "pointer" : "default"))
+                .style("pointer-events", "auto")
                 .attr("x", (d) => {
                   let [labelWidth, _] = getTextDimensions(d.name, "0.8rem");
                   return (
@@ -1204,14 +1281,33 @@ class ChromosomePlot extends EventTarget {
                   "height",
                   (d) => getTextDimensions(d.name, "0.8rem")[1] + 4
                 )
-                .attr("fill", "#EEE")
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.color) {
+                    return d.color;
+                  }
+                  return "#EEE";
+                })
                 .attr("rx", 4)
             )
             .call((enter) =>
               enter
                 .append("text")
-                .attr("class", "annotation-label")
+                .attr("class", (d) => `annotation-label${d.is_in_cancer_gene_list && this.#cancerGeneColoring ? " clickable" : ""}`)
+                .style("cursor", (d) => (d.is_in_cancer_gene_list && this.#cancerGeneColoring ? "pointer" : "default"))
+                .style("pointer-events", "auto")
                 .text((d) => d.name)
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    // Calculate luminance to determine text color
+                    const hex = d.color.replace("#", "");
+                    const r = parseInt(hex.substring(0, 2), 16);
+                    const g = parseInt(hex.substring(2, 4), 16);
+                    const b = parseInt(hex.substring(4, 6), 16);
+                    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                    return luminance > 0.5 ? "#000" : "#fff";
+                  }
+                  return "#000";
+                })
                 .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
                 .attr("y", this.plotHeight + this.margin.between / 2)
                 .attr("text-anchor", "middle")
@@ -1224,14 +1320,33 @@ class ChromosomePlot extends EventTarget {
                 .attr("opacity", 1)
             );
         },
-        (update) =>
-          update
+        (update) => {
+          update.selectAll(".annotation-label-background")
+            .attr("class", (d) => `annotation-label-background${d.is_in_cancer_gene_list && this.#cancerGeneColoring ? " clickable" : ""}`)
+            .style("cursor", (d) => (d.is_in_cancer_gene_list && this.#cancerGeneColoring ? "pointer" : "default"));
+
+          update.selectAll(".annotation-label")
+            .attr("class", (d) => `annotation-label${d.is_in_cancer_gene_list && this.#cancerGeneColoring ? " clickable" : ""}`)
+            .style("cursor", (d) => (d.is_in_cancer_gene_list && this.#cancerGeneColoring ? "pointer" : "default"));
+
+          return update
             .call((update) =>
               update
                 .selectAll(".annotation-label")
                 .transition()
                 .duration(this.animationDuration)
                 .attr("x", (d) => this.xScale(d.start + (d.end - d.start) / 2))
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    const hex = d.color.replace("#", "");
+                    const r = parseInt(hex.substring(0, 2), 16);
+                    const g = parseInt(hex.substring(2, 4), 16);
+                    const b = parseInt(hex.substring(4, 6), 16);
+                    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                    return luminance > 0.5 ? "#000" : "#fff";
+                  }
+                  return "#000";
+                })
             )
             .call((update) =>
               update
@@ -1246,6 +1361,12 @@ class ChromosomePlot extends EventTarget {
                     5
                   );
                 })
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    return d.color;
+                  }
+                  return "#EEE";
+                })
             )
             .call((update) =>
               update
@@ -1254,13 +1375,34 @@ class ChromosomePlot extends EventTarget {
                 .duration(this.animationDuration)
                 .attr("x", (d) => this.xScale(d.start))
                 .attr("width", (d) => this.xScale(d.end) - this.xScale(d.start))
+                .attr("stroke", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    const color = d.color;
+                    if (color) return color;
+                  }
+                  return "#444";
+                })
+                .attr("fill", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    const color = d.color;
+                    if (color) return color;
+                  }
+                  return "#888";
+                })
+                .attr("fill-opacity", (d) => {
+                  if (this.#cancerGeneColoring && d.role && this.#activeCancerGeneRoles.has(d.role)) {
+                    return 0.15;
+                  }
+                  return 0.05;
+                })
             )
             .call((update) =>
               update
                 .transition()
                 .duration(this.animationDuration)
                 .attr("opacity", 1)
-            ),
+            );
+        },
         (exit) => {
           return exit
             .transition()
@@ -1385,9 +1527,9 @@ class ChromosomePlot extends EventTarget {
 
   initialiseMousetrap() {
     let isDragging = false;
-    const mouseTrap = this.svg
+    const mouseTrap = this.#plotArea
       .append("g")
-      .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
+      .attr("class", "mousetrap-container");
     mouseTrap
       .append("g")
       .attr("id", "lr-mousetrap")
@@ -1514,6 +1656,84 @@ class ChromosomePlot extends EventTarget {
             this.update();
           })
       )
+      .on("wheel", (e) => {
+        e.preventDefault();
+
+        if (!this.#isZooming) {
+            this.#isZooming = true;
+            this.#animationDurationOriginal = this.animationDuration;
+            this.animationDuration = 0;
+        }
+
+        const zoomFactor = 0.1;
+        const direction = e.deltaY > 0 ? 1 : -1; // deltaY > 0 is scroll down (zoom out)
+        const factor = 1 + direction * zoomFactor;
+
+        const [xMin, xMax] = this.xScale.domain();
+        const width = xMax - xMin;
+
+        if (!isFinite(width) || width <= 0) {
+          return;
+        }
+
+        const [mouseX, _] = d3.pointer(e);
+        const mouseGenomePos = this.xScale.invert(mouseX);
+
+        let newWidth = width * factor;
+
+        // Ensure newWidth is valid
+        if (!isFinite(newWidth) || newWidth <= 0) {
+          return;
+        }
+
+        // Limit zoom out to max length
+        if (newWidth > this.length) {
+          newWidth = this.length;
+        }
+
+        // Limit zoom in to minZoomRange
+        if (newWidth < this.minZoomRange) {
+          newWidth = this.minZoomRange;
+        }
+
+        // Calculate new xMin centered on mouse position
+        const ratio = width > 0 ? (mouseGenomePos - xMin) / width : 0.5;
+        let newXMin = mouseGenomePos - ratio * newWidth;
+        let newXMax = newXMin + newWidth;
+
+        // Handle boundary constraints
+        if (newXMin < 0) {
+          newXMin = 0;
+          newXMax = newWidth;
+        }
+        if (newXMax > this.length) {
+          newXMax = this.length;
+          newXMin = newXMax - newWidth;
+        }
+
+        this.zoomTo(newXMin, newXMax);
+        
+        if (this.#animationFrameId) {
+            cancelAnimationFrame(this.#animationFrameId);
+        }
+
+        this.#animationFrameId = requestAnimationFrame(() => {
+            this.update();
+            this.#animationFrameId = null;
+        });
+
+        // Use a timeout to detect when zooming stops
+        if (this.#zoomEndTimeout) {
+            clearTimeout(this.#zoomEndTimeout);
+        }
+        this.#zoomEndTimeout = setTimeout(() => {
+            this.#isZooming = false;
+            this.animationDuration = this.#animationDurationOriginal;
+            // Final update to ensure everything is settled
+            this.update();
+            this.#zoomEndTimeout = null;
+        }, 150);
+      }, { passive: false })
       .on("click", (e) => {
         isDragging = false;
         const [xMin, xMax] = this.xScale.domain();
@@ -1702,6 +1922,28 @@ class ChromosomePlot extends EventTarget {
 
   setBaselineOffset(dy) {
     this.baselineOffset = dy;
+    this.update();
+  }
+
+  get cancerGeneColoring() {
+    return this.#cancerGeneColoring;
+  }
+
+  set cancerGeneColoring(value) {
+    this.#cancerGeneColoring = value;
+    this.update();
+  }
+
+  get activeCancerGeneRoles() {
+    return this.#activeCancerGeneRoles;
+  }
+
+  set activeCancerGeneRoles(roles) {
+    if (Array.isArray(roles)) {
+      this.#activeCancerGeneRoles = new Set(roles);
+    } else {
+      this.#activeCancerGeneRoles = roles;
+    }
     this.update();
   }
 

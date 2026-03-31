@@ -1,6 +1,6 @@
-__author__ = "Niklas Mähler"
-__copyright__ = "Copyright 2023, Niklas Mähler"
-__email__ = "niklas.mahler@regionvasterbotten.se"
+__author__ = "Niklas Mähler, Jonas Almlöf"
+__copyright__ = "Copyright 2023, Niklas Mähler, Jonas Almlöf"
+__email__ = "niklas.mahler@regionvasterbotten.se, jonas.almlof@scilifelab.uu.se"
 __license__ = "GPL-3"
 
 
@@ -94,8 +94,9 @@ rule merge_cnv_json:
         germline_vcf=get_germline_vcf,
         filtered_cnv_vcfs=get_filtered_cnv_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,
-        cytobands=config.get("merge_cnv_json", {}).get("cytobands", []),
-        ref_genes=config.get("merge_cnv_json", {}).get("ref_genes", ""),
+        cytobands=lambda wildcards: config.get("merge_cnv_json", {}).get("cytobands", []),
+        ref_genes=lambda wildcards: config.get("merge_cnv_json", {}).get("ref_genes", []),
+        cancer_genes=get_cancer_genes,
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:

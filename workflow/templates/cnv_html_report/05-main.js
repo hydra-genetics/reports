@@ -189,6 +189,75 @@ d3.select("#chromosome-show-all-datapoints").on("change", (e) => {
   genomePlot.showAllData = e.target.checked;
 });
 
+const cancerGeneColoringToggle = d3.select("#chromosome-cancer-gene-coloring");
+
+cancerGeneColoringToggle.on("change", (e) => {
+  chromosomePlot.cancerGeneColoring = e.target.checked;
+  const legend = d3.select("#cancer-gene-legend");
+  legend.classed("hidden", !e.target.checked);
+  if (e.target.checked) {
+    updateCancerGeneLegend(cnvData);
+  }
+});
+
+function updateCancerGeneLegend(data) {
+  const legend = d3.select("#cancer-gene-legend");
+  legend.html(""); // Clear existing
+
+  const roles = new Map();
+
+  // Collect unique roles and their colors from all chromosomes
+  data.forEach((chrom) => {
+    if (chrom.annotations) {
+      chrom.annotations.forEach((ann) => {
+        if (ann.role && ann.color && !roles.has(ann.role)) {
+          roles.set(ann.role, ann.color);
+        }
+      });
+    }
+  });
+
+  if (roles.size === 0) {
+    legend.classed("hidden", true);
+    return;
+  }
+
+  // Sort roles alphabetically
+  const sortedRoles = Array.from(roles.keys()).sort();
+
+  // Initialize active roles if empty
+  if (chromosomePlot.activeCancerGeneRoles.size === 0) {
+    chromosomePlot.activeCancerGeneRoles = new Set(sortedRoles);
+  }
+
+  sortedRoles.forEach((role) => {
+    const color = roles.get(role);
+    const item = legend.append("div").attr("class", "legend-item");
+    const label = item.append("label").attr("class", "legend-item-label");
+
+    label
+      .append("input")
+      .attr("type", "checkbox")
+      .attr("class", "legend-checkbox")
+      .property("checked", chromosomePlot.activeCancerGeneRoles.has(role))
+      .on("change", (e) => {
+        const activeRoles = new Set(chromosomePlot.activeCancerGeneRoles);
+        if (e.target.checked) {
+          activeRoles.add(role);
+        } else {
+          activeRoles.delete(role);
+        }
+        chromosomePlot.activeCancerGeneRoles = activeRoles;
+      });
+
+    label
+      .append("div")
+      .attr("class", "legend-color")
+      .style("background-color", color);
+    label.append("span").attr("class", "legend-label").text(role);
+  });
+}
+
 const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
 const currentBaselineOffset = d3.select("#current-baseline-offset");
 const baselineOffsetReset = d3.select("#reset-baseline-offset");
