@@ -232,10 +232,6 @@ class ChromosomePlot extends EventTarget {
   #ctx;
   #activeCancerGeneRoles = new Set();
   #geneMenu = null;
-  #isZooming = false;
-  #animationFrameId = null;
-  #zoomEndTimeout = null;
-  #animationDurationOriginal = 500;
 
   constructor(config) {
     super();
