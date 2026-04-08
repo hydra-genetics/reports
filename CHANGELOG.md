@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/hydra-genetics/reports/compare/v1.1.0...v1.1.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* remove repeated zoom and animation variables ([#152](https://github.com/hydra-genetics/reports/issues/152)) ([#153](https://github.com/hydra-genetics/reports/issues/153)) ([e81eb6a](https://github.com/hydra-genetics/reports/commit/e81eb6aec166c3ab0eed9ef09be60c96e2177757))
+
 ## [1.1.0](https://github.com/hydra-genetics/reports/compare/v1.0.3...v1.1.0) (2026-03-31)
 
 
