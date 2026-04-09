@@ -273,5 +273,4 @@ required:
   - units
   - output
   - resources
-  - general_report
   - default_container
