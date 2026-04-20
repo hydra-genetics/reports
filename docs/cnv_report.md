@@ -91,7 +91,7 @@ The report will then include a toggle to apply these colors to the gene annotati
 
 ### Manual tumor content adjustment
 
-The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. Adjusting the slider recalculates and redraws the expected copy number lines in the log₂-ratio plots in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
+The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The slider is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, adjusting the slider recalculates and redraws the expected copy number lines in the log₂-ratio plots in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
 
 ### Wide Plots
 
@@ -112,7 +112,7 @@ The report includes the following interactive features:
 | Genome-wide plot | Overview of copy number across all chromosomes |
 | Linear chromosome view | Alternative linear view for each chromosome with per-caller toggle |
 | Gene search | Search box to quickly navigate the plot to a specific gene |
-| Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time |
+| Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
 | Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
 | Caller toggle | Switch between callers (CNVkit, GATK, Jumble) in the chromosome and genome plots |
 
