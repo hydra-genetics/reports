@@ -13,6 +13,7 @@ class GenomePlot extends EventTarget {
   #canvas;
   #ctx;
   #showAllData;
+  #oorPanels;
 
   constructor(config) {
     super();
@@ -123,6 +124,12 @@ class GenomePlot extends EventTarget {
       .attr("data-index", (_, i) => i)
       .attr("data-caller", this.#activeCaller);
 
+    // Unclipped group for out-of-range indicators (so arrows can poke beyond panel edge)
+    this.#oorPanels = this.lrPanels
+      .append("g")
+      .attr("class", "oor-panels")
+      .attr("data-index", (_, i) => i);
+
     const overlayClip = d3.selectAll(".genome-view-area").append("g");
     overlayClip
       .selectAll(".panel-overlay-clip")
@@ -179,6 +186,7 @@ class GenomePlot extends EventTarget {
     this.#setupCanvas();
     this.plotRatios();
     this.plotSegments();
+    this.plotOutOfRangeIndicators();
     this.plotBAF();
   }
 
@@ -534,6 +542,86 @@ class GenomePlot extends EventTarget {
     });
   }
 
+  /**
+   * Draw red edge-line + arrow for every segment whose log2 ratio falls
+   * outside the static [-2, +2] y-axis range in the genome overview plot.
+   */
+  plotOutOfRangeIndicators() {
+    const self = this;
+    const staticYMin = -this.ratioYScaleRange;
+    const staticYMax =  this.ratioYScaleRange;
+    const arrowSize = 4;
+    const lineThickness = 2;
+
+    const arrowPoints = (d, i) => {
+      const cx = (self.xScales[i](d.start) + self.xScales[i](d.end)) / 2;
+      const isAbove = d.log2 > staticYMax;
+      const edgeY = isAbove ? 0 : self.panelHeight;
+      const tipY  = isAbove ? -arrowSize * 2.5 : self.panelHeight + arrowSize * 2.5;
+      return [
+        [cx,             tipY ],
+        [cx - arrowSize, edgeY],
+        [cx + arrowSize, edgeY],
+      ].map(p => p.join(",")).join(" ");
+    };
+
+    this.#oorPanels.each(function(panelData, i) {
+      const xScale = self.xScales[i];
+
+      const oorSegments = panelData.callers[self.activeCaller].segments
+        .filter((d) => d.end - d.start > self.totalLength / self.width)
+        .map((d) => {
+          let td = { ...d };
+          td.log2 = self.transformLog2Ratio(td.log2);
+          return td;
+        })
+        .filter((d) => d.log2 < staticYMin || d.log2 > staticYMax);
+
+      d3.select(this)
+        .selectAll(".oor-indicator")
+        .data(oorSegments, (d) => `${i}-${d.start}-${d.end}`)
+        .join(
+          (enter) => {
+            const g = enter.append("g").attr("class", "oor-indicator");
+
+            // Red line at the plot edge
+            g.append("line")
+              .attr("class", "oor-line")
+              .attr("x1", (d) => xScale(d.start))
+              .attr("x2", (d) => xScale(d.end))
+              .attr("y1", (d) => d.log2 > staticYMax ? 0 : self.panelHeight)
+              .attr("y2", (d) => d.log2 > staticYMax ? 0 : self.panelHeight)
+              .attr("stroke", "red")
+              .attr("stroke-width", lineThickness)
+              .attr("stroke-linecap", "round");
+
+            // Arrow pointing out of bounds
+            g.append("polygon")
+              .attr("class", "oor-arrow")
+              .attr("points", (d) => arrowPoints(d, i))
+              .attr("fill", "red");
+
+            return g;
+          },
+          (update) => {
+            update.select(".oor-line")
+              .transition().duration(self.animationDuration)
+              .attr("x1", (d) => xScale(d.start))
+              .attr("x2", (d) => xScale(d.end))
+              .attr("y1", (d) => d.log2 > staticYMax ? 0 : self.panelHeight)
+              .attr("y2", (d) => d.log2 > staticYMax ? 0 : self.panelHeight);
+
+            update.select(".oor-arrow")
+              .transition().duration(self.animationDuration)
+              .attr("points", (d) => arrowPoints(d, i));
+
+            return update;
+          },
+          (exit) => exit.remove()
+        );
+    });
+  }
+
   plotSegments() {
     const self = this;
 
@@ -815,6 +903,7 @@ class GenomePlot extends EventTarget {
     this.#clearCanvas();
     this.plotRatios();
     this.plotSegments();
+    this.plotOutOfRangeIndicators();
     this.plotBAF();
   }
 }
