@@ -569,7 +569,6 @@ class GenomePlot extends EventTarget {
       const xScale = self.xScales[i];
 
       const oorSegments = panelData.callers[self.activeCaller].segments
-        .filter((d) => d.end - d.start > self.totalLength / self.width)
         .map((d) => {
           let td = { ...d };
           td.log2 = self.transformLog2Ratio(td.log2);
@@ -587,8 +586,16 @@ class GenomePlot extends EventTarget {
             // Red line at the plot edge
             g.append("line")
               .attr("class", "oor-line")
-              .attr("x1", (d) => xScale(d.start))
-              .attr("x2", (d) => xScale(d.end))
+              .attr("x1", (d) => {
+                const x1 = xScale(d.start);
+                const x2 = xScale(d.end);
+                return x2 - x1 < 2 ? (x1 + x2) / 2 - 1 : x1;
+              })
+              .attr("x2", (d) => {
+                const x1 = xScale(d.start);
+                const x2 = xScale(d.end);
+                return x2 - x1 < 2 ? (x1 + x2) / 2 + 1 : x2;
+              })
               .attr("y1", (d) => d.log2 > staticYMax ? 0 : self.panelHeight)
               .attr("y2", (d) => d.log2 > staticYMax ? 0 : self.panelHeight)
               .attr("stroke", "red")
@@ -606,8 +613,16 @@ class GenomePlot extends EventTarget {
           (update) => {
             update.select(".oor-line")
               .transition().duration(self.animationDuration)
-              .attr("x1", (d) => xScale(d.start))
-              .attr("x2", (d) => xScale(d.end))
+              .attr("x1", (d) => {
+                const x1 = xScale(d.start);
+                const x2 = xScale(d.end);
+                return x2 - x1 < 2 ? (x1 + x2) / 2 - 1 : x1;
+              })
+              .attr("x2", (d) => {
+                const x1 = xScale(d.start);
+                const x2 = xScale(d.end);
+                return x2 - x1 < 2 ? (x1 + x2) / 2 + 1 : x2;
+              })
               .attr("y1", (d) => d.log2 > staticYMax ? 0 : self.panelHeight)
               .attr("y2", (d) => d.log2 > staticYMax ? 0 : self.panelHeight);
 
