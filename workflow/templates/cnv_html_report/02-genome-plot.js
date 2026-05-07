@@ -569,6 +569,19 @@ class GenomePlot extends EventTarget {
       const xScale = self.xScales[i];
 
       const oorSegments = panelData.callers[self.activeCaller].segments
+        .filter((d) => {
+          const ratios = panelData.callers[self.activeCaller].ratios;
+          let count = 0;
+          for (let j = 0; j < ratios.length; j++) {
+            const r = ratios[j];
+            if (r.start >= d.start && r.end <= d.end) {
+              count++;
+              if (count >= 3) break;
+            }
+            if (r.start > d.end) break;
+          }
+          return count >= 3;
+        })
         .map((d) => {
           let td = { ...d };
           td.log2 = self.transformLog2Ratio(td.log2);

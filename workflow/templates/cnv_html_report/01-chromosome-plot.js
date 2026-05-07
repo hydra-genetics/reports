@@ -1009,6 +1009,19 @@ class ChromosomePlot extends EventTarget {
     const lineThickness = 3;
 
     const segments = this.#data.callers[this.#activeCaller].segments
+      .filter((d) => {
+        const callerRatios = this.#data.callers[this.#activeCaller].ratios;
+        let count = 0;
+        for (let i = 0; i < callerRatios.length; i++) {
+          const r = callerRatios[i];
+          if (r.start >= d.start && r.end <= d.end) {
+            count++;
+            if (count >= 3) break;
+          }
+          if (r.start > d.end) break;
+        }
+        return count >= 3;
+      })
       .map((d) => {
         let ts = { ...d };
         ts.log2 = this.transformLog2Ratio(ts.log2);
