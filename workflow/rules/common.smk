@@ -211,14 +211,6 @@ def get_unfiltered_cnv_vcfs_tbi(wildcards: Wildcards) -> List[Union[str, Path]]:
     return [f"{vcf}.tbi" for vcf in get_unfiltered_cnv_vcfs(wildcards) if vcf.endswith(".vcf.gz")]
 
 
-def get_tc(wildcards):
-    if wildcards.tc_method == "pathology":
-        try:
-            return get_sample(samples, wildcards)["tumor_content"]
-        except KeyError:
-            return None
-
-
 def get_cytobands(wildcards: Wildcards) -> List[Union[str, Path]]:
     return config.get("merge_cnv_json", {}).get("cytobands", [])
 
