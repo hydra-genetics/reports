@@ -13,10 +13,11 @@ import yaml
 from snakemake.io import Wildcards
 from snakemake.utils import validate
 from snakemake.utils import min_version
-
+from datetime import datetime
 from hydra_genetics.utils.resources import load_resources
 from hydra_genetics.utils.samples import *
 from hydra_genetics.utils.units import *
+from hydra_genetics.utils.software_versions import get_pipeline_version
 
 min_version("7.8.3")
 
@@ -37,11 +38,12 @@ validate(samples, schema="../schemas/samples.schema.yaml")
 
 ### Read and validate units file
 
-units = (
-    pandas.read_table(config["units"], dtype=str)
-    .set_index(["sample", "type", "flowcell", "lane", "barcode"], drop=False)
-    .sort_index()
-)
+units = pandas.read_table(config["units"], dtype=str)
+
+if units.platform.iloc[0] in ["PACBIO", "ONT"]:
+    units = units.set_index(["sample", "type", "processing_unit", "barcode"], drop=False).sort_index()
+else:  # assume that the platform Illumina data with a lane and flowcell columns
+    units = units.set_index(["sample", "type", "flowcell", "lane", "barcode"], drop=False).sort_index()
 
 validate(units, schema="../schemas/units.schema.yaml")
 
@@ -52,6 +54,9 @@ with open(config["output"]) as output:
         output_spec = yaml.safe_load(output.read())
 
 validate(output_spec, schema="../schemas/output_files.schema.yaml")
+
+pipeline_name = ""
+pipeline_version = get_pipeline_version(workflow, pipeline_name=pipeline_name)
 
 
 ### Set wildcard constraints
@@ -126,6 +131,10 @@ def generate_copy_rules(output_spec):
     exec(compile("\n".join(rulestrings), "copy_result_files", "exec"), workflow.globals)
 
 
+with open(config["general_report"]) as f:
+    if f.name.endswith(".yaml"):
+        general_report = yaml.safe_load(f)
+
 if len(workflow.modules) == 0:
     # Only generate copy-rules if the workflow is executed directly.
     generate_copy_rules(output_spec)
@@ -150,6 +159,9 @@ def get_cnv_ratios(wildcards):
     if wildcards.caller == "gatk":
         return "cnv_sv/gatk_denoise_read_counts/{sample}_{type}.clean.denoisedCR.tsv"
 
+    if wildcards.caller == "jumble":
+        return "cnv_sv/jumble_run/{sample}_{type}/{sample}_{type}.cnr"
+
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
@@ -159,6 +171,9 @@ def get_cnv_segments(wildcards):
 
     if wildcards.caller == "gatk":
         return "cnv_sv/gatk_model_segments/{sample}_{type}.clean.cr.seg"
+
+    if wildcards.caller == "jumble":
+        return "cnv_sv/jumble_run/{sample}_{type}/{sample}_{type}.cns"
 
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
@@ -203,13 +218,64 @@ def get_tc(wildcards):
         except KeyError:
             return None
 
-    tc_file = get_tc_file(wildcards)
 
-    if not os.path.exists(tc_file):
-        return None
+def get_cytobands(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return config.get("merge_cnv_json", {}).get("cytobands", [])
 
-    with open(tc_file) as f:
-        return f.read().strip()
+
+def get_ref_genes(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return config.get("merge_cnv_json", {}).get("ref_genes", [])
+
+
+def get_cancer_genes(wildcards: Wildcards) -> List[Union[str, Path]]:
+    res = config.get("merge_cnv_json", {}).get("cancer_genes", [])
+    if isinstance(res, str) and not res:
+        return []
+    return res
+
+
+if not config.get("merge_cnv_json", {}).get("cancer_genes"):
+    print("WARNING: merge_cnv_json: cancer_genes not specified. Gene coloring will be disabled in the report.")
+
+
+def get_tc(wildcards):
+    tc_method = wildcards.tc_method
+    if tc_method == "pathology_purecn":
+        tc = ""
+        tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
+        if os.path.exists(tc_file):
+            with open(tc_file) as f:
+                tc = f.read().strip()
+        if tc == "" or float(tc) < 0.35:
+            return get_sample(samples, wildcards)["tumor_content"]
+        else:
+            return tc
+    elif tc_method == "pathology":
+        return get_sample(samples, wildcards)["tumor_content"]
+    else:
+        tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
+        if not os.path.exists(tc_file):
+            return -1
+        else:
+            with open(tc_file) as f:
+                tc = f.read().strip()
+                if tc == "":
+                    return "0.2"
+                else:
+                    return tc
+
+
+def get_tc_general_report(wildcards):
+    if get_sample(samples, wildcards)["tumor_content"]:
+        tc_pathology = get_sample(samples, wildcards)["tumor_content"]
+    else:
+        tc_pathology = "NA"
+    tc_purecn = "NA"
+    tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
+    if os.path.exists(tc_file):
+        with open(tc_file) as f:
+            tc_purecn = f.read().strip()
+    return [tc_pathology, tc_purecn]
 
 
 def get_tc_file(wildcards):

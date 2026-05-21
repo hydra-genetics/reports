@@ -1,0 +1,35 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: General Report yaml Config
+description: Configuration for a general HTML report for a Hydra Genetics pipeline
+type: object
+properties:
+  files:
+    type: array
+    description: Defines results for general report
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+          description: A descriptive name of the result
+        description:
+          type: string
+          description: A more detailed description of the result
+        type:
+          type: string
+          description: The type of result
+        input:
+          type: string
+          description: Relative path to results file
+        nav_header:
+          type: string
+          description: Header for navigation bar in HTML report. For example Biomarker
+      required:
+        - name
+        - description
+        - type
+        - input
+        - nav_header
+
+required:
+  - files

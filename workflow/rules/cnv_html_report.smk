@@ -1,6 +1,6 @@
-__author__ = "Niklas Mähler"
-__copyright__ = "Copyright 2023, Niklas Mähler"
-__email__ = "niklas.mahler@regionvasterbotten.se"
+__author__ = "Niklas Mähler, Jonas Almlöf"
+__copyright__ = "Copyright 2023, Niklas Mähler, Jonas Almlöf"
+__email__ = "niklas.mahler@regionvasterbotten.se, jonas.almlof@scilifelab.uu.se"
 __license__ = "GPL-3"
 
 
@@ -30,6 +30,7 @@ rule cnv_html_report:
         tc=get_tc,
         tc_method=lambda wildcards: wildcards.tc_method,
         include_cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
+        wide_plot_width=config.get("cnv_html_report", {}).get("wide_plot_width", False),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",
     benchmark:
@@ -56,10 +57,12 @@ rule cnv_json:
     input:
         ratios=get_cnv_ratios,
         segments=get_cnv_segments,
+        annotations=config.get("merge_cnv_json", {}).get("annotations", []),
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json"),
     params:
         skip_chromosomes=config.get("reference", {}).get("skip_chrs"),
+        csv_field_size_limit=config.get("cnv_json", {}).get("csv_field_size_limit", 100000000),
     log:
         "reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json.log",
     benchmark:
@@ -94,7 +97,9 @@ rule merge_cnv_json:
         filtered_cnv_vcfs_tbi=get_filtered_cnv_vcfs_tbi,
         cnv_vcfs=get_unfiltered_cnv_vcfs,
         cnv_vcfs_tbi=get_unfiltered_cnv_vcfs_tbi,
-        cytobands=config.get("merge_cnv_json", {}).get("cytobands", []),
+        cytobands=lambda wildcards: config.get("merge_cnv_json", {}).get("cytobands", []),
+        ref_genes=lambda wildcards: config.get("merge_cnv_json", {}).get("ref_genes", []),
+        cancer_genes=get_cancer_genes,
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:

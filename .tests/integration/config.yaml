@@ -2,12 +2,17 @@ output: "../../config/output_files.yaml"
 resources: "resources.yaml"
 samples: "samples.tsv"
 units: "units.tsv"
+default_container: "docker://hydragenetics/common:0.3.0"
+general_report: "config/reports/general_report.yaml"
 
 reference:
   fai: reference/ref.fai
+  fasta: "reference/hg19.with.mt.fasta"
 
 cnv_html_report:
+  wide_plot_width: 2000
   cytobands: true
+  show_table: true
   extra_tables:
     - path: config/extra_table1.tsv
       name: Extra table
@@ -27,17 +32,25 @@ cnv_html_report:
         be presented, but it should at the same time be clear that it is
         empty, and meant to be so.
 
+general_html_report:
+  final_directory_depth: 3
+  multiqc_config: "config/reports/multiqc_config_dna.yaml"
+
 merge_cnv_json:
   annotations:
     - config/amp_genes.bed
     - config/loh_genes.bed
     - config/centromeres.bed
   cytobands: config/cytobands.txt
+  ref_genes: reference/ref_genes_test.txt
+  cancer_genes: config/cancer_genes_test.csv
   filtered_cnv_vcfs:
     - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_amp_genes.filter.cnv_hard_filter_amp.vcf
+    - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_loh_genes.filter.cnv_hard_filter_loh.vcf
   germline_vcf: snv_indels/bcbio_variation_recall_ensemble/{sample}_{type}.ensembled.vep_annotated.filter.germline.exclude.blacklist.vcf
   unfiltered_cnv_vcfs:
     - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_amp_genes.vcf
+    - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_loh_genes.vcf
 
 svdb_merge:
   tc_method:
@@ -45,3 +58,4 @@ svdb_merge:
       cnv_caller:
         - cnvkit
         - gatk
+        - jumble

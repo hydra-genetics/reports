@@ -1,0 +1,11 @@
+Gene,Role,Color
+gene1,Tumor suppressor gene (TSG),#0000ff
+gene2,Oncogene (OG),#ff0000
+gene3,Dual role (OG and / or TSG),#ee82ee
+gene4,Fusion,#008000
+gene5,Unclassified,#4d4d4d
+gene_ref_only,Oncogene (OG),#ff0000
+MYD88,Oncogene (OG),#ff0000
+TP53,Dual role (OG and / or TSG),#ee82ee
+IKZF1,Tumor suppressor gene (TSG),#0000ff
+SZT2,Unclassified,#4d4d4d

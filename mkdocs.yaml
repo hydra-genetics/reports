@@ -3,7 +3,8 @@ nav:
   - Overview:
       - Introduction: intro.md
   - Reports:
-      - CNV: reports.md
+      - General: general_report.md
+      - CNV: cnv_report.md
   - Module details:
       - Rules: softwares.md
   - Development:

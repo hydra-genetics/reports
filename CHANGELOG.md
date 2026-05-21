@@ -1,5 +1,126 @@
 # Changelog
 
+## [1.0.3](https://github.com/hydra-genetics/reports/compare/v1.0.2...v1.0.3) (2026-03-18)
+
+
+### Bug Fixes
+
+* browser pixelation issues ([bac02a1](https://github.com/hydra-genetics/reports/commit/bac02a1ff1a049c65f529fd84185f9743f110cf9))
+* browser pixelation issues ([#144](https://github.com/hydra-genetics/reports/issues/144)) ([2de0379](https://github.com/hydra-genetics/reports/commit/2de03792125128ed1e15dbee0e7094f5238e2284))
+* cnv_report issues ([0049888](https://github.com/hydra-genetics/reports/commit/0049888f5f0a1d93b2a945ea3459303ab20ff005))
+
+## [1.0.2](https://github.com/hydra-genetics/reports/compare/v1.0.1...v1.0.2) (2026-03-17)
+
+
+### Bug Fixes
+
+* cnv_report issues ([0049888](https://github.com/hydra-genetics/reports/commit/0049888f5f0a1d93b2a945ea3459303ab20ff005))
+
+## [1.0.1](https://github.com/hydra-genetics/reports/compare/v1.0.0...v1.0.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* **cnv_html_report:** bugfix of NaN breaking figures and better data point visibility ([#133](https://github.com/hydra-genetics/reports/issues/133)) ([#134](https://github.com/hydra-genetics/reports/issues/134)) ([f068276](https://github.com/hydra-genetics/reports/commit/f068276145b0b5b577b840293241935a73f47f57))
+
+## [0.11.0](https://github.com/hydra-genetics/reports/compare/v0.10.1...v0.11.0) (2026-02-02)
+
+
+### Features
+
+* Cnv_html_report with Canvas, gene search and linear chr view ([#126](https://github.com/hydra-genetics/reports/issues/126)) ([6a4b756](https://github.com/hydra-genetics/reports/commit/6a4b756657c1edfdfe3d784ec942bb110f00b2c4))
+
+
+### Bug Fixes
+
+* add ONT and PACBIO ([#123](https://github.com/hydra-genetics/reports/issues/123)) ([72181ea](https://github.com/hydra-genetics/reports/commit/72181ea3fd0e2f383aaff7a974ef3f7ae72afb08))
+* fix help text ([c808ad8](https://github.com/hydra-genetics/reports/commit/c808ad8db338e36ea0ea3e4b5b0647c491351d8f))
+* fix help text ([457dc76](https://github.com/hydra-genetics/reports/commit/457dc76d16bee23fe341038628186475bd333ff3))
+* improve handling of complex sample names by get_sample_name ([#124](https://github.com/hydra-genetics/reports/issues/124)) ([f5ff8bd](https://github.com/hydra-genetics/reports/commit/f5ff8bde067a4d10c81eb021c685fa75ef34d541))
+* resolve conflicts ([b58e436](https://github.com/hydra-genetics/reports/commit/b58e4367042f3303f91d5c7461c57d51efa6c5f1))
+
+## [0.10.1](https://github.com/hydra-genetics/reports/compare/v0.10.0...v0.10.1) (2025-05-07)
+
+
+### Bug Fixes
+
+* **cnv:** address issue with identical CNVs being ignored ([#120](https://github.com/hydra-genetics/reports/issues/120)) ([cd358e0](https://github.com/hydra-genetics/reports/commit/cd358e03dafd09d312538c828d639c262c8160ff))
+
+
+## [0.10.0](https://github.com/hydra-genetics/reports/compare/v0.9.0...v0.10.0) (2025-04-08)
+
+
+### Features
+
+* Added new file type, large_file_table. Added units and reference genome to metadata. Styling, ([#117](https://github.com/hydra-genetics/reports/issues/117)) ([07e0b4d](https://github.com/hydra-genetics/reports/commit/07e0b4db31f928dae5a86bd689b3e6c18dc590a7))
+
+
+### Bug Fixes
+
+* **cnv:** bug with missing results in table ([#115](https://github.com/hydra-genetics/reports/issues/115)) ([9e386fb](https://github.com/hydra-genetics/reports/commit/9e386fb36b3bea8ccc773a958a04b1a562d8f58d))
+
+## [0.9.0](https://github.com/hydra-genetics/reports/compare/v0.8.0...v0.9.0) (2025-03-21)
+
+
+### Features
+
+* resolve environment variables when parsing multiqc config ([50311b2](https://github.com/hydra-genetics/reports/commit/50311b2b571f6c33e1399301c5c2dfd0992351b8))
+
+
+### Bug Fixes
+
+* **Snakemake:** remove trailing comment that breaks local git ([#111](https://github.com/hydra-genetics/reports/issues/111)) ([ba1edef](https://github.com/hydra-genetics/reports/commit/ba1edef1a916b4820e76bf8edb07c4f201562c49))
+
+## [0.8.0](https://github.com/hydra-genetics/reports/compare/v0.7.0...v0.8.0) (2025-02-14)
+
+
+### Features
+
+* **cnv:** replace chromosome and start with position ([#105](https://github.com/hydra-genetics/reports/issues/105)) ([#106](https://github.com/hydra-genetics/reports/issues/106)) ([118d62e](https://github.com/hydra-genetics/reports/commit/118d62ead0e3c3cbd42d4be9680b024248b29adc))
+
+## [0.7.0](https://github.com/hydra-genetics/reports/compare/v0.6.1...v0.7.0) (2025-02-11)
+
+
+### Features
+
+* **cnv:** ability to manually adjust tumor cell content in plots ([#96](https://github.com/hydra-genetics/reports/issues/96)) ([fbeec94](https://github.com/hydra-genetics/reports/commit/fbeec94cc83815d08155ba1887c30948d083495d))
+* **cnv:** better help section ([#100](https://github.com/hydra-genetics/reports/issues/100)) ([088911a](https://github.com/hydra-genetics/reports/commit/088911adce16dbb6d5230bd06c5fa4174e9bbe00))
+
+## [0.6.1](https://github.com/hydra-genetics/reports/compare/v0.6.0...v0.6.1) (2025-01-24)
+
+
+### Bug Fixes
+
+* General report bugfixes. Handle empty files, remove duplicate analysis date ([#97](https://github.com/hydra-genetics/reports/issues/97)) ([7afc54a](https://github.com/hydra-genetics/reports/commit/7afc54a6bbcb560776857a8db6f44feedec5cd5e))
+
+## [0.5.0](https://github.com/hydra-genetics/reports/compare/v0.4.2...v0.5.0) (2024-09-19)
+
+
+### Features
+
+* add jumble to reports module ([#80](https://github.com/hydra-genetics/reports/issues/80)) ([6a0bbc5](https://github.com/hydra-genetics/reports/commit/6a0bbc5a73360ce2720c186bc147b1f173dfc3d7))
+
+
+### Bug Fixes
+
+* rendering issue of summarised log2 ratios when changing caller ([6a0bbc5](https://github.com/hydra-genetics/reports/commit/6a0bbc5a73360ce2720c186bc147b1f173dfc3d7))
+
+## [0.4.2](https://github.com/hydra-genetics/reports/compare/v0.4.1...v0.4.2) (2024-09-09)
+
+
+### Bug Fixes
+
+* table filtering issue ([#75](https://github.com/hydra-genetics/reports/issues/75)) ([#76](https://github.com/hydra-genetics/reports/issues/76)) ([05e9984](https://github.com/hydra-genetics/reports/commit/05e9984eab0dcaa75d442572bbadaf14ed3b2807))
+
+## [0.4.1](https://github.com/hydra-genetics/reports/compare/v0.4.0...v0.4.1) (2024-02-02)
+
+This is a bugfix release that addresses two things related to the additional tables in the CNV report: wildcards in the path definition now works as expected and empty tables are handled in a better way. See the [documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/#additional-tables) for more details.
+
+### Bug Fixes
+
+* allow for empty tables if header is defined ([d0d778e](https://github.com/hydra-genetics/reports/commit/d0d778e198dadd461bf28c84ef17d16216d62174))
+* allow wildcards in extra_table path ([#67](https://github.com/hydra-genetics/reports/issues/67)) ([d0d778e](https://github.com/hydra-genetics/reports/commit/d0d778e198dadd461bf28c84ef17d16216d62174))
+
 ## [0.4.0](https://github.com/hydra-genetics/reports/compare/v0.3.1...v0.4.0) (2024-01-30)
 
 The CNV report now accepts TSV files that will be displayed as tables in the final report. See the [documentation](https://hydra-genetics-reports.readthedocs.io/en/latest/reports/#additional-tables) for more information on how to use this functionality.

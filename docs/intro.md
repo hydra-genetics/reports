@@ -2,7 +2,8 @@
 
 The reports module consists of a set of rules for creating various reports of results within the context of Hydra Genetics. Reports included at the moment are:
 
-- [CNV report](/reports/#cnvs)
+- [General report](/general_report)
+- [CNV report](/cnv_report)
 
 ## How to use the module
 

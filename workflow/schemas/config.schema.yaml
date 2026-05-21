@@ -25,6 +25,40 @@ properties:
     required:
       - fai
 
+  general_report:
+    type: string
+    format: uri-reference
+    description: path to yaml config for the general report
+
+  general_html_report:
+    type: object
+    description: parameters for general_html_report
+    properties:
+      final_directory_depth:
+        type: integer
+        description: >
+          How deep in the final results directory the report will be. This
+          will be used to correctly resolve relative paths in the JSON config.
+          For example, if the report is located in the directory `results/reports`,
+          the depth would be 2.
+      multiqc_config:
+        type: string
+        description: >
+          Path to multiqc config file in cases where you have custom content in
+          the multiqc report or if you want to hide certain general statistics
+          columns in the general report that are also hidden in the multiqc report.
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      extra:
+        type: string
+        description: parameters that should be forwarded
+    required:
+      - final_directory_depth
+
   cnv_html_report:
     type: object
     description: parameters for cnv_html_report
@@ -74,6 +108,16 @@ properties:
           required:
             - name
             - path
+      wide_plot_width:
+        oneOf:
+          - type: integer
+          - type: boolean
+            const: false
+        default: false
+        description: >
+          Fixed horizontal width for plots in pixels. If set, plots will stack
+          vertically and allow horizontal scrolling on smaller screens. Set to
+          `false` for responsive behavior.
     required:
       - show_table
 
@@ -88,6 +132,7 @@ properties:
         type: string
         description: name or path to docker/singularity container
 
+
   merge_cnv_json:
     type: object
     description: parameters for merge_cnv_json
@@ -98,6 +143,14 @@ properties:
       container:
         type: string
         description: name or path to docker/singularity container
+
+      cancer_genes:
+        type: string
+        format: uri-reference
+        description: >
+          CSV file containing gene coloring information.
+          The CSV must have at least three columns with headers: "Gene" (gene name), "Role" (e.g., OG_consensus, TSG_consensus), and "Simple_Color" (hex color code).
+          If a gene in this file is also present in `ref_genes` (but not in `annotations`), its coordinates will be automatically fetched and it will be highlighted in the chromosome plot.
       annotations:
         type: array
         description: >
@@ -181,7 +234,7 @@ properties:
         type: string
         format: uri-reference
         description: >
-          Path to a germline VCF file that will be used to display VAFs in the
+          Path to a germline VCF file that will be used to display BAFs in the
           plots of the report. The path supports the wildcards `sample` and
           `type` wildcards.
       unfiltered_cnv_vcfs:
@@ -207,19 +260,6 @@ allOf:
       properties:
         cnv_html_report:
           properties:
-            show_table:
-              const: true
-    then:
-      properties:
-        merge_cnv_json:
-          required:
-            - filtered_cnv_vcfs
-            - unfiltered_cnv_vcfs
-
-  - if:
-      properties:
-        cnv_html_report:
-          properties:
             cytobands:
               const: true
     then:
@@ -233,4 +273,5 @@ required:
   - units
   - output
   - resources
+  - general_report
   - default_container
