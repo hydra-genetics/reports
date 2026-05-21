@@ -178,15 +178,12 @@ def get_cnv_segments(wildcards):
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
-def get_germline_vcf(wildcards: Wildcards) -> Union[List[NoReturn], Path, str]:
+def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     return config.get("merge_cnv_json", {}).get("germline_vcf", [])
 
 
 def get_germline_vcf_tbi(wildcards: Wildcards) -> List[Union[str, Path]]:
-    vcf = get_germline_vcf(wildcards)
-    if not vcf or vcf.endswith(".vcf"):
-        return []
-    return f"{vcf}.tbi"
+    return [f"{vcf}.tbi" for vcf in get_germline_vcf(wildcards) if vcf.endswith(".vcf.gz")]
 
 
 def get_filtered_cnv_vcfs(wildcards: Wildcards) -> List[Union[str, Path]]:
