@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/hydra-genetics/reports/compare/v1.1.1...v1.2.0) (2026-06-02)
+
+
+### Features
+
+* mark amplifications and hom deletions in red ([16aa697](https://github.com/hydra-genetics/reports/commit/16aa697323aeea523d609ffde67aa193d1e88be8))
+* Seg outside plot ([1b35893](https://github.com/hydra-genetics/reports/commit/1b35893668477efbc4c2c3209d379db772b9f6a2))
+
+
+### Bug Fixes
+
+* filter very small red segments ([3f9c500](https://github.com/hydra-genetics/reports/commit/3f9c500261831e4cd2e06b0c9fcf25f0a0233363))
+* merge confict ([6f485c3](https://github.com/hydra-genetics/reports/commit/6f485c3a6f3f91945cf1050b57de23bce4fe2edc))
+* no minimium width for reg segments ([4314a37](https://github.com/hydra-genetics/reports/commit/4314a37c945436c1f9ddc5f1ccd6ecc375e5d825))
+* thinner left panel in general report adapted for smaller screens ([#159](https://github.com/hydra-genetics/reports/issues/159)) ([01d8631](https://github.com/hydra-genetics/reports/commit/01d8631adecd5c71ec599791467bb41d92fdd413))
+
 ## [1.1.1](https://github.com/hydra-genetics/reports/compare/v1.1.0...v1.1.1) (2026-04-08)
 
 
