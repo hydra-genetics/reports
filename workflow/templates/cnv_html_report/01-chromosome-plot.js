@@ -232,6 +232,7 @@ class ChromosomePlot extends EventTarget {
   #ctx;
   #activeCancerGeneRoles = new Set();
   #geneMenu = null;
+  #outOfRangeGroup;
 
   constructor(config) {
     super();
@@ -367,6 +368,11 @@ class ChromosomePlot extends EventTarget {
       .attr("class", "segments")
       .attr("data-chromosome", this.data.chromosome)
       .attr("data-caller", this.#activeCaller);
+
+    // Group for out-of-range indicators — lives in plotArea (not clipped)
+    this.#outOfRangeGroup = this.#plotArea
+      .append("g")
+      .attr("id", "out-of-range-indicators");
 
     this.#setLabels();
 
@@ -982,6 +988,116 @@ class ChromosomePlot extends EventTarget {
               )
           ),
         (exit) => exit.transition().attr("stroke-opacity", 0).remove()
+      );
+  }
+
+  /**
+   * Draw red edge-line + arrow + CN label for every visible segment whose
+   * log2 ratio falls outside the static [-2, +2] y-axis range.
+   * Only active when fitToData is OFF (static range mode).
+   */
+  #plotOutOfRangeIndicators() {
+    if (this.#fitToData) {
+      this.#outOfRangeGroup.selectAll(".oor-indicator").remove();
+      return;
+    }
+
+    const [staticYMin, staticYMax] = [-2, 2];
+    const [xMin, xMax] = this.xScale.domain();
+    const plotWidth = this.width - this.margin.left - this.margin.right;
+    const arrowSize = 6;
+    const lineThickness = 3;
+
+    const segments = this.#data.callers[this.#activeCaller].segments
+      .filter((d) => {
+        const callerRatios = this.#data.callers[this.#activeCaller].ratios;
+        let count = 0;
+        for (let i = 0; i < callerRatios.length; i++) {
+          const r = callerRatios[i];
+          if (r.start >= d.start && r.end <= d.end) {
+            count++;
+            if (count >= 3) break;
+          }
+          if (r.start > d.end) break;
+        }
+        return count >= 3;
+      })
+      .map((d) => {
+        let ts = { ...d };
+        ts.log2 = this.transformLog2Ratio(ts.log2);
+        if (this.equalDistance) {
+          ts.start = this.getRatioIndex(ts.start);
+          ts.end = this.getRatioIndex(ts.end);
+        }
+        return ts;
+      })
+      .filter((d) => d.end >= xMin && d.start <= xMax)
+      .filter((d) => d.log2 < staticYMin || d.log2 > staticYMax);
+
+    // X centre of the visible portion of a segment (clamped to plot bounds)
+    const segCenterX = (d) => {
+      const visStart = this.xScale(Math.max(d.start, xMin));
+      const visEnd   = this.xScale(Math.min(d.end,   xMax));
+      return Math.max(0, Math.min(plotWidth, (visStart + visEnd) / 2));
+    };
+
+    // Arrow polygon points: tip protrudes beyond the plot edge
+    const arrowPoints = (d) => {
+      const cx      = segCenterX(d);
+      const isAbove = d.log2 > staticYMax;
+      const edgeY   = isAbove ? 0 : this.plotHeight;
+      const tipY    = isAbove ? -arrowSize * 1.5 : this.plotHeight + arrowSize * 1.5;
+      return [
+        [cx,              tipY ],
+        [cx - arrowSize,  edgeY],
+        [cx + arrowSize,  edgeY],
+      ].map(p => p.join(",")).join(" ");
+    };
+
+    this.#outOfRangeGroup
+      .selectAll(".oor-indicator")
+      .data(
+        segments,
+        (d) => `${this.#activeCaller}-${this.data.chromosome}-${d.start}-${d.end}`
+      )
+      .join(
+        (enter) => {
+          const g = enter.append("g").attr("class", "oor-indicator");
+
+          // Red line along the plot edge
+          g.append("line")
+            .attr("class", "oor-line")
+            .attr("x1", (d) => Math.max(0, this.xScale(d.start)))
+            .attr("x2", (d) => Math.min(plotWidth, this.xScale(d.end)))
+            .attr("y1", (d) => d.log2 > staticYMax ? 0 : this.plotHeight)
+            .attr("y2", (d) => d.log2 > staticYMax ? 0 : this.plotHeight)
+            .attr("stroke", "red")
+            .attr("stroke-width", lineThickness)
+            .attr("stroke-linecap", "round");
+
+          // Arrow pointing out of bounds
+          g.append("polygon")
+            .attr("class", "oor-arrow")
+            .attr("points", arrowPoints)
+            .attr("fill", "red");
+
+          return g;
+        },
+        (update) => {
+          update.select(".oor-line")
+            .transition().duration(this.animationDuration)
+            .attr("x1", (d) => Math.max(0, this.xScale(d.start)))
+            .attr("x2", (d) => Math.min(plotWidth, this.xScale(d.end)))
+            .attr("y1", (d) => d.log2 > staticYMax ? 0 : this.plotHeight)
+            .attr("y2", (d) => d.log2 > staticYMax ? 0 : this.plotHeight);
+
+          update.select(".oor-arrow")
+            .transition().duration(this.animationDuration)
+            .attr("points", arrowPoints);
+
+          return update;
+        },
+        (exit) => exit.remove()
       );
   }
 
@@ -1952,6 +2068,7 @@ class ChromosomePlot extends EventTarget {
     this.#updateAxes();
     this.#plotRatios();
     this.#plotSegments();
+    this.#plotOutOfRangeIndicators();
     this.#plotBAF();
     this.#plotAnnotations();
     this.#plotCytobands();

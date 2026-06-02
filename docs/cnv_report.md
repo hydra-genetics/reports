@@ -1,5 +1,7 @@
 # CNV report
 
+The CNV HTML report provides an interactive, offline-capable visualization of copy number variant data. It is rendered using an HTML Canvas-based engine and does not require internet access.
+
 ## Input files
 
 Required files are:
@@ -71,9 +73,11 @@ Custom annotations can be added to the chromosome plot by specifying one or more
 Gene coloring can be enabled in the chromosome plot by providing a CSV file with gene roles and colors via `cancer_genes` under [`merge_cnv_json`](/softwares/#configuration_2).
 
 **Automatic Highlighting**:
-If a gene is listed in the `cancer_genes` CSV and is also present in the `ref_genes` index (but not in the `annotations` BED files), its coordinates will be automatically fetched from the reference index and it will be highlighted on the chromosome plot. This allows for highlighting a large set of genes without manually creating individual BED entries.
+If a gene is listed in the `cancer_genes` CSV and is also present in the `ref_genes` index (but not in the `annotations` BED files), its coordinates will be automatically fetched from the reference index and it will be highlighted on the chromosome plot. This allows for highlighting a large set of genes without manually creating individual BED entries. Genes defined in `annotations` BED files take precedence over auto-fetched coordinates.
+
+Required CSV columns:
 - `Gene`: Standard gene name (e.g., TP53)
-- `Role`: Gene role (e.g., Oncogene, TSG)
+- `Role`: Gene role (e.g., Oncogene, TSG) — used as a label in the report legend
 - `Color`: Hex color code for the gene (e.g., #ff0000)
 
 Example `cancer_genes.csv`:
@@ -83,7 +87,11 @@ TP53,Dual role (OG and / or TSG),#ee82ee
 IKZF1,Tumor suppressor gene (TSG),#0000ff
 ```
 
-The report will then include a toggle to apply these colors to the annotations.
+The report will then include a toggle to apply these colors to the gene annotations in the chromosome plot.
+
+### Manual tumor content adjustment
+
+The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The slider is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, adjusting the slider recalculates and redraws the expected copy number lines in the log₂-ratio plots in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
 
 ### Wide Plots
 
@@ -93,6 +101,20 @@ To support wider plots that stack vertically (instead of the default responsive 
 cnv_html_report:
     wide_plot_width: 2000
 ```
+
+### Interactive visualization features
+
+The report includes the following interactive features:
+
+| Feature | Description |
+|---|---|
+| Chromosome plot | Log₂-ratio and BAF scatter plot per chromosome with zoom and pan |
+| Genome-wide plot | Overview of copy number across all chromosomes |
+| Linear chromosome view | Alternative linear view for each chromosome with per-caller toggle |
+| Gene search | Search box to quickly navigate the plot to a specific gene |
+| Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
+| Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
+| Caller toggle | Switch between callers (CNVkit, GATK, Jumble) in the chromosome and genome plots |
 
 
 ## Customising the template
