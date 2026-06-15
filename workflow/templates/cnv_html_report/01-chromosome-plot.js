@@ -1016,11 +1016,18 @@ class ChromosomePlot extends EventTarget {
           const r = callerRatios[i];
           if (r.start >= d.start && r.end <= d.end) {
             count++;
-            if (count >= 3) break;
+            if (count >= 11) break;
           }
           if (r.start > d.end) break;
         }
-        return count >= 3;
+        if (count < 3) return false;
+        if (count < 11) {
+          const overlapsROI = this.#data.annotations?.some(
+            (a) => a.start <= d.end && a.end >= d.start
+          );
+          if (!overlapsROI) return false;
+        }
+        return true;
       })
       .map((d) => {
         let ts = { ...d };
