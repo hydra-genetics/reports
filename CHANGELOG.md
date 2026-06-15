@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/hydra-genetics/reports/compare/v1.2.0...v1.3.0) (2026-06-15)
+
+
+### Features
+
+* Cnv report table fix and improved out-of-range indications ([c3fd09d](https://github.com/hydra-genetics/reports/commit/c3fd09d7886d42ae78ed6b878831fc9d7699b0f1))
+
 ## [1.2.0](https://github.com/hydra-genetics/reports/compare/v1.1.1...v1.2.0) (2026-06-02)
 
 
