@@ -37,7 +37,7 @@ class ResultsTable extends EventTarget {
     ];
 
     this.#data = config?.data;
-    this.#activeCaller = config?.caller ? config.caller : 0;
+    this.#activeCaller = config?.caller ?? 0;
 
     this.#tooltip = this.initTooltip();
 

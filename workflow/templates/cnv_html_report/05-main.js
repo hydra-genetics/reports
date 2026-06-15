@@ -120,6 +120,7 @@ const genomePlot = new GenomePlot({
 
 const resultsTable = new ResultsTable(d3.select("#cnv-table"), {
   data: cnvData,
+  caller: initialCallerIndex !== -1 ? initialCallerIndex : 0,
   filter: d3.select("#table-filter-toggle").node().checked,
 });
 
