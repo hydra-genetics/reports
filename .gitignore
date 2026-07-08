@@ -7,3 +7,7 @@ reports/
 site/
 logs/
 results/
+.idea/
+.vscode/
+.DS_Store
+CLAUDE.md
