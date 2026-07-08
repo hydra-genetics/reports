@@ -1,0 +1,19 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=Genes,Number=.,Type=String,Description="Genes overlapping the segment">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=LOG_ODDS_RATIO,Number=1,Type=Float,Description="Log odds ratio">
+##INFO=<ID=CALLER,Number=1,Type=String,Description="Variant caller">
+##INFO=<ID=CN,Number=1,Type=String,Description="Copy number">
+##INFO=<ID=CORR_CN,Number=1,Type=Float,Description="Purity-corrected copy number">
+##INFO=<ID=PROBES,Number=1,Type=Integer,Description="Number of probes in the segment">
+##INFO=<ID=BAF,Number=1,Type=Float,Description="B-allele frequency">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=CN,Number=1,Type=Float,Description="Copy number">
+##FORMAT=<ID=CNQ,Number=1,Type=Float,Description="Copy number quality">
+##FORMAT=<ID=DP,Number=1,Type=Float,Description="Depth">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1_T
+chrA	1000	.	N	<DUP>	.	PASS	Genes=EGFR;SVTYPE=DUP;END=2000000;SVLEN=1000000;LOG_ODDS_RATIO=0.8;CALLER=cnvkit;CN=NA;CORR_CN=4.0;PROBES=50;BAF=0.6	GT:CN:CNQ:DP	0/1:4.0:90:35.2
+chrB	500	.	N	<DEL>	.	PASS	Genes=TP53;SVTYPE=DEL;END=1500000;SVLEN=-1000000;LOG_ODDS_RATIO=-1.2;CALLER=cnvkit;CN=NA;CORR_CN=1.0;PROBES=40;BAF=0.1	GT:CN:CNQ:DP	0/1:1.0:85:30.1
