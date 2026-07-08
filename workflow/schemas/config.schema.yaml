@@ -255,6 +255,36 @@ properties:
             `filtered_cnv_vcfs`. The path supports `sample`, `type` and
             `tc_method` wildcards.
 
+  compile_xlsx_report:
+    type: object
+    description: parameters for compile_xlsx_report
+    properties:
+      benchmark_repeats:
+        type: integer
+        description: set number of times benchmark should be repeated
+      container:
+        type: string
+        description: name or path to docker/singularity container
+      filters:
+        type: string
+        format: uri-reference
+        description: >
+          Path to a yaml file describing which fields to extract from the
+          VEP CSQ and FORMAT fields of the SNV VCF, which columns to keep
+          or drop in each output sheet, which SNV consequences to remove,
+          and the minimum SV length for the CNV/SV-on-chr14 sheet.
+          See the [XLSX report](../../docs/xlsx_report.md) docs for the
+          expected structure of this file.
+      genes:
+        type: string
+        format: uri-reference
+        description: >
+          Optional path to a BED file. If set, the SNV sheet (excluding the
+          separate TP53 sheet, which is never filtered) will only include
+          variants for genes listed in the 4th column of this file.
+    required:
+      - filters
+
 allOf:
   - if:
       properties:
