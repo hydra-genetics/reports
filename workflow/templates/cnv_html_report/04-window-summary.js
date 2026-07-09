@@ -32,8 +32,14 @@ function summariseWindow(points, windowStart, windowSize, valAttr, minValue = un
   let hasOutliers = false;
   let filtered = points;
   if (minValue !== undefined) {
-    hasOutliers = points.some((x) => (x[valAttr] ?? x.mean ?? 0) + offset <= minValue);
-    filtered = points.filter((x) => (x[valAttr] ?? x.mean ?? 0) + offset > minValue);
+    // Compare against a threshold shifted once, rather than adding `offset`
+    // back onto every point — the latter is a subtract-then-add round trip
+    // (the caller already subtracted `offset` into x[valAttr]) that is not
+    // guaranteed to be bit-exact for arbitrary offset values, which could
+    // silently let floor-clamped points escape the outlier filter.
+    const adjustedMinValue = minValue - offset;
+    hasOutliers = points.some((x) => (x[valAttr] ?? x.mean ?? 0) <= adjustedMinValue);
+    filtered = points.filter((x) => (x[valAttr] ?? x.mean ?? 0) > adjustedMinValue);
   }
   if (filtered.length === 0) return null;
 

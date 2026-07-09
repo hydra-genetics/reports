@@ -276,10 +276,9 @@ def get_ploidy(wildcards):
     if not os.path.exists(ploidy_file):
         return None
     with open(ploidy_file) as f:
-        reader = csv.reader(f)
-        header = next(reader)
+        reader = csv.DictReader(f)
         try:
             row = next(reader)
-            return float(row[header.index("Ploidy")])
-        except (StopIteration, ValueError, IndexError):
+            return float(row["Ploidy"])
+        except (StopIteration, ValueError, KeyError):
             return None

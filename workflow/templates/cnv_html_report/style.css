@@ -239,6 +239,13 @@ svg .gridline.baseline {
   stroke-width: 1.5px;
 }
 
+svg .integer-cn-gridline {
+  stroke: #4a90d9;
+  stroke-width: 1px;
+  stroke-dasharray: 4, 3;
+  shape-rendering: crispEdges;
+}
+
 svg .cursor-line {
   stroke: #888888;
 }

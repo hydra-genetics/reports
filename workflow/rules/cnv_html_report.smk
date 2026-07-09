@@ -21,6 +21,7 @@ rule cnv_html_report:
             workflow.source_path("../templates/cnv_html_report/style.css"),
         ],
         tc_file=get_tc_file,
+        ploidy_file=get_ploidy_file,
         extra_table_files=[t["path"] for t in config.get("cnv_html_report", {}).get("extra_tables", [])],
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
@@ -28,6 +29,7 @@ rule cnv_html_report:
         include_table=config.get("cnv_html_report", {}).get("show_table", True),
         extra_tables=config.get("cnv_html_report", {}).get("extra_tables", []),
         tc=get_tc,
+        ploidy=get_ploidy,
         tc_method=lambda wildcards: wildcards.tc_method,
         include_cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
         wide_plot_width=config.get("cnv_html_report", {}).get("wide_plot_width", False),

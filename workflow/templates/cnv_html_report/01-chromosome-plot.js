@@ -233,6 +233,7 @@ class ChromosomePlot extends EventTarget {
   #activeCancerGeneRoles = new Set();
   #geneMenu = null;
   #outOfRangeGroup;
+  #integerGridGroup;
 
   constructor(config) {
     super();
@@ -360,6 +361,10 @@ class ChromosomePlot extends EventTarget {
         "transform",
         `translate(0, ${this.plotHeight + this.margin.between})`
       );
+
+    this.#integerGridGroup = this.#lrArea
+      .append("g")
+      .attr("class", "integer-cn-gridlines");
 
     this.#ratios = this.#lrArea
       .append("g")
@@ -950,6 +955,55 @@ class ChromosomePlot extends EventTarget {
       );
   }
 
+  /**
+   * Draw a faint horizontal reference line at every whole-number copy-number
+   * position currently visible, so rounded segments have something to
+   * visually snap to. Only active in "simulate purity" + "round segments"
+   * mode; otherwise the group is cleared.
+   */
+  #plotIntegerGridlines() {
+    if (!(this.simulatePurity && this.roundSegmentsToInteger)) {
+      this.#integerGridGroup.selectAll(".integer-cn-gridline").remove();
+      return;
+    }
+
+    const [cnMin, cnMax] = this.cnYScale.domain();
+    const startN = Math.max(0, Math.ceil(cnMin));
+    const endN = Math.floor(cnMax);
+    const values = [];
+    for (let n = startN; n <= endN; n++) {
+      values.push(n);
+    }
+    const plotWidth = this.width - this.margin.left - this.margin.right;
+
+    this.#integerGridGroup
+      .selectAll(".integer-cn-gridline")
+      .data(values, (d) => d)
+      .join(
+        (enter) =>
+          enter
+            .append("line")
+            .attr("class", "integer-cn-gridline")
+            .attr("x1", 0)
+            .attr("x2", plotWidth)
+            .attr("y1", (d) => this.cnYScale(d))
+            .attr("y2", (d) => this.cnYScale(d))
+            .attr("pointer-events", "none")
+            .attr("opacity", 0)
+            .call((enter) => enter.transition().duration(this.animationDuration).attr("opacity", 1)),
+        (update) =>
+          update.call((update) =>
+            update
+              .transition()
+              .duration(this.animationDuration)
+              .attr("x2", plotWidth)
+              .attr("y1", (d) => this.cnYScale(d))
+              .attr("y2", (d) => this.cnYScale(d))
+          ),
+        (exit) => exit.transition().duration(this.animationDuration).attr("opacity", 0).remove()
+      );
+  }
+
   #plotSegments() {
     const self = this;
     this.#segments
@@ -1004,7 +1058,9 @@ class ChromosomePlot extends EventTarget {
 
   /**
    * Draw red edge-line + arrow + CN label for every visible segment whose
-   * log2 ratio falls outside the static [-2, +2] y-axis range.
+   * log2 ratio falls outside the static y-axis range (normally [-2, +2],
+   * widened down to the copy-number floor when simulating purity so
+   * near-zero-copy segments are shown in place instead).
    * Only active when fitToData is OFF (static range mode).
    */
   #plotOutOfRangeIndicators() {
@@ -1013,7 +1069,7 @@ class ChromosomePlot extends EventTarget {
       return;
     }
 
-    const [staticYMin, staticYMax] = [-2, 2];
+    const [staticYMin, staticYMax] = this.simulatePurity ? [MIN_LOG2_RATIO, 2] : [-2, 2];
     const [xMin, xMax] = this.xScale.domain();
     const plotWidth = this.width - this.margin.left - this.margin.right;
     const arrowSize = 6;
@@ -1901,7 +1957,7 @@ class ChromosomePlot extends EventTarget {
   }
 
   #updateAxes() {
-    const [staticYMin, staticYMax] = [-2, 2];
+    const [staticYMin, staticYMax] = this.simulatePurity ? [MIN_LOG2_RATIO, 2] : [-2, 2];
 
     const [xMin, xMax] = this.zoomRange;
     let yMin, yMax;
@@ -1986,8 +2042,8 @@ class ChromosomePlot extends EventTarget {
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
       this.cnYScale.domain([
-        cnFromRatio(yMin - padding),
-        cnFromRatio(yMax + padding),
+        cnFromRatio(yMin - padding + this.baselineOffset),
+        cnFromRatio(yMax + padding + this.baselineOffset),
       ]);
     } else {
       this.dispatchEvent(
@@ -1998,8 +2054,8 @@ class ChromosomePlot extends EventTarget {
       const padding = (staticYMax - staticYMin) * 0.05;
       this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
       this.cnYScale.domain([
-        cnFromRatio(staticYMin - padding),
-        cnFromRatio(staticYMax + padding),
+        cnFromRatio(staticYMin - padding + this.baselineOffset),
+        cnFromRatio(staticYMax + padding + this.baselineOffset),
       ]);
     }
 
@@ -2020,14 +2076,16 @@ class ChromosomePlot extends EventTarget {
       .call(this.cnYAxis);
 
     this.svg.selectAll(".gridline").remove();
-    this.svg
-      .selectAll(".primary-y-axis .tick")
-      .lower()
-      .append("line")
-      .attr("class", (d) => {
-        return d == 0 ? "gridline baseline" : "gridline";
-      })
-      .attr("x2", this.xScale.range()[1]);
+    if (!(this.simulatePurity && this.roundSegmentsToInteger)) {
+      this.svg
+        .selectAll(".primary-y-axis .tick")
+        .lower()
+        .append("line")
+        .attr("class", (d) => {
+          return d == 0 ? "gridline baseline" : "gridline";
+        })
+        .attr("x2", this.xScale.range()[1]);
+    }
 
     this.svg.select(".x-label").text(this.#data.label);
   }
@@ -2084,6 +2142,7 @@ class ChromosomePlot extends EventTarget {
     this.#clearCanvas();
 
     this.#updateAxes();
+    this.#plotIntegerGridlines();
     this.#plotRatios();
     this.#plotSegments();
     this.#plotOutOfRangeIndicators();

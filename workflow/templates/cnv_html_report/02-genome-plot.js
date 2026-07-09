@@ -36,7 +36,7 @@ class GenomePlot extends EventTarget {
       ? config.margin
       : {
         top: 10,
-        right: 30,
+        right: 60,
         bottom: 60,
         left: 60,
         between: 20,
@@ -69,9 +69,11 @@ class GenomePlot extends EventTarget {
     );
 
     this.ratioYScaleRange = 2;
+    this.ratioYMin = this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange;
+    this.ratioYMax = this.ratioYScaleRange;
     this.ratioYScale = d3
       .scaleLinear()
-      .domain([-this.ratioYScaleRange, this.ratioYScaleRange])
+      .domain([this.ratioYMin, this.ratioYMax])
       .range([this.panelHeight, 0]);
 
     this.bafYScale = d3
@@ -80,6 +82,9 @@ class GenomePlot extends EventTarget {
       .range([this.panelHeight, 0]);
     this.ratioYAxis = (g) => g.call(d3.axisLeft(this.ratioYScale).ticks(5));
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
+
+    this.cnYScale = d3.scaleLog().base(2).range([this.panelHeight, 0]);
+    this.cnYAxis = (g) => g.call(d3.axisRight(this.cnYScale).ticks(5));
 
     this.svg = d3.select("#genome-view");
     if (this.widePlotWidth) {
@@ -184,6 +189,7 @@ class GenomePlot extends EventTarget {
       );
 
     this.drawAxes();
+    this.#updateCnAxis();
     this.drawGridLines();
     this.setLabels();
     this.#setupCanvas();
@@ -206,7 +212,21 @@ class GenomePlot extends EventTarget {
 
   setSimulatePurity(active) {
     this.simulatePurity = active;
+    this.#updateRatioRange();
+    this.#updateCnAxis();
     this.update();
+  }
+
+  /**
+   * When simulating purity, widen the ratio row's visible range down to the
+   * copy-number floor (instead of the fixed -2..2 log2-ratio window) so
+   * near-zero-copy segments/points are always drawn in place rather than
+   * relying on the out-of-range indicator.
+   */
+  #updateRatioRange() {
+    this.ratioYMin = this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange;
+    this.ratioYMax = this.ratioYScaleRange;
+    this.ratioYScale.domain([this.ratioYMin, this.ratioYMax]);
   }
 
   setRoundSegmentsToInteger(active) {
@@ -285,6 +305,15 @@ class GenomePlot extends EventTarget {
       .append("g")
       .attr(
         "transform",
+        `translate(${this.width - this.margin.right}, ${this.margin.top})`
+      )
+      .attr("class", "y-axis cn-y-axis")
+      .call(this.cnYAxis);
+
+    this.svg
+      .append("g")
+      .attr(
+        "transform",
         `translate(${this.margin.left}, ${this.margin.top + this.panelHeight + this.margin.between
         })`
       )
@@ -292,8 +321,20 @@ class GenomePlot extends EventTarget {
       .call(this.bafYAxis);
   }
 
+  #updateCnAxis() {
+    this.cnYScale.domain([
+      cnFromRatio(this.ratioYMin + this.baselineOffset),
+      cnFromRatio(this.ratioYMax + this.baselineOffset),
+    ]);
+    this.svg
+      .select(".cn-y-axis")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.cnYAxis);
+  }
+
   drawGridLines() {
-    const lrGrid = this.lrPanels
+    this.lrPanels
       .append("g")
       .attr("class", "grid")
       .attr("data-index", (d, i) => i);
@@ -302,24 +343,6 @@ class GenomePlot extends EventTarget {
       .append("g")
       .attr("class", "grid")
       .attr("data-index", (d, i) => i);
-
-    lrGrid
-      .selectAll(".gridline")
-      .data(this.ratioYScale.ticks())
-      .join("line")
-      .attr(
-        "x1",
-        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[0]
-      )
-      .attr(
-        "x2",
-        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[1]
-      )
-      .attr("y1", (d) => this.ratioYScale(d))
-      .attr("y2", (d) => this.ratioYScale(d))
-      .attr("class", (d) => {
-        return d === 0 ? "gridline baseline" : "gridline";
-      });
 
     bafGrid
       .selectAll(".gridline")
@@ -336,6 +359,54 @@ class GenomePlot extends EventTarget {
       .attr("y1", (d) => this.bafYScale(d))
       .attr("y2", (d) => this.bafYScale(d))
       .attr("class", "gridline");
+
+    this.#updateLrGridLines();
+  }
+
+  /**
+   * Redraw the ratio-row gridlines. Normally these mark log2-ratio ticks;
+   * in "round segments to integer" mode they instead mark whole-number
+   * copy-number positions (mirroring ChromosomePlot's integer gridlines),
+   * since log2-spaced lines are not meaningful once segments are snapped
+   * to integer CN.
+   */
+  #updateLrGridLines() {
+    const integerMode = this.simulatePurity && this.roundSegmentsToInteger;
+    let values, yScale;
+
+    if (integerMode) {
+      const [cnMin, cnMax] = this.cnYScale.domain();
+      const startN = Math.max(0, Math.ceil(cnMin));
+      const endN = Math.floor(cnMax);
+      values = [];
+      for (let n = startN; n <= endN; n++) {
+        values.push(n);
+      }
+      yScale = this.cnYScale;
+    } else {
+      values = this.ratioYScale.ticks();
+      yScale = this.ratioYScale;
+    }
+
+    this.lrPanels
+      .select(".grid")
+      .selectAll(".gridline")
+      .data(values, (d) => d)
+      .join("line")
+      .attr(
+        "x1",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[0]
+      )
+      .attr(
+        "x2",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[1]
+      )
+      .attr("y1", (d) => yScale(d))
+      .attr("y2", (d) => yScale(d))
+      .attr("class", (d) => {
+        if (integerMode) return "integer-cn-gridline";
+        return d === 0 ? "gridline baseline" : "gridline";
+      });
   }
 
   setLabels() {
@@ -362,6 +433,17 @@ class GenomePlot extends EventTarget {
       )
       .attr("class", "y-label")
       .text("log2 ratio")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
+
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(${this.width},${this.margin.top + this.panelHeight / 2}) rotate(90)`
+      )
+      .attr("class", "y-label")
+      .text("Copy number")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
 
@@ -555,12 +637,13 @@ class GenomePlot extends EventTarget {
 
   /**
    * Draw red edge-line + arrow for every segment whose log2 ratio falls
-   * outside the static [-2, +2] y-axis range in the genome overview plot.
+   * outside the current static y-axis range ([ratioYMin, ratioYMax], widened
+   * to the copy-number floor when simulating purity) in the genome overview plot.
    */
   plotOutOfRangeIndicators() {
     const self = this;
-    const staticYMin = -this.ratioYScaleRange;
-    const staticYMax =  this.ratioYScaleRange;
+    const staticYMin = this.ratioYMin;
+    const staticYMax = this.ratioYMax;
     const arrowSize = 4;
     const lineThickness = 2;
 
@@ -911,6 +994,7 @@ class GenomePlot extends EventTarget {
 
   setBaselineOffset(dy) {
     this.baselineOffset = dy;
+    this.#updateCnAxis();
     this.update();
   }
 
@@ -940,6 +1024,7 @@ class GenomePlot extends EventTarget {
 
   update() {
     this.#clearCanvas();
+    this.#updateLrGridLines();
     this.plotRatios();
     this.plotSegments();
     this.plotOutOfRangeIndicators();

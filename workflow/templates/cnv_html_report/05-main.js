@@ -323,9 +323,17 @@ adjustToPloidyButton.on("click", () => {
   const dy = Math.min(maxDy, Math.max(minDy, Math.log2(ploidyValue / 2)));
   const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
 
+  // Apply the full-precision dy directly rather than round-tripping it
+  // through the (rounded, display-only) number input's value + change event —
+  // that round trip previously lost precision (e.g. 0.58496... -> "0.585"),
+  // which could silently shift which points a downstream floor-clamp comparison excludes.
   baselineOffsetSlider.node().value = dy;
   currentBaselineOffset.node().value = strdy;
-  currentBaselineOffset.node().dispatchEvent(new Event("change"));
+  currentBaselineOffset.node().classList.remove("invalid");
+  currentBaselineOffset.node().title = "";
+  baselineOffsetReset.property("disabled", dy === 0);
+  chromosomePlot.setBaselineOffset(dy);
+  genomePlot.setBaselineOffset(dy);
 });
 
 const simulatePurity = d3.select("#simulate-purity");
