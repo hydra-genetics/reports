@@ -251,6 +251,9 @@ class ChromosomePlot extends EventTarget {
     this.simulatePurity = config?.simulatePurity
       ? config.simulatePurity
       : false;
+    this.roundSegmentsToInteger = config?.roundSegmentsToInteger
+      ? config.roundSegmentsToInteger
+      : false;
     this.tc = config?.tc ? config.tc : 1;
     this.animationDuration = config?.animationDuration
       ? config.animationDuration
@@ -471,6 +474,11 @@ class ChromosomePlot extends EventTarget {
     this.update();
   }
 
+  setRoundSegmentsToInteger(active) {
+    this.roundSegmentsToInteger = active;
+    this.update();
+  }
+
   setTc(tc) {
     if (tc != this.tc) {
       this.tc = tc;
@@ -478,12 +486,15 @@ class ChromosomePlot extends EventTarget {
     }
   }
 
-  transformLog2Ratio(x) {
+  transformLog2Ratio(x, isSegment = false) {
     if (x === undefined || x === null || isNaN(x)) return 0;
     let tx = x;
     if (this.simulatePurity) {
       const minCopyNumber = 1e-3;
-      const adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
+      let adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
+      if (isSegment && this.roundSegmentsToInteger) {
+        adjCopies = Math.round(adjCopies);
+      }
       tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
     }
     const res = tx - this.baselineOffset;
@@ -946,7 +957,7 @@ class ChromosomePlot extends EventTarget {
       .data(
         this.#data.callers[this.#activeCaller].segments.map((d) => {
           let ts = { ...d };
-          ts.log2 = self.transformLog2Ratio(ts.log2);
+          ts.log2 = self.transformLog2Ratio(ts.log2, true);
           ts.caller = self.activeCaller;
           if (self.equalDistance) {
             ts.start = self.getRatioIndex(ts.start);
@@ -1031,7 +1042,7 @@ class ChromosomePlot extends EventTarget {
       })
       .map((d) => {
         let ts = { ...d };
-        ts.log2 = this.transformLog2Ratio(ts.log2);
+        ts.log2 = this.transformLog2Ratio(ts.log2, true);
         if (this.equalDistance) {
           ts.start = this.getRatioIndex(ts.start);
           ts.end = this.getRatioIndex(ts.end);
@@ -1938,7 +1949,7 @@ class ChromosomePlot extends EventTarget {
         .filter((v) => !isNaN(v) && isFinite(v));
         
       const transformedSegments = this.#data.callers[this.#activeCaller].segments
-        .map((d) => this.transformLog2Ratio(d.log2))
+        .map((d) => this.transformLog2Ratio(d.log2, true))
         .filter((v) => !isNaN(v) && isFinite(v));
 
       const transformedValues = [...transformedRatios, ...transformedSegments];

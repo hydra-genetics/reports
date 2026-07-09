@@ -45,6 +45,9 @@ class GenomePlot extends EventTarget {
     this.simulatePurity = config?.simulatePurity
       ? config.simulatePurity
       : false;
+    this.roundSegmentsToInteger = config?.roundSegmentsToInteger
+      ? config.roundSegmentsToInteger
+      : false;
     this.tc = config?.tc ? config.tc : 1;
 
     this.totalLength = d3.sum(this.#data.map((d) => d.length));
@@ -206,6 +209,11 @@ class GenomePlot extends EventTarget {
     this.update();
   }
 
+  setRoundSegmentsToInteger(active) {
+    this.roundSegmentsToInteger = active;
+    this.update();
+  }
+
   setTc(tc) {
     if (tc != this.tc) {
       this.tc = tc;
@@ -213,12 +221,15 @@ class GenomePlot extends EventTarget {
     }
   }
 
-  transformLog2Ratio(x) {
+  transformLog2Ratio(x, isSegment = false) {
     if (x === undefined || x === null || isNaN(x)) return 0;
     let tx = x;
     if (this.simulatePurity) {
       const minCopyNumber = 1e-3;
-      const adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
+      let adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
+      if (isSegment && this.roundSegmentsToInteger) {
+        adjCopies = Math.round(adjCopies);
+      }
       tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
     }
     const res = tx - this.baselineOffset;
@@ -584,7 +595,7 @@ class GenomePlot extends EventTarget {
         })
         .map((d) => {
           let td = { ...d };
-          td.log2 = self.transformLog2Ratio(td.log2);
+          td.log2 = self.transformLog2Ratio(td.log2, true);
           return td;
         })
         .filter((d) => d.log2 < staticYMin || d.log2 > staticYMax);
@@ -658,7 +669,7 @@ class GenomePlot extends EventTarget {
         .filter((d) => d.end - d.start > self.totalLength / self.width)
         .map((d) => {
           let td = { ...d };
-          td.log2 = self.transformLog2Ratio(td.log2);
+          td.log2 = self.transformLog2Ratio(td.log2, true);
           td.caller = panelData.callers[self.activeCaller].name;
           return td;
         });

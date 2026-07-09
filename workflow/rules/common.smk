@@ -3,6 +3,7 @@ __copyright__ = "Copyright 2023, Niklas Mähler"
 __email__ = "niklas.mahler@regionvasterbotten.se"
 __license__ = "GPL-3"
 
+import csv
 import itertools
 import numpy as np
 import pathlib
@@ -261,3 +262,24 @@ def get_tc_file(wildcards):
         return config["samples"]
     else:
         return f"cnv_sv/{tc_method}_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
+
+
+def get_ploidy_file(wildcards):
+    ploidy_file = f"cnv_sv/purecn/{wildcards.sample}_{wildcards.type}.csv"
+    if os.path.exists(ploidy_file):
+        return ploidy_file
+    return config["samples"]
+
+
+def get_ploidy(wildcards):
+    ploidy_file = f"cnv_sv/purecn/{wildcards.sample}_{wildcards.type}.csv"
+    if not os.path.exists(ploidy_file):
+        return None
+    with open(ploidy_file) as f:
+        reader = csv.reader(f)
+        header = next(reader)
+        try:
+            row = next(reader)
+            return float(row[header.index("Ploidy")])
+        except (StopIteration, ValueError, IndexError):
+            return None

@@ -55,6 +55,19 @@
           the bottom of the plot. This might be an indication that the copy
           number is lower than the real copy number.
         </p>
+        <p>
+          When simulating purity, the "Round segments to integer CN" option
+          snaps each segment's recomputed copy number to the nearest whole
+          number, which can make it easier to check the tumor cell content
+          estimate against the expected integer copy states. Individual data
+          points are left unrounded.
+        </p>
+        <p>
+          The "Adjust to ploidy" button shifts the baseline offset so that a
+          log2 ratio of 0 corresponds to the given ploidy instead of the
+          default assumption of 2 (diploid). The ploidy field is pre-filled
+          with PureCN's estimate when available, but can be edited freely.
+        </p>
 
         {% if metadata.show_table %}
         <h2 id="help-results-table">Results table</h2>
@@ -92,7 +105,8 @@
       <h1>CNV report</h1>
       <p class="metadata-line">
         Sample: {{ metadata.sample }} | Date: <time>{{ metadata.date }}</time> | Tumor cell content: {{ metadata.tc if
-        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }})
+        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }}){% if metadata.ploidy is not none %} | Ploidy:
+        {{ metadata.ploidy }}{% endif %}
       </p>
       <!-- x-release-please-start-version -->
       <p class="fix-right">
@@ -154,6 +168,11 @@
               </div>
 
               <div class="control-group">
+                <input type="checkbox" id="round-segments-integer" disabled />
+                <label for="round-segments-integer">Round segments to integer CN</label>
+              </div>
+
+              <div class="control-group">
                 <input type="checkbox" id="chromosome-cancer-gene-coloring" />
                 <label for="chromosome-cancer-gene-coloring">Cancer Gene Coloring</label>
               </div>
@@ -176,6 +195,13 @@
                 <input type="range" id="chromosome-baseline-offset" min="-2" max="2" step="0.05" value="0" />
                 <input type="number" min="-2" max="2" step="0.05" id="current-baseline-offset" value="0.00" />
                 <button id="reset-baseline-offset" disabled>Reset</button>
+              </div>
+
+              <div class="control-group">
+                <label for="ploidy-input">Ploidy</label>
+                <input type="number" min="1" max="16" step="0.1" id="ploidy-input"
+                  value="{{ metadata.ploidy if metadata.ploidy is not none else 2 }}" />
+                <button id="adjust-to-ploidy">Adjust to ploidy</button>
               </div>
 
               <div class="control-group">
@@ -269,6 +295,7 @@
     const decompressed = pako.inflate(bytes, { to: 'string' });
     let cnvData = JSON.parse(decompressed);
     const originalTc = {{ metadata.tc if metadata.tc is not none else 1 }};
+    const purecnPloidy = {{ metadata.ploidy if metadata.ploidy is not none else 2 }};
     const widePlotWidth = {{ metadata.wide_plot_width | lower if metadata.wide_plot_width is boolean else metadata.wide_plot_width }};
   </script>
   <!-- prettier-ignore -->

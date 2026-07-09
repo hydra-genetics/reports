@@ -93,6 +93,12 @@ The report will then include a toggle to apply these colors to the gene annotati
 
 The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The slider is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, adjusting the slider recalculates and redraws the expected copy number lines in the log₂-ratio plots in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
 
+When **"Simulate purity"** is enabled, the **"Round segments to integer CN"** checkbox becomes available. Enabling it snaps each segment line's recomputed copy number to the nearest whole number, which can make it easier to check the TC estimate against expected integer copy states. This does not affect the individual scatter points, only the segment lines.
+
+### Ploidy-adjusted baseline
+
+The report includes a baseline offset slider and an "Adjust to ploidy" button that shifts the plotted baseline so that a log₂ ratio of 0 corresponds to a chosen ploidy instead of the default assumption of 2 (diploid). The ploidy field is pre-filled with the value estimated by PureCN when a `cnv_sv/purecn/{sample}_{type}.csv` file is available for the sample, but it can be freely edited, so the feature also works for samples where PureCN was not run.
+
 ### Wide Plots
 
 To support wider plots that stack vertically (instead of the default responsive layout), you can configure `wide_plot_width` under [`cnv_html_report`](/softwares/#configuration). This accepts an integer value in pixels.
@@ -113,6 +119,8 @@ The report includes the following interactive features:
 | Linear chromosome view | Alternative linear view for each chromosome with per-caller toggle |
 | Gene search | Search box to quickly navigate the plot to a specific gene |
 | Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
+| Round segments to integer CN | Snaps segment lines to whole-number copy number; requires **Simulate purity** to be enabled first |
+| Adjust to ploidy | Button that shifts the baseline offset to a chosen ploidy, pre-filled from PureCN when available |
 | Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
 | Caller toggle | Switch between callers (CNVkit, GATK, Jumble) in the chromosome and genome plots |
 
@@ -129,6 +137,7 @@ use rule cnv_html_report from reports as reports_cnv_html_report with:
         css_files=["path/to/custom/css/style.css"],
         js_files=["path/to/custom/js/script-1.js", "path/to/custom/js/script-2.js"],
         tc_file=reports.get_tc_file,
+        ploidy_file=reports.get_ploidy_file,
 ```
 
 The only template file that is strictly required is the html file `html_template`. Both `css_files` and `js_files` can be left out if you so wish, but the functionality will be severly limited without any javascript.

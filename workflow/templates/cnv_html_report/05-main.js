@@ -309,21 +309,51 @@ baselineOffsetReset.on("click", () => {
   baselineOffsetSlider.node().dispatchEvent(new Event("change"));
 });
 
+const ploidyInput = d3.select("#ploidy-input");
+const adjustToPloidyButton = d3.select("#adjust-to-ploidy");
+
+adjustToPloidyButton.on("click", () => {
+  const ploidyValue = parseFloat(ploidyInput.node().value);
+  if (isNaN(ploidyValue) || ploidyValue <= 0) {
+    return;
+  }
+
+  const minDy = parseFloat(baselineOffsetSlider.node().min);
+  const maxDy = parseFloat(baselineOffsetSlider.node().max);
+  const dy = Math.min(maxDy, Math.max(minDy, Math.log2(ploidyValue / 2)));
+  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
+
+  baselineOffsetSlider.node().value = dy;
+  currentBaselineOffset.node().value = strdy;
+  currentBaselineOffset.node().dispatchEvent(new Event("change"));
+});
+
 const simulatePurity = d3.select("#simulate-purity");
 const tcAdjustSlider = d3.select("#tc-adjuster");
 const currentTc = d3.select("#current-tc");
 const tcAdjustReset = d3.select("#reset-tc");
+
+const roundSegmentsToInteger = d3.select("#round-segments-integer");
 
 simulatePurity.on("change", (e) => {
   const checked = e.target.checked;
   tcAdjustSlider.property("disabled", !checked);
   currentTc.property("disabled", !checked);
   currentTc.node().dispatchEvent(new Event("change"));
+  roundSegmentsToInteger.property("disabled", !checked);
   if (!checked) {
     tcAdjustReset.property("disabled", true);
+    roundSegmentsToInteger.property("checked", false);
+    roundSegmentsToInteger.node().dispatchEvent(new Event("change"));
   }
   chromosomePlot.setSimulatePurity(checked);
   genomePlot.setSimulatePurity(checked);
+});
+
+roundSegmentsToInteger.on("change", (e) => {
+  const checked = e.target.checked;
+  chromosomePlot.setRoundSegmentsToInteger(checked);
+  genomePlot.setRoundSegmentsToInteger(checked);
 });
 
 tcAdjustSlider.on("change", () => {
