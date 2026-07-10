@@ -214,7 +214,7 @@ def parse_vcf_line(
         csq_values = first_annotation.split("|")
         # check if you want to collect more VEP values than actually exist
         if len(vep_fields) > len(csq_values):
-            raise ValueError(f"Too may VEP fields are requested: VCF line doesn't have that many")
+            raise ValueError("Too many VEP fields are requested: VCF line doesn't have that many")
         csq_dict = dict(zip(vep_fields, csq_values))
     else:
         raise ValueError("Could not parse CSQ field. Does it exist?")
@@ -504,7 +504,7 @@ def create_report(snakemake_obj: Any):
     # Get params
     filter_yaml_file = snakemake_obj.params.filter_config
     with open(filter_yaml_file) as file:
-        filters = yaml.load(file, Loader=yaml.FullLoader)
+        filters = yaml.safe_load(file)
 
     format_fields = filters.get("format_fields", [])
     vep_fields = filters.get("vep_info_fields", [])
@@ -568,12 +568,17 @@ def create_report(snakemake_obj: Any):
             if col in snv_picked_columns.columns:
                 snv_picked_columns[col] = snv_picked_columns[col].str.replace(r"^.*:", "", regex=True)
 
-        snv_tp53 = snv_picked_columns[snv_picked_columns.get("GENE") == "TP53"]
-        snv_rest = snv_picked_columns[snv_picked_columns.get("GENE") != "TP53"]
+        if "GENE" in snv_picked_columns.columns:
+            snv_tp53 = snv_picked_columns[snv_picked_columns["GENE"] == "TP53"]
+            snv_rest = snv_picked_columns[snv_picked_columns["GENE"] != "TP53"]
 
-        if genes_to_keep:
-            logging.info(f"Filtering SNV tab to keep only {len(genes_to_keep)} genes.")
-            snv_rest = snv_rest[snv_rest["GENE"].isin(genes_to_keep)]
+            if genes_to_keep:
+                logging.info(f"Filtering SNV tab to keep only {len(genes_to_keep)} genes.")
+                snv_rest = snv_rest[snv_rest["GENE"].isin(genes_to_keep)]
+        else:
+            logging.warning("GENE column not present in columns_keep_snv; skipping TP53 split and gene filtering.")
+            snv_tp53 = snv_picked_columns.iloc[0:0]
+            snv_rest = snv_picked_columns
     else:
         snv_tp53 = pd.DataFrame(columns=snv_output_cols)
         snv_rest = pd.DataFrame(columns=snv_output_cols)
