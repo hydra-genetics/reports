@@ -1042,8 +1042,11 @@ class ChromosomePlot extends EventTarget {
             .attr("y1", (d) => this.cnYScale(d))
             .attr("y2", (d) => this.cnYScale(d))
             .attr("pointer-events", "none")
-            .attr("opacity", 0)
-            .call((enter) => enter.transition().duration(this.animationDuration).attr("opacity", 1)),
+            // opacity 1 directly, not faded in — see the note on
+            // #plotSegments()'s enter clause for why a transition scheduled
+            // during a fresh page's initial synchronous construction can
+            // get stuck invisible.
+            .attr("opacity", 1),
         (update) =>
           update.call((update) =>
             update
@@ -1112,8 +1115,14 @@ class ChromosomePlot extends EventTarget {
                 )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
             )
             .attr("stroke-width", 2)
-            .attr("stroke-opacity", 0)
-            .call((enter) => enter.transition().attr("stroke-opacity", 1)),
+            // stroke-opacity 1 directly, not faded in from 0: a transition
+            // scheduled during a fresh page's initial synchronous
+            // construction can get stuck barely above 0 indefinitely
+            // (confirmed via d3.active() still reporting it as running long
+            // after its duration should have elapsed), leaving the segment
+            // invisible until some later, unrelated update() call re-runs
+            // this join.
+            .attr("stroke-opacity", 1),
         (update) =>
           update.attr("stroke-opacity", 1).call((update) =>
             update

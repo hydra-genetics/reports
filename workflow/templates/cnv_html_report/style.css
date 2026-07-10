@@ -236,7 +236,7 @@ svg .gridline {
 
 svg .gridline.baseline {
   stroke: #777777;
-  stroke-width: 1.5px;
+  stroke-width: 1px;
 }
 
 svg .integer-cn-gridline {

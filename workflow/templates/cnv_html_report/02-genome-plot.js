@@ -396,15 +396,21 @@ class GenomePlot extends EventTarget {
   }
 
   drawGridLines() {
+    // Inserted right before .regions (rather than .append()'d, which would
+    // render on top / z-order-last) so gridlines sit behind segments/points
+    // but still above the panel's bg-rect background — otherwise the bolder
+    // integer-CN gridlines visually obscure segments that land exactly on
+    // an integer copy number.
     this.lrPanels
-      .append("g")
+      .insert("g", ".regions")
       .attr("class", "grid")
       .attr("data-index", (d, i) => i);
 
     const bafGrid = this.bafPanels
       .append("g")
       .attr("class", "grid")
-      .attr("data-index", (d, i) => i);
+      .attr("data-index", (d, i) => i)
+      .lower();
 
     bafGrid
       .selectAll(".gridline")
@@ -662,7 +668,10 @@ class GenomePlot extends EventTarget {
         .data(svgData, (d) => `${i}-${d.start}-${d.end}`)
         .join(
           (enter) => {
-            let g = enter.append("g").attr("class", "data-point").attr("opacity", 0);
+            // opacity 1 directly, not faded in — see the note in
+            // plotSegments() for why an enter-transition on fresh
+            // construction can get stuck invisible.
+            let g = enter.append("g").attr("class", "data-point").attr("opacity", 1);
 
             g.append("rect")
               .attr("class", "variance-rect")
@@ -701,7 +710,7 @@ class GenomePlot extends EventTarget {
               .attr("fill", "red")
               .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
 
-            return g.transition().duration(self.animationDuration).attr("opacity", 1);
+            return g;
           },
           (update) => {
             update
@@ -883,9 +892,14 @@ class GenomePlot extends EventTarget {
               .attr("y1", (d) => self.ratioYScale(d.log2))
               .attr("y2", (d) => self.ratioYScale(d.log2))
               .attr("stroke-width", 2)
-              .attr("opacity", 0)
-              .transition()
-              .duration(self.animationDuration)
+              // No fade-in transition here (unlike the update/exit cases
+              // below): a transition scheduled during a fresh page's initial
+              // synchronous construction can get stuck barely past opacity 0
+              // indefinitely (confirmed via d3.active() still reporting the
+              // transition as running long after its duration should have
+              // elapsed) — segments would stay invisible until some later,
+              // unrelated update() call re-triggers plotSegments(). Setting
+              // opacity directly avoids depending on that first frame at all.
               .attr("opacity", 1);
           },
           (update) => {
@@ -1009,7 +1023,10 @@ class GenomePlot extends EventTarget {
         .data(svgData, (d) => `${i}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`)
         .join(
           (enter) => {
-            let g = enter.append("g").attr("class", "data-point").attr("opacity", 0);
+            // opacity 1 directly, not faded in — see the note in
+            // plotSegments() for why an enter-transition on fresh
+            // construction can get stuck invisible.
+            let g = enter.append("g").attr("class", "data-point").attr("opacity", 1);
 
             g.append("rect")
               .attr("class", "variance-rect")
@@ -1037,7 +1054,7 @@ class GenomePlot extends EventTarget {
               .attr("stroke-width", 2)
               .attr("opacity", 0.8);
 
-            return g.transition().duration(self.animationDuration).attr("opacity", 1);
+            return g;
           },
           (update) => {
             update
