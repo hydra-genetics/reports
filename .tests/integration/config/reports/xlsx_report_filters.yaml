@@ -1,0 +1,30 @@
+format_fields:
+  - GT
+  - AF
+  - DP
+vep_info_fields:
+  - Consequence
+  - SYMBOL
+  - HGVSc
+  - HGVSp
+columns_keep_snv:
+  - CHROM
+  - POS
+  - REF
+  - ALT
+  - SYMBOL
+  - Consequence
+  - HGVSc
+  - HGVSp
+  - GT
+  - AF
+  - DP
+snvs_remove:
+  - synonymous_variant
+sv_min_len: 1000
+columns_drop_tn:
+  - COVERAGE
+columns_drop_sv:
+  - COVERAGE
+sv_col_max_widths:
+  ALT: 30
