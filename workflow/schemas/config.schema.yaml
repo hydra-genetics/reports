@@ -118,6 +118,32 @@ properties:
           Fixed horizontal width for plots in pixels. If set, plots will stack
           vertically and allow horizontal scrolling on smaller screens. Set to
           `false` for responsive behavior.
+      default_simulate_purity:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Simulate purity" checkbox should be checked by default
+          when the report is opened.
+      default_absolute_copy_number:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Absolute copy number" checkbox should be checked by
+          default when the report is opened. Only takes effect if
+          `default_simulate_purity` is also true, since this option requires
+          tumor purity simulation to be active.
+      default_equal_distance:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Gene Focus" checkbox (chromosome view) should
+          be checked by default when the report is opened.
+      default_show_all_datapoints:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Show all data points" checkbox should be checked by
+          default when the report is opened.
     required:
       - show_table
 

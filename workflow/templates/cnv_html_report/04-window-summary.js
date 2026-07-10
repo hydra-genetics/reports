@@ -1,7 +1,7 @@
 const MAX_POINTS = 1000;
 const MIN_COPY_NUMBER = 0.001;
 const MIN_LOG2_RATIO = Math.log2(MIN_COPY_NUMBER / 2);
-const CN_VIEW_Y_MAX = 6;
+const CN_VIEW_Y_MAX = 5;
 
 function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
   let offset = scale.domain()[0];

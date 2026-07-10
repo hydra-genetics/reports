@@ -28,7 +28,9 @@ def parse_table(table_def):
 
 
 def create_report(template_filename, json_filename, css_files, js_files,
-                  show_table, extra_tables, tc, ploidy, tc_method, wildcards, wide_plot_width):
+                  show_table, extra_tables, tc, ploidy, tc_method, wildcards, wide_plot_width,
+                  default_simulate_purity, default_absolute_copy_number,
+                  default_equal_distance, default_show_all_datapoints):
     with open(template_filename) as f:
         template = Template(source=f.read())
 
@@ -59,6 +61,10 @@ def create_report(template_filename, json_filename, css_files, js_files,
                 ploidy=ploidy,
                 tc_method=tc_method,
                 wide_plot_width=wide_plot_width,
+                default_simulate_purity=default_simulate_purity,
+                default_absolute_copy_number=default_absolute_copy_number,
+                default_equal_distance=default_equal_distance,
+                default_show_all_datapoints=default_show_all_datapoints,
             ),
         ))
 
@@ -96,6 +102,10 @@ def main():
         snakemake.params.tc_method,
         snakemake.wildcards,
         snakemake.params.wide_plot_width,
+        snakemake.params.default_simulate_purity,
+        snakemake.params.default_absolute_copy_number,
+        snakemake.params.default_equal_distance,
+        snakemake.params.default_show_all_datapoints,
     )
 
     with open(html_filename, "w") as f:

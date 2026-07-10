@@ -568,7 +568,7 @@ d3.select("#gene-search").on("change", (e) => {
 // Add keydown listener to force cycle on Enter even if value hasn't changed
 d3.select("#gene-search").on("keydown", (e) => {
     if (e.key === "Enter") {
-        e.preventDefault(); 
+        e.preventDefault();
         // Manually trigger the change logic if value is same as last search
         if (e.target.value === lastSearchTerm) {
              d3.select("#gene-search").dispatch("change");
@@ -577,4 +577,31 @@ d3.select("#gene-search").on("keydown", (e) => {
              e.target.blur(); // Trigger change
         }
     }
+});
+
+// Reconcile "Absolute copy number"'s enabled/checked state with whatever
+// "Simulate purity" was rendered as, in case a site configures
+// default_absolute_copy_number=true without default_simulate_purity=true
+// (that combination is invalid — absolute copy number requires purity
+// simulation — and this forces the checkbox back to unchecked+disabled
+// before anything below can act on its template-rendered "checked" state).
+updateRoundSegmentsEnablement();
+
+// Apply config-driven default-checked state for controls whose "checked"
+// attribute alone doesn't apply its side effects (enabling other controls,
+// informing the plot objects) — dispatch "change" as if the user had just
+// clicked it, going through the exact same handlers/cascade above.
+// Order matters: simulate-purity first, since round-segments-integer's own
+// enablement (and default-checked state, if misconfigured without purity
+// simulation) depends on that cascade having already run.
+[
+  "#simulate-purity",
+  "#round-segments-integer",
+  "#chromosome-equal-distance",
+  "#chromosome-show-all-datapoints",
+].forEach((selector) => {
+  const node = d3.select(selector).node();
+  if (node.checked) {
+    node.dispatchEvent(new Event("change"));
+  }
 });

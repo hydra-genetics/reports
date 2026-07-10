@@ -557,6 +557,18 @@ class GenomePlot extends EventTarget {
       .text("BAF")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
+
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(${this.width},${this.margin.top + this.margin.between + (3 * this.panelHeight) / 2
+        }) rotate(90)`
+      )
+      .attr("class", "y-label")
+      .text("BAF")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
   }
 
   plotRatios() {

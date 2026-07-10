@@ -298,19 +298,31 @@ class ChromosomePlot extends EventTarget {
       .range([this.plotHeight, 0]);
 
     this.xAxis = (g) => g.call(d3.axisBottom(this.xScale).ticks(5));
-    this.ratioYAxis = (g) =>
-      g.call(
-        d3
-          .axisLeft(this.ratioYScale)
-          .ticks(8)
-          .tickFormat((y, i) => (this.viewMode === "copyNumber" || i % 2 == 0 ? y : ""))
-      );
-    this.cnYAxis = (g) =>
-      g.call(
-        d3
-          .axisRight(this.viewMode === "copyNumber" ? this.ratioYScale : this.cnYScale)
-          .ticks(5)
-      );
+    this.ratioYAxis = (g) => {
+      const axis = d3.axisLeft(this.ratioYScale);
+      if (this.viewMode === "copyNumber") {
+        // Whole-number ticks only — .ticks(N) picks a step (e.g. 0.5) to
+        // hit approximately N ticks, which isn't necessarily an integer
+        // for a [0, CN_VIEW_Y_MAX] domain. tickValues() bypasses .ticks()'s
+        // auto-format selection too, so set an explicit integer format.
+        axis.tickValues(this.#wholeNumberCnTicks()).tickFormat(d3.format("d"));
+      } else {
+        axis.ticks(8).tickFormat((y, i) => (i % 2 == 0 ? y : ""));
+      }
+      g.call(axis);
+    };
+    this.cnYAxis = (g) => {
+      if (this.viewMode === "copyNumber") {
+        g.call(
+          d3
+            .axisRight(this.ratioYScale)
+            .tickValues(this.#wholeNumberCnTicks())
+            .tickFormat(d3.format("d"))
+        );
+      } else {
+        g.call(d3.axisRight(this.cnYScale).ticks(5));
+      }
+    };
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
     this.bafYAxisRight = (g) => g.call(d3.axisRight(this.bafYScale).ticks(5));
 
@@ -1787,6 +1799,18 @@ class ChromosomePlot extends EventTarget {
       .text("BAF")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
+
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(${this.width},${this.height - this.margin.bottom - this.plotHeight / 2
+        }) rotate(90)`
+      )
+      .attr("class", "y-label")
+      .text("BAF")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
   }
 
   initialiseMousetrap() {
@@ -2037,6 +2061,17 @@ class ChromosomePlot extends EventTarget {
   #staticYRange() {
     if (this.viewMode === "copyNumber") return [0, CN_VIEW_Y_MAX];
     return this.simulatePurity ? [MIN_LOG2_RATIO, 2] : [-2, 2];
+  }
+
+  #wholeNumberCnTicks() {
+    const [dMin, dMax] = this.ratioYScale.domain();
+    const startN = Math.max(0, Math.ceil(dMin));
+    const endN = Math.floor(dMax);
+    const values = [];
+    for (let n = startN; n <= endN; n++) {
+      values.push(n);
+    }
+    return values;
   }
 
   #updateAxes() {
