@@ -12,7 +12,7 @@ rule reports_compile_xlsx_report:
     output:
         xlsx=temp("reports/xlsx_reports/{sample}_{type}_combined_report.xlsx"),
     params:
-        filter_config=config.get("compile_xlsx_report", {}).get("filters", []),
+        filter_config=config.get("compile_xlsx_report", {}).get("filters", ""),
         genes_bed=config.get("compile_xlsx_report", {}).get("genes", ""),
         software_versions={
             "pbmm2": config.get("pbmm2_align", {}).get("container", ""),
