@@ -36,6 +36,10 @@ general_html_report:
   final_directory_depth: 3
   multiqc_config: "config/reports/multiqc_config_dna.yaml"
 
+compile_xlsx_report:
+  filters: config/reports/xlsx_report_filters.yaml
+  genes: config/xlsx_report_genes.bed
+
 merge_cnv_json:
   annotations:
     - config/amp_genes.bed

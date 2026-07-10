@@ -213,3 +213,33 @@ properties:
             description: >
               Merged JSON file with CNV calls and other sample information that
               is ready to be included in the final report.
+
+  reports_compile_xlsx_report:
+    type: object
+    description: input and output parameters for reports_compile_xlsx_report
+    properties:
+      input:
+        type: object
+        description: list of inputs
+        properties:
+          vcf_snv:
+            type: string
+            description: >
+              VEP-annotated, phased SNV/indel VCF for the sample.
+          vcf_sv:
+            type: string
+            description: >
+              SVDB-merged structural variant VCF for the sample.
+          vcf_cnv:
+            type: string
+            description: >
+              Filtered, annotated CNVkit CNV VCF for the sample.
+      output:
+        type: object
+        description: list of outputs
+        properties:
+          xlsx:
+            type: string
+            description: >
+              Combined Excel workbook with SNV, TP53, Translocations, SV, CNV
+              and Software Versions sheets.

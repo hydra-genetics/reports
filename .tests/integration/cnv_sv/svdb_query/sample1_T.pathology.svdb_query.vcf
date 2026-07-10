@@ -1,0 +1,22 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr4,length=190214555>
+##contig=<ID=chr14,length=107043718>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+##INFO=<ID=svdb_origin,Number=1,Type=String,Description="Caller that reported this variant, added by SVDB merge">
+##INFO=<ID=STRAND,Number=1,Type=String,Description="Strand orientation of the adjacency">
+##INFO=<ID=SUPPORT,Number=1,Type=Integer,Description="Number of reads supporting the variant">
+##INFO=<ID=COVERAGE,Number=1,Type=Integer,Description="Coverage near the variant">
+##INFO=<ID=VAF,Number=1,Type=Float,Description="Variant allele frequency">
+##INFO=<ID=GNOMAD_AC,Number=1,Type=Integer,Description="gnomAD allele count">
+##INFO=<ID=GNOMAD_AF,Number=1,Type=Float,Description="gnomAD allele frequency">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+##FORMAT=<ID=DR,Number=1,Type=Integer,Description="Reference read depth">
+##FORMAT=<ID=DV,Number=1,Type=Integer,Description="Variant read depth">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1_T
+chr4	1000	sniffles2.BND.1	N	<BND>	.	PASS	SVTYPE=BND;SVLEN=0;END=1000;svdb_origin=sniffles2;STRAND=+-;SUPPORT=15;COVERAGE=40;VAF=0.35;GNOMAD_AC=2;GNOMAD_AF=0.001	GT:GQ:DR:DV	0/1:60:25:15
+chr14	2000	sniffles2.BND.2	N	<BND>	.	PASS	SVTYPE=BND;SVLEN=0;END=2000;svdb_origin=sniffles2;STRAND=+-;SUPPORT=18;COVERAGE=45;VAF=0.38	GT:GQ:DR:DV	0/1:65:28:18
+chr14	5000	sniffles2.DEL.3	N	<DEL>	.	PASS	SVTYPE=DEL;SVLEN=-2000;END=7000;svdb_origin=sniffles2;STRAND=+-;SUPPORT=20;COVERAGE=50;VAF=0.40	GT:GQ:DR:DV	0/1:70:30:20

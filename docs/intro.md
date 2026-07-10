@@ -4,6 +4,7 @@ The reports module consists of a set of rules for creating various reports of re
 
 - [General report](/general_report)
 - [CNV report](/cnv_report)
+- [XLSX report](/xlsx_report)
 
 ## How to use the module
 

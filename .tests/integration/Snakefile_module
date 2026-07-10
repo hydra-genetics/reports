@@ -7,6 +7,7 @@ include: "../../workflow/rules/common.smk"
 rule all:
     input:
         "results/cnv/sample1_T.pathology.cnv_report.html",
+        "results/dna/reports/sample1_T_combined_report.xlsx",
 
 
 module reports:

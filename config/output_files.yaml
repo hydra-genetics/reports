@@ -10,3 +10,8 @@ files:
     types:
       - T
       - N
+  - name: "XLSX Variants Report"
+    input: "reports/xlsx_reports/{sample}_{type}_combined_report.xlsx"
+    output: "results/dna/reports/{sample}_{type}_combined_report.xlsx"
+    types:
+      - T

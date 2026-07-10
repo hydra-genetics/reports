@@ -105,3 +105,25 @@ Merge JSON files from multiple CNV callers and add annotations and other sample 
 #### Resources settings (`resources.yaml`)
 
 #RESOURCESSCHEMA__merge_cnv_json#
+
+## compile_xlsx_report
+
+Compile SNV, SV and CNV VCFs into a single combined Excel (xlsx) report.
+
+### :snake: Rule
+
+#SNAKEMAKE_RULE_SOURCE__xlsx_variants_report__reports_compile_xlsx_report#
+
+#### :left_right_arrow: input / output files
+
+#SNAKEMAKE_RULE_TABLE__xlsx_variants_report__reports_compile_xlsx_report#
+
+### :wrench: Configuration
+
+#### Software settings (`config.yaml`)
+
+#CONFIGSCHEMA__compile_xlsx_report#
+
+#### Resources settings (`resources.yaml`)
+
+#RESOURCESSCHEMA__compile_xlsx_report#
