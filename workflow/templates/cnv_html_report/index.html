@@ -56,17 +56,26 @@
           number is lower than the real copy number.
         </p>
         <p>
-          When simulating purity, the "Round segments to integer CN" option
-          snaps each segment's recomputed copy number to the nearest whole
-          number, which can make it easier to check the tumor cell content
-          estimate against the expected integer copy states. Individual data
-          points are left unrounded.
+          When simulating purity, the "Absolute copy number" option snaps
+          each segment's recomputed copy number to the nearest whole number,
+          which can make it easier to check the tumor cell content estimate
+          against the expected integer copy states. Individual data points
+          are left unrounded.
         </p>
         <p>
           The "Adjust to ploidy" button shifts the baseline offset so that a
           log2 ratio of 0 corresponds to the given ploidy instead of the
           default assumption of 2 (diploid). The ploidy field is pre-filled
           with PureCN's estimate when available, but can be edited freely.
+        </p>
+        <p>
+          The "Log2 ratio" / "Copy number" switch changes how the ratio plots
+          are displayed. "Copy number" shows a linear, absolute copy-number
+          scale (assuming 100% purity if "Simulate purity" is not checked)
+          instead of log2 ratio. In this view, segments and points always
+          show their true absolute copy number — "Adjust to ploidy" and the
+          baseline-offset slider don't shift them, they instead draw a
+          highlighted reference line at the ploidy value for comparison.
         </p>
 
         {% if metadata.show_table %}
@@ -163,13 +172,18 @@
               </div>
 
               <div class="control-group">
+                <label><input type="radio" name="view-mode" value="log2" checked /> Log2 ratio</label>
+                <label><input type="radio" name="view-mode" value="copyNumber" /> Copy number</label>
+              </div>
+
+              <div class="control-group">
                 <input type="checkbox" id="simulate-purity" />
                 <label for="simulate-purity">Simulate purity</label>
               </div>
 
               <div class="control-group">
                 <input type="checkbox" id="round-segments-integer" disabled />
-                <label for="round-segments-integer">Round segments to integer CN</label>
+                <label for="round-segments-integer">Absolute copy number</label>
               </div>
 
               <div class="control-group">

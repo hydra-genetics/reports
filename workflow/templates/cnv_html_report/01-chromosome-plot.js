@@ -234,6 +234,7 @@ class ChromosomePlot extends EventTarget {
   #geneMenu = null;
   #outOfRangeGroup;
   #integerGridGroup;
+  #baselineRefGroup;
 
   constructor(config) {
     super();
@@ -255,6 +256,7 @@ class ChromosomePlot extends EventTarget {
     this.roundSegmentsToInteger = config?.roundSegmentsToInteger
       ? config.roundSegmentsToInteger
       : false;
+    this.viewMode = config?.viewMode ? config.viewMode : "log2";
     this.tc = config?.tc ? config.tc : 1;
     this.animationDuration = config?.animationDuration
       ? config.animationDuration
@@ -301,10 +303,16 @@ class ChromosomePlot extends EventTarget {
         d3
           .axisLeft(this.ratioYScale)
           .ticks(8)
-          .tickFormat((y, i) => (i % 2 == 0 ? y : ""))
+          .tickFormat((y, i) => (this.viewMode === "copyNumber" || i % 2 == 0 ? y : ""))
       );
-    this.cnYAxis = (g) => g.call(d3.axisRight(this.cnYScale).ticks(5));
+    this.cnYAxis = (g) =>
+      g.call(
+        d3
+          .axisRight(this.viewMode === "copyNumber" ? this.ratioYScale : this.cnYScale)
+          .ticks(5)
+      );
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
+    this.bafYAxisRight = (g) => g.call(d3.axisRight(this.bafYScale).ticks(5));
 
     this.svg = d3.select(this.element);
     if (this.widePlotWidth) {
@@ -365,6 +373,10 @@ class ChromosomePlot extends EventTarget {
     this.#integerGridGroup = this.#lrArea
       .append("g")
       .attr("class", "integer-cn-gridlines");
+
+    this.#baselineRefGroup = this.#lrArea
+      .append("g")
+      .attr("class", "baseline-ref-line");
 
     this.#ratios = this.#lrArea
       .append("g")
@@ -484,6 +496,14 @@ class ChromosomePlot extends EventTarget {
     this.update();
   }
 
+  setViewMode(mode) {
+    this.viewMode = mode;
+    this.svg
+      .select("#primary-y-label")
+      .text(mode === "copyNumber" ? "Copy number" : "log2 ratio");
+    this.update();
+  }
+
   setTc(tc) {
     if (tc != this.tc) {
       this.tc = tc;
@@ -491,19 +511,39 @@ class ChromosomePlot extends EventTarget {
     }
   }
 
+  #toAbsoluteCopyNumber(x, isSegment) {
+    const tc = this.simulatePurity ? this.tc : 1;
+    let adjCopies = (2 * 2 ** x - 2 * (1 - tc)) / tc;
+    if (isSegment && this.roundSegmentsToInteger) {
+      adjCopies = Math.round(adjCopies);
+    }
+    return Math.max(adjCopies, MIN_COPY_NUMBER);
+  }
+
+  get #slidingWindowOffset() {
+    return this.viewMode === "copyNumber" ? 0 : this.baselineOffset;
+  }
+
+  get #slidingWindowMinValue() {
+    return this.viewMode === "copyNumber" ? MIN_COPY_NUMBER : MIN_LOG2_RATIO;
+  }
+
   transformLog2Ratio(x, isSegment = false) {
     if (x === undefined || x === null || isNaN(x)) return 0;
-    let tx = x;
-    if (this.simulatePurity) {
-      const minCopyNumber = 1e-3;
-      let adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
-      if (isSegment && this.roundSegmentsToInteger) {
-        adjCopies = Math.round(adjCopies);
-      }
-      tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
-    }
+    const tx = Math.log2(this.#toAbsoluteCopyNumber(x, isSegment) / 2);
     const res = tx - this.baselineOffset;
     return isFinite(res) ? res : (tx < 0 ? -10 : 10);
+  }
+
+  transformCopyNumber(x, isSegment = false) {
+    if (x === undefined || x === null || isNaN(x)) return 2;
+    return this.#toAbsoluteCopyNumber(x, isSegment);
+  }
+
+  transformValue(x, isSegment = false) {
+    return this.viewMode === "copyNumber"
+      ? this.transformCopyNumber(x, isSegment)
+      : this.transformLog2Ratio(x, isSegment);
   }
 
   transformBAF(x) {
@@ -791,7 +831,7 @@ class ChromosomePlot extends EventTarget {
 
       ratioData = ratios.slice(startIdx, endIdx).map((p, i) => {
         let tp = { ...p };
-        tp.log2 = self.transformLog2Ratio(tp.log2);
+        tp.log2 = self.transformValue(tp.log2);
         tp.realStart = tp.start;
         tp.start = startIdx + i;
         tp.end = startIdx + i + 1;
@@ -803,7 +843,7 @@ class ChromosomePlot extends EventTarget {
         .filter((p) => (p.end ?? p.start) >= x0 && p.start <= x1)
         .map((p) => {
           let tp = { ...p };
-          tp.log2 = self.transformLog2Ratio(tp.log2);
+          tp.log2 = self.transformValue(tp.log2);
           return tp;
         });
     }
@@ -815,9 +855,10 @@ class ChromosomePlot extends EventTarget {
         this.xScale,
         "start",
         "log2",
-        this.baselineOffset,
+        this.#slidingWindowOffset,
         3,
-        true
+        true,
+        this.#slidingWindowMinValue
       );
     }
 
@@ -962,7 +1003,7 @@ class ChromosomePlot extends EventTarget {
    * mode; otherwise the group is cleared.
    */
   #plotIntegerGridlines() {
-    if (!(this.simulatePurity && this.roundSegmentsToInteger)) {
+    if (!(this.viewMode === "log2" && this.simulatePurity && this.roundSegmentsToInteger)) {
       this.#integerGridGroup.selectAll(".integer-cn-gridline").remove();
       return;
     }
@@ -1004,6 +1045,29 @@ class ChromosomePlot extends EventTarget {
       );
   }
 
+  /**
+   * In Copy-number view, "Adjust to ploidy" / the baseline-offset slider must
+   * not shift plotted data (it should stay at its true absolute copy
+   * number) — instead, mark the ploidy-equivalent CN value with a
+   * highlighted reference line, reusing the existing baseline gridline style.
+   */
+  #plotBaselineReference() {
+    this.#baselineRefGroup.selectAll("line").remove();
+    if (this.viewMode !== "copyNumber") return;
+
+    const refCn = 2 * 2 ** this.baselineOffset;
+    const [dMin, dMax] = this.ratioYScale.domain();
+    if (refCn < dMin || refCn > dMax) return;
+
+    this.#baselineRefGroup
+      .append("line")
+      .attr("class", "gridline baseline")
+      .attr("x1", 0)
+      .attr("x2", this.width - this.margin.left - this.margin.right)
+      .attr("y1", this.ratioYScale(refCn))
+      .attr("y2", this.ratioYScale(refCn));
+  }
+
   #plotSegments() {
     const self = this;
     this.#segments
@@ -1011,7 +1075,7 @@ class ChromosomePlot extends EventTarget {
       .data(
         this.#data.callers[this.#activeCaller].segments.map((d) => {
           let ts = { ...d };
-          ts.log2 = self.transformLog2Ratio(ts.log2, true);
+          ts.log2 = self.transformValue(ts.log2, true);
           ts.caller = self.activeCaller;
           if (self.equalDistance) {
             ts.start = self.getRatioIndex(ts.start);
@@ -1069,7 +1133,7 @@ class ChromosomePlot extends EventTarget {
       return;
     }
 
-    const [staticYMin, staticYMax] = this.simulatePurity ? [MIN_LOG2_RATIO, 2] : [-2, 2];
+    const [staticYMin, staticYMax] = this.#staticYRange();
     const [xMin, xMax] = this.xScale.domain();
     const plotWidth = this.width - this.margin.left - this.margin.right;
     const arrowSize = 6;
@@ -1098,7 +1162,7 @@ class ChromosomePlot extends EventTarget {
       })
       .map((d) => {
         let ts = { ...d };
-        ts.log2 = this.transformLog2Ratio(ts.log2, true);
+        ts.log2 = this.transformValue(ts.log2, true);
         if (this.equalDistance) {
           ts.start = this.getRatioIndex(ts.start);
           ts.end = this.getRatioIndex(ts.end);
@@ -1625,12 +1689,16 @@ class ChromosomePlot extends EventTarget {
 
   #drawAxes() {
     this.svg.selectAll(".y-axis").remove();
+    // Ratio/CN axes are not transitioned here: the constructor calls
+    // update() (-> #updateAxes(), also non-transitioned) immediately after
+    // #drawAxes() runs, and a deferred transition racing an immediate
+    // re-render on the same elements produced duplicate/overlapping ticks
+    // on first load (the transition's own enter selection applying on a
+    // later frame, after the immediate call had already populated ticks).
     this.svg
       .insert("g", "#lr-area-clip")
       .attr("transform", `translate(${this.margin.left},${this.margin.top})`)
       .attr("class", "y-axis primary-y-axis ratio-y-axis")
-      .transition()
-      .duration(this.animationDuration)
       .call(this.ratioYAxis);
     this.svg
       .insert("g", "#lr-area-clip")
@@ -1639,8 +1707,6 @@ class ChromosomePlot extends EventTarget {
         `translate(${this.width - this.margin.right},${this.margin.top})`
       )
       .attr("class", "y-axis secondary-y-axis cn-y-axis")
-      .transition()
-      .duration(this.animationDuration)
       .call(this.cnYAxis);
     this.svg
       .insert("g", "#lr-area-clip")
@@ -1653,6 +1719,17 @@ class ChromosomePlot extends EventTarget {
       .transition()
       .duration(this.animationDuration)
       .call(this.bafYAxis);
+    this.svg
+      .insert("g", "#lr-area-clip")
+      .attr(
+        "transform",
+        `translate(${this.width - this.margin.right},${this.margin.top + this.plotHeight + this.margin.between
+        })`
+      )
+      .attr("class", "y-axis secondary-y-axis baf-y-axis-right")
+      .transition()
+      .duration(this.animationDuration)
+      .call(this.bafYAxisRight);
 
     this.svg.select(".x-axis").remove();
     this.svg
@@ -1681,8 +1758,9 @@ class ChromosomePlot extends EventTarget {
         "transform",
         `translate(0,${this.margin.top + this.plotHeight / 2}) rotate(-90)`
       )
+      .attr("id", "primary-y-label")
       .attr("class", "y-label")
-      .text("log2 ratio")
+      .text(this.viewMode === "copyNumber" ? "Copy number" : "log2 ratio")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
 
@@ -1693,7 +1771,7 @@ class ChromosomePlot extends EventTarget {
         `translate(${this.width},${this.margin.top + this.plotHeight / 2
         }) rotate(90)`
       )
-      .attr("class", "y-label")
+      .attr("class", "y-label cn-y-label")
       .text("Copy number")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
@@ -1956,8 +2034,13 @@ class ChromosomePlot extends EventTarget {
     });
   }
 
+  #staticYRange() {
+    if (this.viewMode === "copyNumber") return [0, CN_VIEW_Y_MAX];
+    return this.simulatePurity ? [MIN_LOG2_RATIO, 2] : [-2, 2];
+  }
+
   #updateAxes() {
-    const [staticYMin, staticYMax] = this.simulatePurity ? [MIN_LOG2_RATIO, 2] : [-2, 2];
+    const [staticYMin, staticYMax] = this.#staticYRange();
 
     const [xMin, xMax] = this.zoomRange;
     let yMin, yMax;
@@ -1984,7 +2067,7 @@ class ChromosomePlot extends EventTarget {
         yMax = staticYMax;
       } else {
         const transformedValues = yValues
-          .map((d) => this.transformLog2Ratio(d.log2))
+          .map((d) => this.transformValue(d.log2))
           .filter((v) => !isNaN(v) && isFinite(v));
         
         if (transformedValues.length === 0) {
@@ -2001,11 +2084,11 @@ class ChromosomePlot extends EventTarget {
       }
     } else {
       const transformedRatios = this.#data.callers[this.#activeCaller].ratios
-        .map((d) => this.transformLog2Ratio(d.log2))
+        .map((d) => this.transformValue(d.log2))
         .filter((v) => !isNaN(v) && isFinite(v));
         
       const transformedSegments = this.#data.callers[this.#activeCaller].segments
-        .map((d) => this.transformLog2Ratio(d.log2, true))
+        .map((d) => this.transformValue(d.log2, true))
         .filter((v) => !isNaN(v) && isFinite(v));
 
       const transformedValues = [...transformedRatios, ...transformedSegments];
@@ -2041,10 +2124,14 @@ class ChromosomePlot extends EventTarget {
       }
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
-      this.cnYScale.domain([
-        cnFromRatio(yMin - padding + this.baselineOffset),
-        cnFromRatio(yMax + padding + this.baselineOffset),
-      ]);
+      this.cnYScale.domain(
+        this.viewMode === "copyNumber"
+          ? [yMin - padding, yMax + padding]
+          : [
+              cnFromRatio(yMin - padding + this.baselineOffset),
+              cnFromRatio(yMax + padding + this.baselineOffset),
+            ]
+      );
     } else {
       this.dispatchEvent(
         new CustomEvent("zoom", {
@@ -2053,10 +2140,14 @@ class ChromosomePlot extends EventTarget {
       );
       const padding = (staticYMax - staticYMin) * 0.05;
       this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
-      this.cnYScale.domain([
-        cnFromRatio(staticYMin - padding + this.baselineOffset),
-        cnFromRatio(staticYMax + padding + this.baselineOffset),
-      ]);
+      this.cnYScale.domain(
+        this.viewMode === "copyNumber"
+          ? [staticYMin - padding, staticYMax + padding]
+          : [
+              cnFromRatio(staticYMin - padding + this.baselineOffset),
+              cnFromRatio(staticYMax + padding + this.baselineOffset),
+            ]
+      );
     }
 
     this.svg
@@ -2064,21 +2155,30 @@ class ChromosomePlot extends EventTarget {
       .select(".x-axis")
       .duration(this.animationDuration)
       .call(this.xAxis);
-    this.svg
-      .transition()
-      .select(".ratio-y-axis")
-      .duration(this.animationDuration)
-      .call(this.ratioYAxis);
-    this.svg
-      .transition()
-      .select(".cn-y-axis")
-      .duration(this.animationDuration)
-      .call(this.cnYAxis);
+    // Ratio/CN axes are not transitioned: setSimulatePurity(true) and
+    // setViewMode("copyNumber") are triggered back-to-back (checking
+    // "Simulate purity" defaults to Copy number view), and a second
+    // transition scheduled before the first has started can interrupt it
+    // before its tick join ever applies, leaving stale ticks on screen.
+    this.svg.select(".ratio-y-axis").call(this.ratioYAxis);
+    this.svg.select(".cn-y-axis").call(this.cnYAxis);
 
     this.svg.selectAll(".gridline").remove();
-    if (!(this.simulatePurity && this.roundSegmentsToInteger)) {
+    if (!(this.viewMode === "log2" && this.simulatePurity && this.roundSegmentsToInteger)) {
+      // Ratio axis: in Copy-number view, "0" is an ordinary tick — the
+      // baseline/ploidy reference is drawn separately by
+      // #plotBaselineReference(), so don't also highlight the 0 tick here.
       this.svg
-        .selectAll(".primary-y-axis .tick")
+        .selectAll(".ratio-y-axis .tick")
+        .lower()
+        .append("line")
+        .attr("class", (d) => {
+          return this.viewMode === "log2" && d == 0 ? "gridline baseline" : "gridline";
+        })
+        .attr("x2", this.xScale.range()[1]);
+
+      this.svg
+        .selectAll(".baf-y-axis .tick")
         .lower()
         .append("line")
         .attr("class", (d) => {
@@ -2143,6 +2243,7 @@ class ChromosomePlot extends EventTarget {
 
     this.#updateAxes();
     this.#plotIntegerGridlines();
+    this.#plotBaselineReference();
     this.#plotRatios();
     this.#plotSegments();
     this.#plotOutOfRangeIndicators();

@@ -1,6 +1,7 @@
 const MAX_POINTS = 1000;
 const MIN_COPY_NUMBER = 0.001;
 const MIN_LOG2_RATIO = Math.log2(MIN_COPY_NUMBER / 2);
+const CN_VIEW_Y_MAX = 6;
 
 function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
   let offset = scale.domain()[0];
@@ -126,7 +127,8 @@ function slidingPixelWindow(
   valAttr,
   offset = 0,
   pixelWindowSize = 5,
-  force = false
+  force = false,
+  minValue = MIN_LOG2_RATIO
 ) {
   const [d0, d1] = scale.domain();
   points = points.filter(p => (p.end ?? p[posAttr]) >= d0 && (p.start ?? p[posAttr]) < d1);
@@ -150,7 +152,7 @@ function slidingPixelWindow(
       windowStart,
       windowSize,
       valAttr,
-      MIN_LOG2_RATIO,
+      minValue,
       offset
     );
     if (s) reducedPoints.push(s);

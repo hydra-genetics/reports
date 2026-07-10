@@ -48,6 +48,7 @@ class GenomePlot extends EventTarget {
     this.roundSegmentsToInteger = config?.roundSegmentsToInteger
       ? config.roundSegmentsToInteger
       : false;
+    this.viewMode = config?.viewMode ? config.viewMode : "log2";
     this.tc = config?.tc ? config.tc : 1;
 
     this.totalLength = d3.sum(this.#data.map((d) => d.length));
@@ -69,12 +70,8 @@ class GenomePlot extends EventTarget {
     );
 
     this.ratioYScaleRange = 2;
-    this.ratioYMin = this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange;
-    this.ratioYMax = this.ratioYScaleRange;
-    this.ratioYScale = d3
-      .scaleLinear()
-      .domain([this.ratioYMin, this.ratioYMax])
-      .range([this.panelHeight, 0]);
+    this.ratioYScale = d3.scaleLinear().range([this.panelHeight, 0]);
+    this.#updateRatioRange();
 
     this.bafYScale = d3
       .scaleLinear()
@@ -82,9 +79,15 @@ class GenomePlot extends EventTarget {
       .range([this.panelHeight, 0]);
     this.ratioYAxis = (g) => g.call(d3.axisLeft(this.ratioYScale).ticks(5));
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
+    this.bafYAxisRight = (g) => g.call(d3.axisRight(this.bafYScale).ticks(5));
 
     this.cnYScale = d3.scaleLog().base(2).range([this.panelHeight, 0]);
-    this.cnYAxis = (g) => g.call(d3.axisRight(this.cnYScale).ticks(5));
+    this.cnYAxis = (g) =>
+      g.call(
+        d3
+          .axisRight(this.viewMode === "copyNumber" ? this.ratioYScale : this.cnYScale)
+          .ticks(5)
+      );
 
     this.svg = d3.select("#genome-view");
     if (this.widePlotWidth) {
@@ -221,16 +224,43 @@ class GenomePlot extends EventTarget {
    * When simulating purity, widen the ratio row's visible range down to the
    * copy-number floor (instead of the fixed -2..2 log2-ratio window) so
    * near-zero-copy segments/points are always drawn in place rather than
-   * relying on the out-of-range indicator.
+   * relying on the out-of-range indicator. In Copy-number view, use a plain
+   * linear [0, CN_VIEW_Y_MAX] range instead.
    */
   #updateRatioRange() {
-    this.ratioYMin = this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange;
-    this.ratioYMax = this.ratioYScaleRange;
+    if (this.viewMode === "copyNumber") {
+      this.ratioYMin = 0;
+      this.ratioYMax = CN_VIEW_Y_MAX;
+    } else {
+      this.ratioYMin = this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange;
+      this.ratioYMax = this.ratioYScaleRange;
+    }
     this.ratioYScale.domain([this.ratioYMin, this.ratioYMax]);
+    // Called once before `drawAxes()` sets up the DOM (during construction,
+    // where `drawAxes()`'s own initial render picks up this domain) and
+    // again later from setSimulatePurity/setViewMode, where the axis DOM
+    // already exists and needs to be refreshed explicitly. Not transitioned:
+    // setSimulatePurity(true) triggers this and setViewMode("copyNumber")
+    // back-to-back, and a second transition scheduled before the first has
+    // started can interrupt it before its tick join ever applies, leaving
+    // stale ticks on screen.
+    if (this.svg) {
+      this.svg.select(".ratio-y-axis").call(this.ratioYAxis);
+    }
   }
 
   setRoundSegmentsToInteger(active) {
     this.roundSegmentsToInteger = active;
+    this.update();
+  }
+
+  setViewMode(mode) {
+    this.viewMode = mode;
+    this.#updateRatioRange();
+    this.#updateCnAxis();
+    this.svg
+      .select("#primary-y-label")
+      .text(mode === "copyNumber" ? "Copy number" : "log2 ratio");
     this.update();
   }
 
@@ -241,19 +271,39 @@ class GenomePlot extends EventTarget {
     }
   }
 
+  #toAbsoluteCopyNumber(x, isSegment) {
+    const tc = this.simulatePurity ? this.tc : 1;
+    let adjCopies = (2 * 2 ** x - 2 * (1 - tc)) / tc;
+    if (isSegment && this.roundSegmentsToInteger) {
+      adjCopies = Math.round(adjCopies);
+    }
+    return Math.max(adjCopies, MIN_COPY_NUMBER);
+  }
+
+  get #slidingWindowOffset() {
+    return this.viewMode === "copyNumber" ? 0 : this.baselineOffset;
+  }
+
+  get #slidingWindowMinValue() {
+    return this.viewMode === "copyNumber" ? MIN_COPY_NUMBER : MIN_LOG2_RATIO;
+  }
+
   transformLog2Ratio(x, isSegment = false) {
     if (x === undefined || x === null || isNaN(x)) return 0;
-    let tx = x;
-    if (this.simulatePurity) {
-      const minCopyNumber = 1e-3;
-      let adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
-      if (isSegment && this.roundSegmentsToInteger) {
-        adjCopies = Math.round(adjCopies);
-      }
-      tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
-    }
+    const tx = Math.log2(this.#toAbsoluteCopyNumber(x, isSegment) / 2);
     const res = tx - this.baselineOffset;
     return isFinite(res) ? res : (tx < 0 ? -10 : 10);
+  }
+
+  transformCopyNumber(x, isSegment = false) {
+    if (x === undefined || x === null || isNaN(x)) return 2;
+    return this.#toAbsoluteCopyNumber(x, isSegment);
+  }
+
+  transformValue(x, isSegment = false) {
+    return this.viewMode === "copyNumber"
+      ? this.transformCopyNumber(x, isSegment)
+      : this.transformLog2Ratio(x, isSegment);
   }
 
   transformBAF(x) {
@@ -298,7 +348,7 @@ class GenomePlot extends EventTarget {
     this.svg
       .append("g")
       .attr("transform", `translate(${this.margin.left}, ${this.margin.top})`)
-      .attr("class", "y-axis")
+      .attr("class", "y-axis ratio-y-axis")
       .call(this.ratioYAxis);
 
     this.svg
@@ -319,18 +369,30 @@ class GenomePlot extends EventTarget {
       )
       .attr("class", "y-axis")
       .call(this.bafYAxis);
+
+    this.svg
+      .append("g")
+      .attr(
+        "transform",
+        `translate(${this.width - this.margin.right}, ${this.margin.top + this.panelHeight + this.margin.between
+        })`
+      )
+      .attr("class", "y-axis")
+      .call(this.bafYAxisRight);
   }
 
   #updateCnAxis() {
-    this.cnYScale.domain([
-      cnFromRatio(this.ratioYMin + this.baselineOffset),
-      cnFromRatio(this.ratioYMax + this.baselineOffset),
-    ]);
-    this.svg
-      .select(".cn-y-axis")
-      .transition()
-      .duration(this.animationDuration)
-      .call(this.cnYAxis);
+    this.cnYScale.domain(
+      this.viewMode === "copyNumber"
+        ? [this.ratioYMin, this.ratioYMax]
+        : [
+            cnFromRatio(this.ratioYMin + this.baselineOffset),
+            cnFromRatio(this.ratioYMax + this.baselineOffset),
+          ]
+    );
+    // Not transitioned — see #updateRatioRange for why (this is invoked
+    // back-to-back with it from setSimulatePurity/setViewMode).
+    this.svg.select(".cn-y-axis").call(this.cnYAxis);
   }
 
   drawGridLines() {
@@ -371,7 +433,7 @@ class GenomePlot extends EventTarget {
    * to integer CN.
    */
   #updateLrGridLines() {
-    const integerMode = this.simulatePurity && this.roundSegmentsToInteger;
+    const integerMode = this.viewMode === "log2" && this.simulatePurity && this.roundSegmentsToInteger;
     let values, yScale;
 
     if (integerMode) {
@@ -383,6 +445,18 @@ class GenomePlot extends EventTarget {
         values.push(n);
       }
       yScale = this.cnYScale;
+    } else if (this.viewMode === "copyNumber") {
+      // Whole-number gridlines only — ratioYScale.ticks() with no explicit
+      // count can pick a fractional step (e.g. 0.5) that doesn't match the
+      // axis's own whole-number ticks.
+      const [cnMin, cnMax] = this.ratioYScale.domain();
+      const startN = Math.max(0, Math.ceil(cnMin));
+      const endN = Math.floor(cnMax);
+      values = [];
+      for (let n = startN; n <= endN; n++) {
+        values.push(n);
+      }
+      yScale = this.ratioYScale;
     } else {
       values = this.ratioYScale.ticks();
       yScale = this.ratioYScale;
@@ -405,8 +479,32 @@ class GenomePlot extends EventTarget {
       .attr("y2", (d) => yScale(d))
       .attr("class", (d) => {
         if (integerMode) return "integer-cn-gridline";
-        return d === 0 ? "gridline baseline" : "gridline";
+        return this.viewMode === "log2" && d === 0 ? "gridline baseline" : "gridline";
       });
+
+    // Copy-number view: "Adjust to ploidy" / baseline-offset marks a
+    // reference line at the ploidy-equivalent CN value instead of shifting
+    // data (unlike Log2 view's baseline-shift behavior).
+    const refCn = this.viewMode === "copyNumber" ? 2 * 2 ** this.baselineOffset : null;
+    const [dMin, dMax] = this.ratioYScale.domain();
+    const showRef = refCn !== null && refCn >= dMin && refCn <= dMax;
+
+    this.lrPanels
+      .select(".grid")
+      .selectAll(".baseline-ref-line")
+      .data(showRef ? [refCn] : [])
+      .join("line")
+      .attr("class", "gridline baseline baseline-ref-line")
+      .attr(
+        "x1",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[0]
+      )
+      .attr(
+        "x2",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[1]
+      )
+      .attr("y1", (d) => this.ratioYScale(d))
+      .attr("y2", (d) => this.ratioYScale(d));
   }
 
   setLabels() {
@@ -431,8 +529,9 @@ class GenomePlot extends EventTarget {
         "transform",
         `translate(0,${this.margin.top + this.panelHeight / 2}) rotate(-90)`
       )
+      .attr("id", "primary-y-label")
       .attr("class", "y-label")
-      .text("log2 ratio")
+      .text(this.viewMode === "copyNumber" ? "Copy number" : "log2 ratio")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
 
@@ -442,7 +541,7 @@ class GenomePlot extends EventTarget {
         "transform",
         `translate(${this.width},${this.margin.top + this.panelHeight / 2}) rotate(90)`
       )
-      .attr("class", "y-label")
+      .attr("class", "y-label cn-y-label")
       .text("Copy number")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
@@ -480,7 +579,7 @@ class GenomePlot extends EventTarget {
       const xScale = this.xScales[i];
       let panelRatios = chromData.callers[this.#activeCaller].ratios.map((d) => {
         let td = { ...d };
-        td.log2 = self.transformLog2Ratio(td.log2);
+        td.log2 = self.transformValue(td.log2);
         return td;
       });
 
@@ -490,9 +589,10 @@ class GenomePlot extends EventTarget {
           xScale,
           "start",
           "log2",
-          this.baselineOffset,
+          this.#slidingWindowOffset,
           3,
-          true
+          true,
+          this.#slidingWindowMinValue
         );
       }
 
@@ -525,7 +625,7 @@ class GenomePlot extends EventTarget {
         }
       ).map((d) => {
         let td = { ...d };
-        td.log2 = self.transformLog2Ratio(td.log2);
+        td.log2 = self.transformValue(td.log2);
         return td;
       });
 
@@ -535,9 +635,10 @@ class GenomePlot extends EventTarget {
           self.xScales[i],
           "start",
           "log2",
-          self.baselineOffset,
+          self.#slidingWindowOffset,
           3,
-          true
+          true,
+          self.#slidingWindowMinValue
         );
       }
       const svgData = panelRatios.filter(
@@ -678,7 +779,7 @@ class GenomePlot extends EventTarget {
         })
         .map((d) => {
           let td = { ...d };
-          td.log2 = self.transformLog2Ratio(td.log2, true);
+          td.log2 = self.transformValue(td.log2, true);
           return td;
         })
         .filter((d) => d.log2 < staticYMin || d.log2 > staticYMax);
@@ -752,7 +853,7 @@ class GenomePlot extends EventTarget {
         .filter((d) => d.end - d.start > self.totalLength / self.width)
         .map((d) => {
           let td = { ...d };
-          td.log2 = self.transformLog2Ratio(td.log2, true);
+          td.log2 = self.transformValue(td.log2, true);
           td.caller = panelData.callers[self.activeCaller].name;
           return td;
         });
