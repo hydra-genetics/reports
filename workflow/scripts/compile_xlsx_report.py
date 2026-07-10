@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import functools
 import gzip
@@ -10,7 +8,10 @@ import re
 from pathlib import Path
 from typing import Any
 from typing import Callable
+from typing import Dict
+from typing import List
 from typing import Optional
+from typing import Set
 from typing import TextIO
 
 import pandas as pd
@@ -60,7 +61,7 @@ def safe_parser(func: Callable) -> Callable:
 # --- Helper Functions ---
 
 
-def parse_info(info_str: str) -> dict[str, str]:
+def parse_info(info_str: str) -> Dict[str, str]:
     """
     Parse the INFO field from a VCF line
 
@@ -73,7 +74,7 @@ def parse_info(info_str: str) -> dict[str, str]:
     return dict(entry.split("=", 1) for entry in info_str.split(";") if "=" in entry)
 
 
-def parse_format(format_str: str, sample_str: str) -> dict[str, str]:
+def parse_format(format_str: str, sample_str: str) -> Dict[str, str]:
     """
     Parse the FORMAT and SAMPLE fields from a VCF line.
 
@@ -115,7 +116,7 @@ def open_vcf(vcf_path: str) -> TextIO:
     return path.open("r")
 
 
-def get_genes_from_bed(bed_path: str) -> set[str]:
+def get_genes_from_bed(bed_path: str) -> Set[str]:
     """
     Extract gene names from the 4th column of a BED file.
     """
@@ -187,10 +188,10 @@ def write_excel_sheet(
 @safe_parser
 def parse_vcf_line(
     line: str,
-    vep_fields: list[str],
-    format_fields: list[str],
+    vep_fields: List[str],
+    format_fields: List[str],
     ncol: int = 10,
-) -> dict[str, str]:
+) -> Dict[str, str]:
     """
     Parse a single VCF line into a dictionary.
     """
@@ -244,7 +245,7 @@ def parse_vcf_line(
 def parse_cnvkit_vcf_line(
     vcf_line: str,
     ncol: int = 10,
-) -> dict[str, str]:
+) -> Dict[str, str]:
     """
     Parse a single CNVkit VCF line into a dictionary.
     """
@@ -331,7 +332,7 @@ def process_sv_vcf(vcf_path: str) -> pd.DataFrame:
     - INFO fields are returned with their declared types so GNOMAD_AC / CUSTOM_AC
       land in Excel as integers and GNOMAD_AF / CUSTOM_AF as floats.
     """
-    rows: list[dict] = []
+    rows: List[Dict[str, Any]] = []
 
     with pysam.VariantFile(vcf_path, "r") as vcf:
         all_samples = list(vcf.header.samples)
