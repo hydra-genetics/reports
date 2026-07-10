@@ -132,7 +132,7 @@ properties:
           default when the report is opened. Only takes effect if
           `default_simulate_purity` is also true, since this option requires
           tumor purity simulation to be active.
-      default_equal_distance:
+      default_gene_focus:
         type: boolean
         default: false
         description: >

@@ -35,7 +35,7 @@ rule cnv_html_report:
         wide_plot_width=config.get("cnv_html_report", {}).get("wide_plot_width", False),
         default_simulate_purity=config.get("cnv_html_report", {}).get("default_simulate_purity", False),
         default_absolute_copy_number=config.get("cnv_html_report", {}).get("default_absolute_copy_number", False),
-        default_equal_distance=config.get("cnv_html_report", {}).get("default_equal_distance", False),
+        default_gene_focus=config.get("cnv_html_report", {}).get("default_gene_focus", False),
         default_show_all_datapoints=config.get("cnv_html_report", {}).get("default_show_all_datapoints", False),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",

@@ -125,13 +125,13 @@ Several checkboxes can be configured to be checked by default when the report is
 cnv_html_report:
     default_simulate_purity: true
     default_absolute_copy_number: true
-    default_equal_distance: true
+    default_gene_focus: true
     default_show_all_datapoints: true
 ```
 
 - `default_simulate_purity` — checks "Simulate purity" (and, per the behavior described above, switches the default view to Copy number).
 - `default_absolute_copy_number` — checks "Absolute copy number". Only takes effect if `default_simulate_purity` is also `true`, since the checkbox requires purity simulation to be active; if set without it, the checkbox is forced back to unchecked when the report loads.
-- `default_equal_distance` — checks "Gene Focus".
+- `default_gene_focus` — checks "Gene Focus".
 - `default_show_all_datapoints` — checks "Show all data points".
 
 All four default to `false`.
