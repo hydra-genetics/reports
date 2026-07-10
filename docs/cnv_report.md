@@ -91,13 +91,50 @@ The report will then include a toggle to apply these colors to the gene annotati
 
 ### Manual tumor content adjustment
 
-The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The slider is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, adjusting the slider recalculates and redraws the expected copy number lines in the log₂-ratio plots in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
+The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The slider is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, adjusting the slider recalculates and redraws the expected copy number lines in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
 
-When **"Simulate purity"** is enabled, the **"Round segments to integer CN"** checkbox becomes available. Enabling it snaps each segment line's recomputed copy number to the nearest whole number, which can make it easier to check the TC estimate against expected integer copy states. This does not affect the individual scatter points, only the segment lines.
+Enabling **"Simulate purity"** also switches both plots to the [Copy number view](#log2-ratio-vs-copy-number-view) by default (it can be switched back to log₂ ratio manually), and makes the **"Absolute copy number"** checkbox available. Enabling it snaps each segment line's recomputed copy number to the nearest whole number, which can make it easier to check the TC estimate against expected integer copy states. This does not affect the individual scatter points, only the segment lines. Unlike the view-mode toggle, "Absolute copy number" is only ever available while "Simulate purity" is checked.
+
+### Log2 ratio vs. Copy number view
+
+Both the chromosome and genome-wide plots can be switched between two Y-axis views:
+
+- **Log2 ratio** (default) — the raw, purity-independent log₂ ratio. If "Simulate purity" is also enabled, values are TC-adjusted before being expressed as a log₂ ratio.
+- **Copy number** — a linear, absolute copy-number scale (0–5 by default) instead of log₂ ratio. This view works even without "Simulate purity" enabled, in which case it assumes 100% purity; enabling "Simulate purity" makes the displayed numbers reflect the actual TC-adjusted copy number.
+
+The two views differ in how the baseline-offset slider and "Adjust to ploidy" button behave:
+
+- In **Log2 ratio** view, the baseline offset shifts the plotted values, same as before — a log₂ ratio of 0 corresponds to whichever ploidy the offset represents.
+- In **Copy number** view, segments and points always show their **true absolute copy number**, unshifted. "Adjust to ploidy" and the baseline slider instead draw a highlighted horizontal reference line at the ploidy value, so you compare data against the line rather than the data moving to meet it. This avoids the copy-number axis mislabeling the true value once shifted.
+
+The secondary axis on the right-hand side of each plot always shows copy number regardless of the active view (in Copy number view it mirrors the primary axis exactly), and the BAF row is labelled on both the left and right for readability.
 
 ### Ploidy-adjusted baseline
 
-The report includes a baseline offset slider and an "Adjust to ploidy" button that shifts the plotted baseline so that a log₂ ratio of 0 corresponds to a chosen ploidy instead of the default assumption of 2 (diploid). The ploidy field is pre-filled with the value estimated by PureCN when a `cnv_sv/purecn/{sample}_{type}.csv` file is available for the sample, but it can be freely edited, so the feature also works for samples where PureCN was not run.
+The report includes a baseline offset slider and an "Adjust to ploidy" button, driven by the same mechanism described above. The ploidy field is pre-filled with the value estimated by PureCN when a `cnv_sv/purecn/{sample}_{type}.csv` file is available for the sample, but it can be freely edited, so the feature also works for samples where PureCN was not run.
+
+### Gene Focus
+
+The "Gene Focus" checkbox (chromosome view) displays data points with equal spacing along the x-axis, regardless of their genomic position. This allows for visualizing the sequential order of probes rather than their physical distance, which can be useful when probes are unevenly distributed — e.g. to inspect a densely-probed gene region without it being compressed by the surrounding sparser intergenic distance.
+
+### Default-checked controls
+
+Several checkboxes can be configured to be checked by default when the report is opened, via `cnv_html_report` in the config file:
+
+```yaml
+cnv_html_report:
+    default_simulate_purity: true
+    default_absolute_copy_number: true
+    default_equal_distance: true
+    default_show_all_datapoints: true
+```
+
+- `default_simulate_purity` — checks "Simulate purity" (and, per the behavior described above, switches the default view to Copy number).
+- `default_absolute_copy_number` — checks "Absolute copy number". Only takes effect if `default_simulate_purity` is also `true`, since the checkbox requires purity simulation to be active; if set without it, the checkbox is forced back to unchecked when the report loads.
+- `default_equal_distance` — checks "Gene Focus".
+- `default_show_all_datapoints` — checks "Show all data points".
+
+All four default to `false`.
 
 ### Wide Plots
 
@@ -118,9 +155,11 @@ The report includes the following interactive features:
 | Genome-wide plot | Overview of copy number across all chromosomes |
 | Linear chromosome view | Alternative linear view for each chromosome with per-caller toggle |
 | Gene search | Search box to quickly navigate the plot to a specific gene |
+| Log2 ratio / Copy number toggle | Switches the Y-axis between log₂ ratio and a linear, absolute copy-number scale; see [Log2 ratio vs. Copy number view](#log2-ratio-vs-copy-number-view) |
 | Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
-| Round segments to integer CN | Snaps segment lines to whole-number copy number; requires **Simulate purity** to be enabled first |
-| Adjust to ploidy | Button that shifts the baseline offset to a chosen ploidy, pre-filled from PureCN when available |
+| Absolute copy number | Snaps segment lines to whole-number copy number; requires **Simulate purity** to be enabled first |
+| Adjust to ploidy | Button that marks (Copy number view) or shifts to (Log2 ratio view) a chosen ploidy, pre-filled from PureCN when available |
+| Gene Focus | Displays data points with equal spacing along the x-axis instead of by genomic position |
 | Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
 | Caller toggle | Switch between callers (CNVkit, GATK, Jumble) in the chromosome and genome plots |
 
