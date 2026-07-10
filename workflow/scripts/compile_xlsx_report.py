@@ -332,7 +332,7 @@ def process_sv_vcf(vcf_path: str) -> pd.DataFrame:
     - INFO fields are returned with their declared types so GNOMAD_AC / CUSTOM_AC
       land in Excel as integers and GNOMAD_AF / CUSTOM_AF as floats.
     """
-    rows: List[dict] = []
+    rows: List[Dict[str, Any]] = []
 
     with pysam.VariantFile(vcf_path, "r") as vcf:
         all_samples = list(vcf.header.samples)
