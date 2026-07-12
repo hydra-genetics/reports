@@ -525,7 +525,11 @@ class ChromosomePlot extends EventTarget {
 
   #toAbsoluteCopyNumber(x, isSegment) {
     const tc = this.simulatePurity ? this.tc : 1;
-    let adjCopies = (2 * 2 ** x - 2 * (1 - tc)) / tc;
+    // Ploidy (psi) scales the sample's own average copy content, since coverage
+    // ratios are normalised relative to the sample's own median, not a fixed
+    // diploid reference. baselineOffset already encodes the assumed ploidy.
+    const psi = 2 * 2 ** this.baselineOffset;
+    let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (isSegment && this.roundSegmentsToInteger) {
       adjCopies = Math.round(adjCopies);
     }
