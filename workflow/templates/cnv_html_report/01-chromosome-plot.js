@@ -235,6 +235,7 @@ class ChromosomePlot extends EventTarget {
   #outOfRangeGroup;
   #integerGridGroup;
   #baselineRefGroup;
+  #diploidRefGroup;
 
   constructor(config) {
     super();
@@ -389,6 +390,10 @@ class ChromosomePlot extends EventTarget {
     this.#baselineRefGroup = this.#lrArea
       .append("g")
       .attr("class", "baseline-ref-line");
+
+    this.#diploidRefGroup = this.#lrArea
+      .append("g")
+      .attr("class", "diploid-ref-line");
 
     this.#ratios = this.#lrArea
       .append("g")
@@ -1085,6 +1090,31 @@ class ChromosomePlot extends EventTarget {
       .attr("x2", this.width - this.margin.left - this.margin.right)
       .attr("y1", this.ratioYScale(refCn))
       .attr("y2", this.ratioYScale(refCn));
+  }
+
+  /**
+   * Fixed reference line at true absolute copy number = 2 (diploid),
+   * independent of the ploidy hypothesis. Unlike #plotBaselineReference()
+   * (which tracks the current baseline/ploidy guess), this line never
+   * moves in copy-number view, and in log2 view sits at y = -baselineOffset
+   * (the log2-space position where a segment's true absolute CN is exactly
+   * 2, regardless of purity) — giving a stable anchor to judge whether an
+   * adjusted baseline looks correct relative to true diploid.
+   */
+  #plotDiploidReference() {
+    this.#diploidRefGroup.selectAll("line").remove();
+
+    const y = this.viewMode === "copyNumber" ? 2 : -this.baselineOffset;
+    const [dMin, dMax] = this.ratioYScale.domain();
+    if (y < dMin || y > dMax) return;
+
+    this.#diploidRefGroup
+      .append("line")
+      .attr("class", "gridline diploid-reference")
+      .attr("x1", 0)
+      .attr("x2", this.width - this.margin.left - this.margin.right)
+      .attr("y1", this.ratioYScale(y))
+      .attr("y2", this.ratioYScale(y));
   }
 
   #plotSegments() {
@@ -2299,6 +2329,7 @@ class ChromosomePlot extends EventTarget {
     this.#updateAxes();
     this.#plotIntegerGridlines();
     this.#plotBaselineReference();
+    this.#plotDiploidReference();
     this.#plotRatios();
     this.#plotSegments();
     this.#plotOutOfRangeIndicators();

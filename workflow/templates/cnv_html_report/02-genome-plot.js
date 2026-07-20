@@ -515,6 +515,32 @@ class GenomePlot extends EventTarget {
       )
       .attr("y1", (d) => this.ratioYScale(d))
       .attr("y2", (d) => this.ratioYScale(d));
+
+    // Fixed reference line at true absolute copy number = 2 (diploid),
+    // independent of the ploidy hypothesis — unlike the baseline-ref-line
+    // above (which tracks the current baseline/ploidy guess), this never
+    // moves in copy-number view, and in log2 view sits at
+    // y = -baselineOffset (see #plotDiploidReference in
+    // 01-chromosome-plot.js for the derivation).
+    const diploidY = this.viewMode === "copyNumber" ? 2 : -this.baselineOffset;
+    const showDiploidRef = diploidY >= dMin && diploidY <= dMax;
+
+    this.lrPanels
+      .select(".grid")
+      .selectAll(".diploid-ref-line")
+      .data(showDiploidRef ? [diploidY] : [])
+      .join("line")
+      .attr("class", "gridline diploid-reference diploid-ref-line")
+      .attr(
+        "x1",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[0]
+      )
+      .attr(
+        "x2",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[1]
+      )
+      .attr("y1", (d) => this.ratioYScale(d))
+      .attr("y2", (d) => this.ratioYScale(d));
   }
 
   setLabels() {

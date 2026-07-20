@@ -246,6 +246,12 @@ svg .integer-cn-gridline {
   shape-rendering: crispEdges;
 }
 
+svg .gridline.diploid-reference {
+  stroke: #8e44ad;
+  stroke-width: 1.5px;
+  stroke-dasharray: 6, 3;
+}
+
 svg .cursor-line {
   stroke: #888888;
 }
