@@ -1,5 +1,5 @@
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import csv
 import json
 import math
@@ -10,6 +10,7 @@ from typing import Dict, List, Union
 import statistics
 import gzip
 import base64
+import yaml
 
 
 @dataclass
@@ -22,6 +23,11 @@ class CNV:
     type: str
     cn: Union[float, None]
     baf: Union[float, None]
+    # Additional, pipeline-configurable VCF INFO fields (e.g. an artifact-database
+    # frequency annotation) — which fields to extract is driven entirely by config
+    # (merge_cnv_json.extra_info_fields), so this module never hardcodes a
+    # pipeline-specific field name like twist_solid's "Twist_AF".
+    extra: dict = field(default_factory=dict)
     passed_filter: bool = False
 
     def end(self):
@@ -313,9 +319,10 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
     return variants
 
 
-def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
+def get_cnvs(vcf_filename, skip=None, extra_info_fields=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
+    extra_info_fields = extra_info_fields or []
 
     def safe_baf(v):
         if v is None:
@@ -326,6 +333,16 @@ def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
             return max(0.0, min(1.0, float(v)))
         except (ValueError, TypeError):
             return None
+
+    def safe_value(v):
+        if v is None:
+            return None
+        if isinstance(v, (list, tuple)):
+            v = v[0]
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return v
 
     for variant in vcf.fetch():
         chrom = normalize_chrom(variant.chrom)
@@ -348,9 +365,72 @@ def get_cnvs(vcf_filename, skip=None) -> Dict[str, Dict[str, List[CNV]]]:
             variant.info.get("SVTYPE"),
             variant.info.get("CORR_CN"),
             safe_baf(variant.info.get("BAF")),
+            extra={f: safe_value(variant.info.get(f)) for f in extra_info_fields},
         )
         cnvs[chrom][caller].append(cnv)
     return cnvs
+
+
+def evaluate_filter_condition(cnv, condition):
+    """
+    Recursively evaluate a structured any_of/all_of/not/leaf filter condition
+    against a CNV record. Leaf conditions are {field, operator, value}, where
+    field is one of the fixed names "adjusted_cn" (mapped to cnv.cn, since
+    there's no live baseline/purity concept server-side), "baf", "length",
+    "caller", or any pipeline-configured name from merge_cnv_json.extra_info_fields
+    (looked up in cnv.extra).
+    """
+    if "any_of" in condition:
+        return any(evaluate_filter_condition(cnv, c) for c in condition["any_of"])
+    if "all_of" in condition:
+        return all(evaluate_filter_condition(cnv, c) for c in condition["all_of"])
+    if "not" in condition:
+        return not evaluate_filter_condition(cnv, condition["not"])
+
+    field_name = condition["field"]
+    operator = condition["operator"]
+    value = condition["value"]
+
+    field_map = {
+        "adjusted_cn": cnv.cn,
+        "baf": cnv.baf,
+        "length": cnv.length,
+        "caller": cnv.caller,
+    }
+    cnv_value = field_map[field_name] if field_name in field_map else cnv.extra.get(field_name)
+    if cnv_value is None:
+        return False
+
+    if operator == "=":
+        return cnv_value == value
+    if operator == "!=":
+        return cnv_value != value
+    if operator == ">":
+        return cnv_value > value
+    if operator == "<":
+        return cnv_value < value
+    if operator == ">=":
+        return cnv_value >= value
+    if operator == "<=":
+        return cnv_value <= value
+    raise ValueError(f"Unknown operator: {operator}")
+
+
+def passes_table_filter(cnv, table_filter_config):
+    """
+    Decide whether a CNV passes the structured table_filter_config, picking
+    the amplification/loss group by CN direction relative to ploidy 2 (matches
+    the report's own default baseline-offset=0 state, see docs).
+    """
+    if not table_filter_config:
+        return False
+    if cnv.cn is None:
+        return False
+    group = "amplification" if cnv.cn > 2 else "loss"
+    condition = table_filter_config.get(group)
+    if condition is None:
+        return False
+    return evaluate_filter_condition(cnv, condition)
 
 
 def filter_chr_cnvs(unfiltered_cnvs: Dict[str, List[CNV]], filtered_cnvs: Dict[str, List[CNV]]) -> Dict[str, List[Dict]]:
@@ -432,7 +512,7 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
 
 def merge_cnv_dicts(
     dicts, baf, annotations, cytobands, chromosomes,
-    filtered_cnvs, unfiltered_cnvs, gene_index=None, cancer_genes=None
+    filtered_cnvs, unfiltered_cnvs, gene_index=None, cancer_genes=None, table_filter_config=None
 ):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
@@ -565,6 +645,8 @@ def merge_cnv_dicts(
         first_chrom = next(iter(cnvs))
         if gene_index:
             cnvs[first_chrom]["gene_search_index"] = gene_index
+        if table_filter_config:
+            cnvs[first_chrom]["table_filter_config"] = table_filter_config
 
         # Collect binning info from all callers
         binned_callers = [d["caller"] for d in dicts if d.get("is_binned")]
@@ -585,11 +667,12 @@ def main():
     fasta_index_file = snakemake.input["fai"]
     germline_vcf = snakemake.input["germline_vcf"]
     json_files = snakemake.input["json"]
-    filtered_cnv_vcf_files = snakemake.input["filtered_cnv_vcfs"]
     cnv_vcf_files = snakemake.input["cnv_vcfs"]
     cytoband_file = snakemake.input["cytobands"]
     ref_genes_file = snakemake.input.get("ref_genes", "")
     cancer_genes_file = snakemake.input.get("cancer_genes", "")
+    table_filter_config_file = snakemake.input.get("table_filter_config", "")
+    extra_info_fields = snakemake.config.get("merge_cnv_json", {}).get("extra_info_fields", [])
 
     if len(germline_vcf) == 0:
         germline_vcf = None
@@ -644,22 +727,26 @@ def main():
     if cancer_genes_file:
         cancer_genes = parse_cancer_genes(cancer_genes_file)
 
-    if len(filtered_cnv_vcf_files) != len(cnv_vcf_files):
-        print(
-            f"error: the number of unfiltered vcf files ({len(filtered_cnv_vcf_files)}) "
-            f"must match the number of filtered vcf files ({len(cnv_vcf_files)})"
-        )
-        sys.exit(1)
+    table_filter_config = {}
+    if table_filter_config_file:
+        with open(table_filter_config_file) as f:
+            table_filter_config = yaml.safe_load(f) or {}
 
-    filtered_cnv_vcfs = []
-    unfiltered_cnv_vcfs = []
-    for f_vcf, uf_vcf in zip(filtered_cnv_vcf_files, cnv_vcf_files):
-        filtered_cnv_vcfs.append(get_cnvs(f_vcf, skip_chromosomes))
-        unfiltered_cnv_vcfs.append(get_cnvs(uf_vcf, skip_chromosomes))
+    unfiltered_cnv_vcfs = [get_cnvs(uf_vcf, skip_chromosomes, extra_info_fields) for uf_vcf in cnv_vcf_files]
+    filtered_cnv_vcfs = [
+        {
+            chrom: {
+                caller: [cnv for cnv in cnvs if passes_table_filter(cnv, table_filter_config)]
+                for caller, cnvs in callers.items()
+            }
+            for chrom, callers in uf.items()
+        }
+        for uf in unfiltered_cnv_vcfs
+    ]
 
     cnvs = merge_cnv_dicts(
         cnv_dicts, baf, annotations, cytobands, fai, filtered_cnv_vcfs,
-        unfiltered_cnv_vcfs, gene_index, cancer_genes
+        unfiltered_cnv_vcfs, gene_index, cancer_genes, table_filter_config
     )
 
     with open(output_file, "w") as f:

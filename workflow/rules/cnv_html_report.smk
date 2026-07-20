@@ -98,11 +98,11 @@ rule merge_cnv_json:
         fai=config.get("reference", {}).get("fai", ""),
         annotation_bed=config.get("merge_cnv_json", {}).get("annotations", []),
         germline_vcf=get_germline_vcf,
-        filtered_cnv_vcfs=get_filtered_cnv_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,
         cytobands=lambda wildcards: config.get("merge_cnv_json", {}).get("cytobands", []),
         ref_genes=lambda wildcards: config.get("merge_cnv_json", {}).get("ref_genes", []),
         cancer_genes=get_cancer_genes,
+        table_filter_config=lambda wildcards: config.get("merge_cnv_json", {}).get("table_filter_config", ""),
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:

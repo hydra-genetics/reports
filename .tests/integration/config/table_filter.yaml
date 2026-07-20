@@ -1,0 +1,6 @@
+amplification:
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 6}
+loss:
+  all_of:
+    - {field: adjusted_cn, operator: "<=", value: 1.4}

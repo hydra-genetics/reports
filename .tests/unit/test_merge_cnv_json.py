@@ -9,7 +9,16 @@ TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_DIR = os.path.abspath(os.path.join(TEST_DIR, "../../workflow/scripts"))
 sys.path.insert(0, SCRIPT_DIR)
 
-from merge_cnv_json import CNV, filter_chr_cnvs, merge_cnv_dicts, get_cnvs, merge_cnv_calls, sort_cnvs  # noqa
+from merge_cnv_json import (  # noqa
+    CNV,
+    filter_chr_cnvs,
+    merge_cnv_dicts,
+    get_cnvs,
+    merge_cnv_calls,
+    sort_cnvs,
+    evaluate_filter_condition,
+    passes_table_filter,
+)
 
 
 class TestCNV(unittest.TestCase):
@@ -205,6 +214,137 @@ class TestMergeCnvJson(unittest.TestCase):
                 assert len(cnvs) == case.expected_lens[caller]
                 for cnv, expected_filter in zip(cnvs, case.expected_filter[caller]):
                     assert cnv.passed_filter == expected_filter
+
+    def test_evaluate_filter_condition_leaf_operators(self):
+        cnv = CNV(
+            caller="cnvkit",
+            chromosome="chr1",
+            genes=["gene1"],
+            start=100,
+            length=1000,
+            type="DUP",
+            cn=8.0,
+            baf=0.45,
+        )
+
+        assert evaluate_filter_condition(cnv, {"field": "adjusted_cn", "operator": ">=", "value": 6.0})
+        assert not evaluate_filter_condition(cnv, {"field": "adjusted_cn", "operator": "<", "value": 6.0})
+        assert evaluate_filter_condition(cnv, {"field": "baf", "operator": "<", "value": 0.5})
+        assert evaluate_filter_condition(cnv, {"field": "caller", "operator": "=", "value": "cnvkit"})
+        assert not evaluate_filter_condition(cnv, {"field": "caller", "operator": "=", "value": "Jumble"})
+        assert evaluate_filter_condition(cnv, {"field": "caller", "operator": "!=", "value": "Jumble"})
+        # A field with no value (e.g. an extra field never extracted for this
+        # pipeline, or a genuinely missing length) is always False.
+        cnv_missing_length = CNV(
+            caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=None,
+            type="DUP", cn=8.0, baf=0.45,
+        )
+        assert not evaluate_filter_condition(cnv_missing_length, {"field": "length", "operator": ">", "value": 0})
+
+    def test_evaluate_filter_condition_combinators(self):
+        cnv = CNV(
+            caller="Jumble", chromosome="chr1", genes=["gene1"], start=100, length=1000,
+            type="DEL", cn=1.9, baf=0.0,
+        )
+        condition = {
+            "all_of": [
+                {"field": "adjusted_cn", "operator": ">", "value": 1.4},
+                {
+                    "any_of": [
+                        {"all_of": [
+                            {"field": "baf", "operator": ">", "value": 0.3},
+                            {"field": "baf", "operator": "<", "value": 0.7},
+                        ]},
+                        {"field": "caller", "operator": "=", "value": "Jumble"},
+                    ]
+                },
+            ]
+        }
+        # Jumble's BAF=0.0 fails the range check, but the caller="Jumble" escape
+        # clause should still make the any_of (and hence the whole all_of) true.
+        assert evaluate_filter_condition(cnv, condition)
+        assert evaluate_filter_condition(cnv, {"not": {"field": "caller", "operator": "=", "value": "cnvkit"}})
+        assert not evaluate_filter_condition(cnv, {"not": {"field": "caller", "operator": "=", "value": "Jumble"}})
+
+    def test_passes_table_filter_group_selection_and_opt_in(self):
+        amp_cnv = CNV(
+            caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=1000,
+            type="DUP", cn=8.0, baf=0.5,
+        )
+        loss_cnv = CNV(
+            caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=1000,
+            type="DEL", cn=1.0, baf=0.5,
+        )
+        config = {
+            "amplification": {"all_of": [{"field": "adjusted_cn", "operator": ">=", "value": 6.0}]},
+            "loss": {"all_of": [{"field": "adjusted_cn", "operator": "<=", "value": 1.4}]},
+        }
+        assert passes_table_filter(amp_cnv, config)
+        assert passes_table_filter(loss_cnv, config)
+        # No config at all -> nothing to filter by, never "passes".
+        assert not passes_table_filter(amp_cnv, {})
+        assert not passes_table_filter(amp_cnv, None)
+
+    def test_passes_table_filter_generic_extra_field(self):
+        # Field names are entirely config-driven — not tied to any specific
+        # pipeline's naming (e.g. twist_solid's "Twist_AF"). Here a made-up
+        # "cohort_frequency" field demonstrates the mechanism is general.
+        cnv = CNV(
+            caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=1000,
+            type="DUP", cn=8.0, baf=0.5, extra={"cohort_frequency": 0.02},
+        )
+        config = {
+            "amplification": {
+                "all_of": [
+                    {"field": "adjusted_cn", "operator": ">=", "value": 6.0},
+                    {"field": "cohort_frequency", "operator": "<=", "value": 0.15},
+                ]
+            }
+        }
+        assert passes_table_filter(cnv, config)
+
+        cnv_common_artifact = CNV(
+            caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=1000,
+            type="DUP", cn=8.0, baf=0.5, extra={"cohort_frequency": 0.5},
+        )
+        assert not passes_table_filter(cnv_common_artifact, config)
+
+    def test_passes_table_filter_real_world_loh_criteria(self):
+        # Mirrors twist_solid's real LOH hard-filter criteria (translated to
+        # the structured format), and the exact MCPH1 bug-report scenario:
+        # all three callers should be excluded (Jumble's caller-escape clause
+        # no longer masks the BAF=0.0 case once the criteria are applied
+        # directly, without the quoting bug that existed in filter_vcf.py).
+        config = {
+            "loss": {
+                "all_of": [
+                    {"not": {"all_of": [
+                        {"field": "artifact_af", "operator": ">", "value": 0.15},
+                        {"field": "length", "operator": "<", "value": 10_000_000},
+                    ]}},
+                    {"not": {"any_of": [
+                        {"all_of": [
+                            {"field": "adjusted_cn", "operator": ">", "value": 1.4},
+                            {"any_of": [
+                                {"all_of": [
+                                    {"field": "baf", "operator": ">", "value": 0.3},
+                                    {"field": "baf", "operator": "<", "value": 0.7},
+                                ]},
+                                {"field": "caller", "operator": "=", "value": "Jumble"},
+                            ]},
+                        ]},
+                        {"field": "adjusted_cn", "operator": ">", "value": 2.5},
+                    ]}},
+                ]
+            }
+        }
+
+        for caller, cn, baf in [("Jumble", 1.97, 0.00), ("cnvkit", 1.85, 0.346), ("gatk", 1.87, 0.448)]:
+            cnv = CNV(
+                caller=caller, chromosome="chr1", genes=["MCPH1"], start=100, length=1000,
+                type="DEL", cn=cn, baf=baf, extra={"artifact_af": 0.01},
+            )
+            assert not passes_table_filter(cnv, config), f"{caller} should NOT pass the loss filter"
 
     def test_merge_cnv_dicts(self):
         @dataclass

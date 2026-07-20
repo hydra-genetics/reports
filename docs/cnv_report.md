@@ -26,9 +26,46 @@ There are a couple of things that can be customised using the config file.
 
 ### Results table
 
-The CNV results table contains CNVs that have been called by the pipeline. In order for the table to be included in the final report, `show_table` under [`cnv_html_report`](/softwares/#configuration) has to be `true`. If this is the case, then both `filtered_cnv_vcfs` and `unfiltered_cnv_vcfs` have to be defined under [`merge_cnv_json`](/softwares/#configuration_2).
+The CNV results table contains CNVs that have been called by the pipeline. In order for the table to be included in the final report, `show_table` under [`cnv_html_report`](/softwares/#configuration) has to be `true`. If this is the case, then `unfiltered_cnv_vcfs` has to be defined under [`merge_cnv_json`](/softwares/#configuration_2).
 
 Alongside the static `CN` column (the caller's corrected copy number at report-build time), the table includes an **Adjusted CN** column. This is recomputed live in the browser from each call's own raw segment log₂ ratio, using the same calculation the plots use, so it updates immediately as the baseline-offset, TC, and "Absolute copy number" controls are changed, without needing a report rebuild. Unlike the plots' Log2 ratio view, this column always applies purity correction — by default using the sample's estimated TC, not an assumed 100% purity — so it reflects a real adjusted copy number even before "Simulate purity" is checked; checking it and moving the TC slider lets you explore a different purity assumption. If a call has no matching segment for its position, this column shows "NA".
+
+#### Filter toggle
+
+The "filtered" checkbox above the table shows only calls that currently satisfy `table_filter_config` (see below), instead of a fixed pass/fail decision computed once at report-build time — so a call that only looks like a real amplification or loss under a different baseline/TC hypothesis becomes visible (or stops qualifying) as you adjust those controls, the same way the plots and the Adjusted CN column do. If a call from one caller doesn't currently qualify but an overlapping call from another caller does, the row is still shown (mirroring how overlapping calls are grouped elsewhere in the pipeline). If `table_filter_config` isn't set, the toggle has no criteria to filter by and shows every call.
+
+`table_filter_config` (optional, under [`merge_cnv_json`](/softwares/#configuration_2)) is the path to a YAML file with two named groups, `amplification` and `loss` — whichever applies to a given call is picked automatically by comparing its (live) copy number to 2. Each group is a tree of `any_of`/`all_of`/`not` nodes with `{field, operator, value}` leaves:
+
+```yaml
+amplification:
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 6.0}
+loss:
+  all_of:
+    - {field: adjusted_cn, operator: "<=", value: 1.4}
+```
+
+`operator` is one of `=`, `!=`, `<`, `>`, `<=`, `>=`. `field` may be:
+
+- `adjusted_cn` — the call's live copy number (same value shown in the Adjusted CN column)
+- `baf`, `length`, `caller` — always available, read from each call's VCF record
+- any name listed in `extra_info_fields` (also under `merge_cnv_json`) — additional VCF INFO fields to extract per call and make available under that same name, for criteria that depend on something pipeline-specific (e.g. an artifact-database frequency annotation). Nothing beyond `adjusted_cn`/`baf`/`length`/`caller` is hardcoded, so this works the same way regardless of what that field happens to be called in a given pipeline's VCFs:
+
+```yaml
+merge_cnv_json:
+  extra_info_fields:
+    - Twist_AF
+  table_filter_config: config/table_filter.yaml
+```
+```yaml
+# config/table_filter.yaml
+amplification:
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 6.0}
+    - {field: Twist_AF, operator: "<=", value: 0.15}
+```
+
+A gene-annotation-existence check isn't needed in this config — every call reaching the table already required a gene match to be included at all.
 
 ### Additional tables
 

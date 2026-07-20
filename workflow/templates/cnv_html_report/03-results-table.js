@@ -9,6 +9,7 @@ class ResultsTable extends EventTarget {
   #tc;
   #baselineOffset;
   #roundSegmentsToInteger;
+  #filterConfig;
 
   constructor(element, config) {
     super();
@@ -45,6 +46,7 @@ class ResultsTable extends EventTarget {
     this.#tc = config?.tc ? config.tc : 1;
     this.#baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
     this.#roundSegmentsToInteger = config?.roundSegmentsToInteger ? config.roundSegmentsToInteger : false;
+    this.#filterConfig = this.#data[0]?.table_filter_config;
 
     this.#tooltip = this.initTooltip();
 
@@ -109,6 +111,62 @@ class ResultsTable extends EventTarget {
       }
     }
     return best;
+  }
+
+  // Recompute a CNV's live absolute copy number from its own caller's raw
+  // segments, matching #toAbsoluteCopyNumber's psi-scaling. Falls back to
+  // the call's static (server-computed) cn when no segment matches.
+  #liveCn(cnv, segments) {
+    const matchedSegment = this.#findMatchingSegment(segments, cnv.start, cnv.start + cnv.length - 1);
+    return matchedSegment ? this.#toAbsoluteCopyNumber(matchedSegment.log2) : cnv.cn;
+  }
+
+  // Recursively evaluate a structured any_of/all_of/not/leaf filter condition
+  // (same shape as merge_cnv_json.py's evaluate_filter_condition) against a
+  // plain {adjustedCn, baf, length, caller, extra} fields object.
+  #evaluateCondition(fields, condition) {
+    if ("any_of" in condition) {
+      return condition.any_of.some((c) => this.#evaluateCondition(fields, c));
+    }
+    if ("all_of" in condition) {
+      return condition.all_of.every((c) => this.#evaluateCondition(fields, c));
+    }
+    if ("not" in condition) {
+      return !this.#evaluateCondition(fields, condition.not);
+    }
+
+    const { field, operator, value } = condition;
+    const fixed = {
+      adjusted_cn: fields.adjustedCn,
+      baf: fields.baf,
+      length: fields.length,
+      caller: fields.caller,
+    };
+    const cnvValue = field in fixed ? fixed[field] : fields.extra?.[field];
+    if (cnvValue === null || cnvValue === undefined) {
+      return false;
+    }
+
+    switch (operator) {
+      case "=": return cnvValue === value;
+      case "!=": return cnvValue !== value;
+      case ">": return cnvValue > value;
+      case "<": return cnvValue < value;
+      case ">=": return cnvValue >= value;
+      case "<=": return cnvValue <= value;
+      default: throw new Error(`Unknown operator: ${operator}`);
+    }
+  }
+
+  // Picks the amplification/loss group by CN direction relative to ploidy 2
+  // (matches the report's own default baseline-offset=0 state).
+  #passesTableFilter(fields) {
+    if (!this.#filterConfig) return false;
+    if (fields.adjustedCn === null || fields.adjustedCn === undefined) return false;
+    const group = fields.adjustedCn > 2 ? "amplification" : "loss";
+    const condition = this.#filterConfig[group];
+    if (!condition) return false;
+    return this.#evaluateCondition(fields, condition);
   }
 
   columnDef(col) {
@@ -246,9 +304,6 @@ class ResultsTable extends EventTarget {
     let tableData = this.#data
       .map((d) =>
         d.callers[this.#activeCaller].cnvs
-          .filter(
-            (di) => !this.#isFiltered || (this.#isFiltered && di.passed_filter)
-          )
           .map((di) => {
             const cols = { view: "", chromosome: d.chromosome, ...di };
             const end = (di.start + di.length - 1).toLocaleString();
@@ -260,49 +315,72 @@ class ResultsTable extends EventTarget {
       )
       .flat();
 
-    let hasData = true;
+    // Find the corresponding copy numbers from the other caller(s), recompute
+    // this row's live Adjusted CN, and decide whether it (or an overlapping
+    // call from another caller) currently passes the live table filter.
+    for (let cnv of tableData) {
+      // Same chromosome
+      let chromData = this.#data.filter(
+        (d) => d.chromosome === cnv.chromosome
+      );
+      // ... different caller
+      let callerData = chromData[0].callers.filter(
+        (_, i) => i !== this.#activeCaller
+      );
+      // ... same gene
+      let overlappingOtherCnvs = callerData
+        .map((d) =>
+          d.cnvs
+            .filter(
+              (c) => cnv.genes.filter((g) => c.genes.includes(g)).length > 0
+            )
+            .map((c) => ({ caller: d.name, type: c.type, cn: c.cn, di: c, segments: d.segments }))
+        )
+        .flat();
+      cnv.others = overlappingOtherCnvs.map(({ caller, type, cn }) => ({ caller, type, cn }));
 
-    if (tableData.length === 0) {
-      hasData = false;
-    } else {
-      // Find the corresponding copy numbers from the other caller(s)
-      for (let cnv of tableData) {
-        // Same chromosome
-        let chromData = this.#data.filter(
-          (d) => d.chromosome === cnv.chromosome
-        );
-        // ... different caller
-        let callerData = chromData[0].callers.filter(
-          (_, i) => i !== this.#activeCaller
-        );
-        // ... same gene
-        let otherCnvs = callerData
-          .map((d) =>
-            d.cnvs
-              .filter(
-                (c) => cnv.genes.filter((g) => c.genes.includes(g)).length > 0
-              )
-              .map((c) => {
-                return { caller: d.name, type: c.type, cn: c.cn };
-              })
-          )
-          .flat();
-        cnv.others = otherCnvs;
+      // Live-recomputed copy number, matching the plots: find this call's
+      // own raw segment (same caller, overlapping position) and reapply
+      // the current purity/ploidy/rounding settings to its raw log2.
+      const segments = chromData[0].callers[this.#activeCaller].segments;
+      const matchedSegment = this.#findMatchingSegment(
+        segments,
+        cnv.start,
+        cnv.start + cnv.length - 1
+      );
+      cnv.adjustedCn = matchedSegment
+        ? this.#toAbsoluteCopyNumber(matchedSegment.log2)
+        : null;
 
-        // Live-recomputed copy number, matching the plots: find this call's
-        // own raw segment (same caller, overlapping position) and reapply
-        // the current purity/ploidy/rounding settings to its raw log2.
-        const segments = chromData[0].callers[this.#activeCaller].segments;
-        const matchedSegment = this.#findMatchingSegment(
-          segments,
-          cnv.start,
-          cnv.start + cnv.length - 1
-        );
-        cnv.adjustedCn = matchedSegment
-          ? this.#toAbsoluteCopyNumber(matchedSegment.log2)
-          : null;
-      }
+      const ownFields = {
+        adjustedCn: cnv.adjustedCn ?? cnv.cn,
+        baf: cnv.baf,
+        length: cnv.length,
+        caller: cnv.caller,
+        extra: cnv.extra,
+      };
+      const ownPasses = this.#passesTableFilter(ownFields);
+      // Cross-caller rescue: if an overlapping call from another caller
+      // currently passes under its own live-recomputed CN, this row should
+      // show as passing too (mirrors merge_cnv_json.py's filter_chr_cnvs).
+      const rescuedByOther = overlappingOtherCnvs.some((other) => {
+        const otherFields = {
+          adjustedCn: this.#liveCn(other.di, other.segments),
+          baf: other.di.baf,
+          length: other.di.length,
+          caller: other.di.caller,
+          extra: other.di.extra,
+        };
+        return this.#passesTableFilter(otherFields);
+      });
+      cnv.passesLiveFilter = ownPasses || rescuedByOther;
     }
+
+    if (this.#isFiltered && this.#filterConfig) {
+      tableData = tableData.filter((cnv) => cnv.passesLiveFilter);
+    }
+
+    const hasData = tableData.length > 0;
 
     this.#header
       .selectAll("th")
