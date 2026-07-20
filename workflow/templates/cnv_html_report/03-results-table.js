@@ -188,6 +188,8 @@ class ResultsTable extends EventTarget {
     if (fields.adjustedCn === null || fields.adjustedCn === undefined) return staticType;
     const group = this.#firstMatchingGroup(fields, false);
     if (!group) return "Copy neutral";
+    const label = this.#filterConfig[group].label;
+    if (label) return label;
     return group.charAt(0).toUpperCase() + group.slice(1).replace(/_/g, " ");
   }
 
