@@ -8,7 +8,6 @@ class ResultsTable extends EventTarget {
   #tooltip;
   #tc;
   #baselineOffset;
-  #simulatePurity;
   #roundSegmentsToInteger;
 
   constructor(element, config) {
@@ -45,7 +44,6 @@ class ResultsTable extends EventTarget {
     this.#activeCaller = config?.caller ?? 0;
     this.#tc = config?.tc ? config.tc : 1;
     this.#baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
-    this.#simulatePurity = config?.simulatePurity ? config.simulatePurity : false;
     this.#roundSegmentsToInteger = config?.roundSegmentsToInteger ? config.roundSegmentsToInteger : false;
 
     this.#tooltip = this.initTooltip();
@@ -73,21 +71,20 @@ class ResultsTable extends EventTarget {
     this.update();
   }
 
-  setSimulatePurity(checked) {
-    this.#simulatePurity = checked;
-    this.update();
-  }
-
   setRoundSegmentsToInteger(checked) {
     this.#roundSegmentsToInteger = checked;
     this.update();
   }
 
-  // Mirrors ChromosomePlot/GenomePlot's #toAbsoluteCopyNumber exactly, so the
-  // table's "Adjusted CN" column stays in lockstep with the plots. See
-  // 01-chromosome-plot.js for the derivation of the psi-scaling term.
+  // Same psi-scaling formula as ChromosomePlot/GenomePlot's
+  // #toAbsoluteCopyNumber (see 01-chromosome-plot.js for the derivation),
+  // except purity is always applied here — unlike the plots' Log2 view,
+  // which defaults to assuming 100% purity until "Simulate purity" is
+  // checked, the table's Adjusted CN should reflect the sample's actual
+  // estimated TC by default (config.tc, i.e. originalTc), not an
+  // artificial 100%-purity assumption.
   #toAbsoluteCopyNumber(x) {
-    const tc = this.#simulatePurity ? this.#tc : 1;
+    const tc = this.#tc;
     const psi = 2 * 2 ** this.#baselineOffset;
     let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (this.#roundSegmentsToInteger) {
@@ -135,7 +132,7 @@ class ResultsTable extends EventTarget {
           class: "right tooltip-trigger",
           format: (x) => {
             if (x !== null && !isNaN(x)) {
-              return x.toLocaleString(undefined, { minimumFractionDigits: 2 });
+              return x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
             return "NA";
           },

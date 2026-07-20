@@ -369,13 +369,18 @@ simulatePurity.on("change", (e) => {
   const checked = e.target.checked;
   tcAdjustSlider.property("disabled", !checked);
   currentTc.property("disabled", !checked);
-  currentTc.node().dispatchEvent(new Event("change"));
   if (!checked) {
+    // resultsTable always applies TC (unlike the plots, which assume 100%
+    // purity while "Simulate purity" is off) — reset the (now-disabled)
+    // TC input back to the default so the table doesn't keep using a
+    // stale, no-longer-adjustable TC the user tried earlier.
+    tcAdjustSlider.node().value = originalTc;
+    currentTc.node().value = originalTc;
     tcAdjustReset.property("disabled", true);
   }
+  currentTc.node().dispatchEvent(new Event("change"));
   chromosomePlot.setSimulatePurity(checked);
   genomePlot.setSimulatePurity(checked);
-  resultsTable.setSimulatePurity(checked);
   if (checked) {
     applyViewMode("copyNumber");
   } else {

@@ -28,6 +28,8 @@ There are a couple of things that can be customised using the config file.
 
 The CNV results table contains CNVs that have been called by the pipeline. In order for the table to be included in the final report, `show_table` under [`cnv_html_report`](/softwares/#configuration) has to be `true`. If this is the case, then both `filtered_cnv_vcfs` and `unfiltered_cnv_vcfs` have to be defined under [`merge_cnv_json`](/softwares/#configuration_2).
 
+Alongside the static `CN` column (the caller's corrected copy number at report-build time), the table includes an **Adjusted CN** column. This is recomputed live in the browser from each call's own raw segment log₂ ratio, using the same calculation the plots use, so it updates immediately as the baseline-offset, TC, and "Absolute copy number" controls are changed, without needing a report rebuild. Unlike the plots' Log2 ratio view, this column always applies purity correction — by default using the sample's estimated TC, not an assumed 100% purity — so it reflects a real adjusted copy number even before "Simulate purity" is checked; checking it and moving the TC slider lets you explore a different purity assumption. If a call has no matching segment for its position, this column shows "NA".
+
 ### Additional tables
 
 Additional tables can be included in the final report by making use of `extra_tables` under [`cnv_html_report`](/softwares/#configuration). A table should be represented by a tsv file, and the first row will be used as a header for the table. The value of `extra_tables` in the config should be an array of objects, and the objects should look like this:
@@ -107,6 +109,8 @@ The two views differ in how the baseline-offset slider and "Adjust to ploidy" bu
 - In **Log2 ratio** view, the baseline offset shifts the plotted values, same as before — a log₂ ratio of 0 corresponds to whichever ploidy the offset represents.
 - In **Copy number** view, segments and points always show their **true absolute copy number**, unshifted. "Adjust to ploidy" and the baseline slider instead draw a highlighted horizontal reference line at the ploidy value, so you compare data against the line rather than the data moving to meet it. This avoids the copy-number axis mislabeling the true value once shifted.
 
+Both views also always show a second, fixed reference line at true absolute copy number 2 (diploid) — independent of the baseline/ploidy adjustment, so there's a stable anchor to judge an adjusted baseline against, in either view. This line is styled distinctly (purple, long-dashed) so it isn't confused with the ploidy-adjustable baseline line, which is intentionally kept subdued in color so it doesn't draw attention away from the data.
+
 The secondary axis on the right-hand side of each plot always shows copy number regardless of the active view (in Copy number view it mirrors the primary axis exactly), and the BAF row is labelled on both the left and right for readability.
 
 ### Ploidy-adjusted baseline
@@ -162,6 +166,7 @@ The report includes the following interactive features:
 | Gene Focus | Displays data points with equal spacing along the x-axis instead of by genomic position |
 | Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
 | Caller toggle | Switch between callers (CNVkit, GATK, Jumble) in the chromosome and genome plots |
+| Adjusted CN column | Live-recomputed copy-number column in the results table, following the baseline/TC/rounding controls; see [Results table](#results-table) |
 
 
 ## Customising the template

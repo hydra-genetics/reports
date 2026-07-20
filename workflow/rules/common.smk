@@ -280,5 +280,5 @@ def get_ploidy(wildcards):
         try:
             row = next(reader)
             return float(row["Ploidy"])
-        except (StopIteration, ValueError, KeyError):
+        except (StopIteration, ValueError, KeyError, TypeError):
             return None

@@ -231,7 +231,7 @@ svg .segment {
 svg .gridline {
   stroke: #dddddd;
   stroke-width: 0.5px;
-  shape-rendering: crispEdges;
+  shape-rendering: crispedges;
 }
 
 svg .gridline.baseline {
@@ -244,7 +244,7 @@ svg .integer-cn-gridline {
   stroke: #4a90d9;
   stroke-width: 1px;
   stroke-dasharray: 4, 3;
-  shape-rendering: crispEdges;
+  shape-rendering: crispedges;
 }
 
 svg .gridline.diploid-reference {
