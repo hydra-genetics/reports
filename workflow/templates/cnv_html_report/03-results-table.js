@@ -158,15 +158,37 @@ class ResultsTable extends EventTarget {
     }
   }
 
-  // Picks the amplification/loss group by CN direction relative to ploidy 2
-  // (matches the report's own default baseline-offset=0 state).
+  // Returns the name of the first group in table_filter_config (in
+  // definition order) whose condition matches these fields, or null if none
+  // match. A group may set `filter: false` to be used for Type classification
+  // only, excluded when filterOnly is true (the filter toggle's own check).
+  #firstMatchingGroup(fields, filterOnly) {
+    if (!this.#filterConfig) return null;
+    if (fields.adjustedCn === null || fields.adjustedCn === undefined) return null;
+    for (const [name, condition] of Object.entries(this.#filterConfig)) {
+      if (filterOnly && condition.filter === false) continue;
+      if (this.#evaluateCondition(fields, condition)) return name;
+    }
+    return null;
+  }
+
   #passesTableFilter(fields) {
-    if (!this.#filterConfig) return false;
-    if (fields.adjustedCn === null || fields.adjustedCn === undefined) return false;
-    const group = fields.adjustedCn > 2 ? "amplification" : "loss";
-    const condition = this.#filterConfig[group];
-    if (!condition) return false;
-    return this.#evaluateCondition(fields, condition);
+    return this.#firstMatchingGroup(fields, true) !== null;
+  }
+
+  // Live "Type" classification, reusing the same named groups as the filter
+  // toggle (including filter:false groups, which only affect Type) so the two
+  // stay consistent for whichever groups are shared. Falls back to the call's
+  // static (VCF SVTYPE) classification when no table_filter_config is
+  // configured, or when there's no usable live CN to classify — necessary
+  // since caller SVTYPE vocabularies aren't standardized (cnvkit: DUP/DEL/
+  // COPY_NORMAL, GATK: <COPY_GAIN>/<COPY_LOSS>/<COPY_NORMAL>).
+  #liveType(fields, staticType) {
+    if (!this.#filterConfig) return staticType;
+    if (fields.adjustedCn === null || fields.adjustedCn === undefined) return staticType;
+    const group = this.#firstMatchingGroup(fields, false);
+    if (!group) return "Copy neutral";
+    return group.charAt(0).toUpperCase() + group.slice(1).replace(/_/g, " ");
   }
 
   columnDef(col) {
@@ -359,6 +381,8 @@ class ResultsTable extends EventTarget {
         caller: cnv.caller,
         extra: cnv.extra,
       };
+      cnv.type = this.#liveType(ownFields, cnv.type);
+
       const ownPasses = this.#passesTableFilter(ownFields);
       // Cross-caller rescue: if an overlapping call from another caller
       // currently passes under its own live-recomputed CN, this row should

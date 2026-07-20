@@ -30,17 +30,35 @@ The CNV results table contains CNVs that have been called by the pipeline. In or
 
 Alongside the static `CN` column (the caller's corrected copy number at report-build time), the table includes an **Adjusted CN** column. This is recomputed live in the browser from each call's own raw segment log₂ ratio, using the same calculation the plots use, so it updates immediately as the baseline-offset, TC, and "Absolute copy number" controls are changed, without needing a report rebuild. Unlike the plots' Log2 ratio view, this column always applies purity correction — by default using the sample's estimated TC, not an assumed 100% purity — so it reflects a real adjusted copy number even before "Simulate purity" is checked; checking it and moving the TC slider lets you explore a different purity assumption. If a call has no matching segment for its position, this column shows "NA".
 
+The **Type** column updates the same way when `table_filter_config` is set: it shows the name of the first group (see below) whose criteria the call's live Adjusted CN currently satisfies, title-cased (e.g. `amplification` → "Amplification"), or "Copy neutral" if no group matches. This replaces the caller's own static classification (whose vocabulary isn't standardized across callers — cnvkit reports `DUP`/`DEL`/`COPY_NORMAL`, GATK reports `<COPY_GAIN>`/`<COPY_LOSS>`/`<COPY_NORMAL>`) with one consistent, live vocabulary. Without `table_filter_config`, the column falls back to the caller's static classification, unchanged.
+
 #### Filter toggle
 
 The "filtered" checkbox above the table shows only calls that currently satisfy `table_filter_config` (see below), instead of a fixed pass/fail decision computed once at report-build time — so a call that only looks like a real amplification or loss under a different baseline/TC hypothesis becomes visible (or stops qualifying) as you adjust those controls, the same way the plots and the Adjusted CN column do. If a call from one caller doesn't currently qualify but an overlapping call from another caller does, the row is still shown (mirroring how overlapping calls are grouped elsewhere in the pipeline). If `table_filter_config` isn't set, the toggle has no criteria to filter by and shows every call.
 
-`table_filter_config` (optional, under [`merge_cnv_json`](/softwares/#configuration_2)) is the path to a YAML file with two named groups, `amplification` and `loss` — whichever applies to a given call is picked automatically by comparing its (live) copy number to 2. Each group is a tree of `any_of`/`all_of`/`not` nodes with `{field, operator, value}` leaves:
+`table_filter_config` (optional, under [`merge_cnv_json`](/softwares/#configuration_2)) is the path to a YAML file with any number of named groups — not limited to a fixed set of names. Each group is a tree of `any_of`/`all_of`/`not` nodes with `{field, operator, value}` leaves:
 
 ```yaml
 amplification:
   all_of:
     - {field: adjusted_cn, operator: ">=", value: 6.0}
-loss:
+deletion:
+  all_of:
+    - {field: adjusted_cn, operator: "<=", value: 1.4}
+```
+
+A call's Type is the name of the **first** group (in the order they're defined in the file) whose criteria it satisfies; if none match, it's "Copy neutral". The filter toggle shows a call if it matches any group — unless that group sets `filter: false`, in which case the group still affects Type but is excluded from the filter toggle's decision. This is useful for an intermediate classification that doesn't itself warrant hard-filtering, e.g. a "duplication" group for gains too small to count as a full amplification:
+
+```yaml
+amplification:
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 6.0}
+duplication:
+  filter: false  # Type-only: shows as "Duplication", but never makes the row visible under "filtered"
+  all_of:
+    - {field: adjusted_cn, operator: ">", value: 2.5}
+    - {field: adjusted_cn, operator: "<", value: 6.0}
+deletion:
   all_of:
     - {field: adjusted_cn, operator: "<=", value: 1.4}
 ```

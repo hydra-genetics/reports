@@ -18,6 +18,7 @@ from merge_cnv_json import (  # noqa
     sort_cnvs,
     evaluate_filter_condition,
     passes_table_filter,
+    classify_cnv,
 )
 
 
@@ -345,6 +346,49 @@ class TestMergeCnvJson(unittest.TestCase):
                 type="DEL", cn=cn, baf=baf, extra={"artifact_af": 0.01},
             )
             assert not passes_table_filter(cnv, config), f"{caller} should NOT pass the loss filter"
+
+    def test_classify_cnv_arbitrary_named_groups_in_order(self):
+        # table_filter_config isn't limited to exactly "amplification"/"loss" —
+        # any number of named groups are supported, matched in definition
+        # order (first match wins).
+        config = {
+            "amplification": {"all_of": [{"field": "adjusted_cn", "operator": ">=", "value": 6.0}]},
+            "duplication": {"all_of": [
+                {"field": "adjusted_cn", "operator": ">", "value": 2.5},
+                {"field": "adjusted_cn", "operator": "<", "value": 6.0},
+            ]},
+            "deletion": {"all_of": [{"field": "adjusted_cn", "operator": "<=", "value": 1.4}]},
+        }
+
+        def cnv_with_cn(cn):
+            return CNV(caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=1000, type="", cn=cn, baf=0.5)
+
+        assert classify_cnv(cnv_with_cn(8.0), config) == "amplification"
+        assert classify_cnv(cnv_with_cn(5.0), config) == "duplication"
+        assert classify_cnv(cnv_with_cn(1.0), config) == "deletion"
+        assert classify_cnv(cnv_with_cn(2.0), config) is None  # no group matches -> "copy neutral"
+
+    def test_classify_cnv_filter_false_excludes_group_from_filter_only(self):
+        # A group can be marked filter: false to only affect Type
+        # classification, without making the row visible under the filter
+        # toggle (passes_table_filter uses filter_only=True internally).
+        config = {
+            "amplification": {"all_of": [{"field": "adjusted_cn", "operator": ">=", "value": 6.0}]},
+            "duplication": {
+                "filter": False,
+                "all_of": [
+                    {"field": "adjusted_cn", "operator": ">", "value": 2.5},
+                    {"field": "adjusted_cn", "operator": "<", "value": 6.0},
+                ],
+            },
+        }
+        cnv = CNV(caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=1000, type="", cn=5.0, baf=0.5)
+
+        # Type classification (filter_only=False) still finds "duplication".
+        assert classify_cnv(cnv, config, filter_only=False) == "duplication"
+        # But it must not count toward the filter toggle.
+        assert classify_cnv(cnv, config, filter_only=True) is None
+        assert not passes_table_filter(cnv, config)
 
     def test_merge_cnv_dicts(self):
         @dataclass

@@ -416,21 +416,32 @@ def evaluate_filter_condition(cnv, condition):
     raise ValueError(f"Unknown operator: {operator}")
 
 
-def passes_table_filter(cnv, table_filter_config):
+def classify_cnv(cnv, table_filter_config, filter_only=False):
     """
-    Decide whether a CNV passes the structured table_filter_config, picking
-    the amplification/loss group by CN direction relative to ploidy 2 (matches
-    the report's own default baseline-offset=0 state, see docs).
+    Return the name of the first group in table_filter_config (in definition
+    order) whose condition matches this CNV, or None if none match. A group
+    may set `filter: false` to be used for classification only, excluded from
+    filter_only lookups (used to decide the table's filter-toggle inclusion,
+    as opposed to Type classification, which considers every group).
     """
     if not table_filter_config:
-        return False
+        return None
     if cnv.cn is None:
-        return False
-    group = "amplification" if cnv.cn > 2 else "loss"
-    condition = table_filter_config.get(group)
-    if condition is None:
-        return False
-    return evaluate_filter_condition(cnv, condition)
+        return None
+    for name, condition in table_filter_config.items():
+        if filter_only and condition.get("filter") is False:
+            continue
+        if evaluate_filter_condition(cnv, condition):
+            return name
+    return None
+
+
+def passes_table_filter(cnv, table_filter_config):
+    """
+    Decide whether a CNV passes the structured table_filter_config, i.e.
+    matches any group not marked `filter: false`.
+    """
+    return classify_cnv(cnv, table_filter_config, filter_only=True) is not None
 
 
 def filter_chr_cnvs(unfiltered_cnvs: Dict[str, List[CNV]], filtered_cnvs: Dict[str, List[CNV]]) -> Dict[str, List[Dict]]:
