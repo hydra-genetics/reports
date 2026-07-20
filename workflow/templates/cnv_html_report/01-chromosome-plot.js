@@ -2061,7 +2061,14 @@ class ChromosomePlot extends EventTarget {
       element: mouseTrap.select("#lr-mousetrap"),
       width: this.width - this.margin.left - this.margin.right,
       yScale: this.ratioYScale,
-      secondaryYScale: this.cnYScale,
+      // In copy-number view cnYAxis is repurposed to mirror ratioYScale
+      // (a log scale can't represent CN=0), so the hover readout must
+      // follow the same scale, or invert() on cnYScale's invalid domain
+      // returns NaN.
+      secondaryYScale: {
+        invert: (y) =>
+          (this.viewMode === "copyNumber" ? this.ratioYScale : this.cnYScale).invert(y),
+      },
     });
 
     const bafCursor = new YCursor({
