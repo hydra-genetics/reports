@@ -6,6 +6,10 @@ class ResultsTable extends EventTarget {
   #data;
   #activeCaller;
   #tooltip;
+  #tc;
+  #baselineOffset;
+  #simulatePurity;
+  #roundSegmentsToInteger;
 
   constructor(element, config) {
     super();
@@ -33,11 +37,16 @@ class ResultsTable extends EventTarget {
       "genes",
       "type",
       "cn",
+      "adjustedCn",
       "baf",
     ];
 
     this.#data = config?.data;
     this.#activeCaller = config?.caller ?? 0;
+    this.#tc = config?.tc ? config.tc : 1;
+    this.#baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
+    this.#simulatePurity = config?.simulatePurity ? config.simulatePurity : false;
+    this.#roundSegmentsToInteger = config?.roundSegmentsToInteger ? config.roundSegmentsToInteger : false;
 
     this.#tooltip = this.initTooltip();
 
@@ -52,6 +61,57 @@ class ResultsTable extends EventTarget {
   set filter(isFiltered) {
     this.#isFiltered = isFiltered;
     this.update();
+  }
+
+  setTc(tc) {
+    this.#tc = tc;
+    this.update();
+  }
+
+  setBaselineOffset(dy) {
+    this.#baselineOffset = dy;
+    this.update();
+  }
+
+  setSimulatePurity(checked) {
+    this.#simulatePurity = checked;
+    this.update();
+  }
+
+  setRoundSegmentsToInteger(checked) {
+    this.#roundSegmentsToInteger = checked;
+    this.update();
+  }
+
+  // Mirrors ChromosomePlot/GenomePlot's #toAbsoluteCopyNumber exactly, so the
+  // table's "Adjusted CN" column stays in lockstep with the plots. See
+  // 01-chromosome-plot.js for the derivation of the psi-scaling term.
+  #toAbsoluteCopyNumber(x) {
+    const tc = this.#simulatePurity ? this.#tc : 1;
+    const psi = 2 * 2 ** this.#baselineOffset;
+    let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
+    if (this.#roundSegmentsToInteger) {
+      adjCopies = Math.round(adjCopies);
+    }
+    return Math.max(adjCopies, MIN_COPY_NUMBER);
+  }
+
+  // Segments are a contiguous, non-overlapping partition per chromosome, so
+  // usually exactly one matches; the max-overlap tiebreak only matters for a
+  // call straddling a segment boundary.
+  #findMatchingSegment(segments, start, end) {
+    let best = null;
+    let bestOverlap = -Infinity;
+    for (const seg of segments) {
+      if (start <= seg.end && end >= seg.start) {
+        const overlap = Math.min(end, seg.end) - Math.max(start, seg.start);
+        if (overlap > bestOverlap) {
+          bestOverlap = overlap;
+          best = seg;
+        }
+      }
+    }
+    return best;
   }
 
   columnDef(col) {
@@ -70,6 +130,7 @@ class ResultsTable extends EventTarget {
       case "corrCopyNumber":
       case "baf":
       case "cn":
+      case "adjustedCn":
         return {
           class: "right tooltip-trigger",
           format: (x) => {
@@ -131,6 +192,7 @@ class ResultsTable extends EventTarget {
       position: "Position",
       type: "Type",
       cn: "CN",
+      adjustedCn: "Adjusted CN",
       baf: "BAF",
     };
 
@@ -229,6 +291,19 @@ class ResultsTable extends EventTarget {
           )
           .flat();
         cnv.others = otherCnvs;
+
+        // Live-recomputed copy number, matching the plots: find this call's
+        // own raw segment (same caller, overlapping position) and reapply
+        // the current purity/ploidy/rounding settings to its raw log2.
+        const segments = chromData[0].callers[this.#activeCaller].segments;
+        const matchedSegment = this.#findMatchingSegment(
+          segments,
+          cnv.start,
+          cnv.start + cnv.length - 1
+        );
+        cnv.adjustedCn = matchedSegment
+          ? this.#toAbsoluteCopyNumber(matchedSegment.log2)
+          : null;
       }
     }
 

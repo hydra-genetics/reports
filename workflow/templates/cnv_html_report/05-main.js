@@ -120,6 +120,7 @@ const genomePlot = new GenomePlot({
 
 const resultsTable = new ResultsTable(d3.select("#cnv-table"), {
   data: cnvData,
+  tc: originalTc,
   caller: initialCallerIndex !== -1 ? initialCallerIndex : 0,
   filter: d3.select("#table-filter-toggle").node().checked,
 });
@@ -300,6 +301,7 @@ currentBaselineOffset.on("change", (e) => {
   currentBaselineOffset.node().value = strdy;
   chromosomePlot.setBaselineOffset(dy);
   genomePlot.setBaselineOffset(dy);
+  resultsTable.setBaselineOffset(dy);
 });
 
 baselineOffsetReset.on("click", () => {
@@ -334,6 +336,7 @@ adjustToPloidyButton.on("click", () => {
   baselineOffsetReset.property("disabled", dy === 0);
   chromosomePlot.setBaselineOffset(dy);
   genomePlot.setBaselineOffset(dy);
+  resultsTable.setBaselineOffset(dy);
 });
 
 const simulatePurity = d3.select("#simulate-purity");
@@ -372,6 +375,7 @@ simulatePurity.on("change", (e) => {
   }
   chromosomePlot.setSimulatePurity(checked);
   genomePlot.setSimulatePurity(checked);
+  resultsTable.setSimulatePurity(checked);
   if (checked) {
     applyViewMode("copyNumber");
   } else {
@@ -383,6 +387,7 @@ roundSegmentsToInteger.on("change", (e) => {
   const checked = e.target.checked;
   chromosomePlot.setRoundSegmentsToInteger(checked);
   genomePlot.setRoundSegmentsToInteger(checked);
+  resultsTable.setRoundSegmentsToInteger(checked);
 });
 
 viewModeInputs.on("change", (e) => {
@@ -426,6 +431,7 @@ currentTc.on("change", (e) => {
   currentTc.node().value = strtc;
   chromosomePlot.setTc(tc);
   genomePlot.setTc(tc);
+  resultsTable.setTc(tc);
 });
 
 tcAdjustReset.on("click", () => {
