@@ -330,9 +330,19 @@ def get_cnvs(vcf_filename, skip=None, extra_info_fields=None) -> Dict[str, Dict[
         if isinstance(v, (list, tuple)):
             v = v[0]
         try:
-            return max(0.0, min(1.0, float(v)))
+            v = float(v)
         except (ValueError, TypeError):
             return None
+        # A raw BAF of exactly 0 is a "no data" placeholder (e.g. Jumble never
+        # computes a real per-segment BAF and always reports 0; other callers
+        # can also report 0 for segments with too few informative SNPs) —
+        # treat it as missing. This must run before the negative-value clamp
+        # below, since a genuinely measured, strongly-skewed BAF (e.g. from a
+        # misestimated TC) can legitimately be negative and should still
+        # clamp to a real 0.0, not be conflated with a missing value.
+        if v == 0.0:
+            return None
+        return max(0.0, min(1.0, v))
 
     def safe_value(v):
         if v is None:

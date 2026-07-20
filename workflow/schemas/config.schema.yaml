@@ -271,12 +271,14 @@ properties:
           results table's Type column and filter toggle, as any number of
           top-level named groups, each a tree of `any_of`/`all_of`/`not` nodes
           and `{field, operator, value}` leaves. A call's Type is the name of
-          the first group (in definition order) whose criteria it satisfies,
-          or "Copy neutral" if none match. The filter toggle shows a call if
-          it matches any group, unless that group sets `filter: false` (Type
-          classification only, excluded from the filter toggle — e.g. an
-          intermediate "duplication" group that shouldn't itself hard-filter).
-          Leaf `field` may be `adjusted_cn` (the call's copy number —
+          the first group (in definition order) whose criteria it satisfies
+          (title-cased, or the group's `label` if it sets one — useful for
+          acronyms like "Copy-neutral LOH" that shouldn't be auto-capitalized
+          as "Loh"), or "Copy neutral" if none match. The filter toggle shows
+          a call if it matches any group, unless that group sets
+          `filter: false` (Type classification only, excluded from the filter
+          toggle — e.g. an intermediate "duplication" group that shouldn't
+          itself hard-filter). Leaf `field` may be `adjusted_cn` (the call's copy number —
           recomputed live in the browser as the ploidy/purity/rounding
           controls are adjusted), `baf`, `length`, `caller`, or any field
           name listed in `extra_info_fields` below. `operator` is one of

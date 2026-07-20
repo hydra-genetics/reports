@@ -2,6 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 import os
 import sys
+import tempfile
 from typing import Any, Dict, List, Tuple
 import unittest
 
@@ -215,6 +216,43 @@ class TestMergeCnvJson(unittest.TestCase):
                 assert len(cnvs) == case.expected_lens[caller]
                 for cnv, expected_filter in zip(cnvs, case.expected_filter[caller]):
                     assert cnv.passed_filter == expected_filter
+
+    def test_get_cnvs_baf_zero_is_missing_not_a_real_measurement(self):
+        # Regression test for two real-world cases: a genuinely measured,
+        # strongly-skewed BAF can be negative (e.g. from a misestimated TC)
+        # and must still clamp to a real 0.0 — but a raw BAF of EXACTLY 0
+        # (Jumble's permanent placeholder, or a CNVkit call with too few
+        # PROBES to compute a meaningful BAF) must become None/missing
+        # instead, so it isn't mistaken for a real "fully skewed" measurement.
+        vcf_content = """##fileformat=VCFv4.2
+##contig=<ID=chr3>
+##contig=<ID=chr8>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="x">
+##INFO=<ID=END,Number=1,Type=Integer,Description="x">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="x">
+##INFO=<ID=CALLER,Number=1,Type=String,Description="x">
+##INFO=<ID=CORR_CN,Number=1,Type=Float,Description="x">
+##INFO=<ID=BAF,Number=1,Type=Float,Description="x">
+##INFO=<ID=Genes,Number=.,Type=String,Description="x">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
+chr3\t10077950\t.\tN\t<COPY_NORMAL>\t.\t.\tGenes=GENEX;SVTYPE=COPY_NORMAL;END=10191669;SVLEN=113720;CALLER=cnvkit;CORR_CN=2.21;BAF=-0.448501
+chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454425;CALLER=cnvkit;CORR_CN=8.67;BAF=0.0
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".vcf", delete=False) as f:
+            f.write(vcf_content)
+            vcf_path = f.name
+
+        try:
+            cnvs = get_cnvs(vcf_path)
+            all_cnvs = [cnv for callers in cnvs.values() for cnv_list in callers.values() for cnv in cnv_list]
+            by_start = {cnv.start: cnv for cnv in all_cnvs}
+
+            # Real, strongly-skewed (negative) measurement -> clamped to a real 0.0.
+            assert by_start[10077950].baf == 0.0
+            # Raw exact 0.0 -> treated as missing, not a real measurement.
+            assert by_start[43475717].baf is None
+        finally:
+            os.remove(vcf_path)
 
     def test_evaluate_filter_condition_leaf_operators(self):
         cnv = CNV(

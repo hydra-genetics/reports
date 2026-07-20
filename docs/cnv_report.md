@@ -47,7 +47,7 @@ deletion:
     - {field: adjusted_cn, operator: "<=", value: 1.4}
 ```
 
-A call's Type is the name of the **first** group (in the order they're defined in the file) whose criteria it satisfies; if none match, it's "Copy neutral". The filter toggle shows a call if it matches any group — unless that group sets `filter: false`, in which case the group still affects Type but is excluded from the filter toggle's decision. This is useful for an intermediate classification that doesn't itself warrant hard-filtering, e.g. a "duplication" group for gains too small to count as a full amplification:
+A call's Type is the name of the **first** group (in the order they're defined in the file) whose criteria it satisfies, title-cased (e.g. `amplification` → "Amplification") unless the group sets an explicit `label` (see below); if none match, it's "Copy neutral". The filter toggle shows a call if it matches any group — unless that group sets `filter: false`, in which case the group still affects Type but is excluded from the filter toggle's decision. This is useful for an intermediate classification that doesn't itself warrant hard-filtering, e.g. a "duplication" group for gains too small to count as a full amplification:
 
 ```yaml
 amplification:
@@ -60,8 +60,21 @@ duplication:
     - {field: adjusted_cn, operator: "<", value: 6.0}
 deletion:
   all_of:
-    - {field: adjusted_cn, operator: "<=", value: 1.4}
+    - {field: adjusted_cn, operator: "<", value: 1.4}
+loh:
+  label: "Copy-neutral LOH"  # overrides the auto-generated "Loh" — useful for acronyms/exact wording
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 1.4}
+    - {field: adjusted_cn, operator: "<=", value: 2.5}
+    - not:
+        any_of:
+          - all_of:
+              - {field: baf, operator: ">", value: 0.3}
+              - {field: baf, operator: "<", value: 0.7}
+          - {field: caller, operator: "=", value: "jumble"}
 ```
+
+The `loh` group above illustrates a real subtlety: a call can have a completely neutral copy number and still be clinically significant — a skewed BAF at CN≈2 indicates copy-neutral loss of heterozygosity (one allele lost, compensated by duplication of the other), distinct from an actual copy-number loss. Splitting these into separate named groups (rather than folding LOH detection into a single "deletion"/"loss" group) keeps the Type column from mislabeling a genuinely neutral-CN call as a deletion just because its BAF happens to be skewed.
 
 `operator` is one of `=`, `!=`, `<`, `>`, `<=`, `>=`. `field` may be:
 
