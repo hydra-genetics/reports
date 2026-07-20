@@ -299,11 +299,47 @@ chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454
                 },
             ]
         }
-        # Jumble's BAF=0.0 fails the range check, but the caller="Jumble" escape
-        # clause should still make the any_of (and hence the whole all_of) true.
+        # Here baf=0.0 is a real, definite (non-missing) value that fails the
+        # range check outright, so this exercises normal two-valued any_of -
+        # the caller="Jumble" branch is what makes it true, distinct from the
+        # three-valued "unknown propagates" behavior covered below.
         assert evaluate_filter_condition(cnv, condition)
         assert evaluate_filter_condition(cnv, {"not": {"field": "caller", "operator": "=", "value": "cnvkit"}})
         assert not evaluate_filter_condition(cnv, {"not": {"field": "caller", "operator": "=", "value": "Jumble"}})
+
+    def test_evaluate_filter_condition_missing_field_is_unknown_not_false(self):
+        # A field with no data (e.g. a caller that never measured BAF for this
+        # segment - baf=None, not 0.0) is "unknown", not False. This matters
+        # for `not`: not(unknown) must stay unknown rather than flip to True.
+        # A naive two-valued evaluator would otherwise say "not BAF-in-neutral-
+        # range" is satisfied just because BAF wasn't measured at all - for
+        # *any* caller with missing BAF, not only Jumble.
+        cnv = CNV(
+            caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=1000,
+            type="DEL", cn=1.9, baf=None,
+        )
+        baf_in_neutral_range = {
+            "all_of": [
+                {"field": "baf", "operator": ">", "value": 0.3},
+                {"field": "baf", "operator": "<", "value": 0.7},
+            ]
+        }
+        assert evaluate_filter_condition(cnv, baf_in_neutral_range) is None
+        assert evaluate_filter_condition(cnv, {"not": baf_in_neutral_range}) is None
+
+        # "Unknown" mixed into any_of/all_of alongside definite conditions
+        # still doesn't produce a definite True classification.
+        config = {
+            "loh": {
+                "all_of": [
+                    {"field": "adjusted_cn", "operator": ">=", "value": 1.4},
+                    {"field": "adjusted_cn", "operator": "<=", "value": 2.5},
+                    {"not": baf_in_neutral_range},
+                ]
+            }
+        }
+        assert classify_cnv(cnv, config) is None
+        assert not passes_table_filter(cnv, config)
 
     def test_passes_table_filter_group_selection_and_opt_in(self):
         amp_cnv = CNV(
@@ -351,9 +387,10 @@ chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454
     def test_passes_table_filter_real_world_loh_criteria(self):
         # Mirrors twist_solid's real LOH hard-filter criteria (translated to
         # the structured format), and the exact MCPH1 bug-report scenario:
-        # all three callers should be excluded (Jumble's caller-escape clause
-        # no longer masks the BAF=0.0 case once the criteria are applied
-        # directly, without the quoting bug that existed in filter_vcf.py).
+        # all three callers should be excluded. No caller-specific escape
+        # clause is needed here - Jumble's BAF is genuinely missing (None,
+        # post safe_baf fix) rather than a comparable 0.0, and three-valued
+        # logic keeps "unknown BAF" from spuriously satisfying not(...).
         config = {
             "loss": {
                 "all_of": [
@@ -364,12 +401,9 @@ chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454
                     {"not": {"any_of": [
                         {"all_of": [
                             {"field": "adjusted_cn", "operator": ">", "value": 1.4},
-                            {"any_of": [
-                                {"all_of": [
-                                    {"field": "baf", "operator": ">", "value": 0.3},
-                                    {"field": "baf", "operator": "<", "value": 0.7},
-                                ]},
-                                {"field": "caller", "operator": "=", "value": "Jumble"},
+                            {"all_of": [
+                                {"field": "baf", "operator": ">", "value": 0.3},
+                                {"field": "baf", "operator": "<", "value": 0.7},
                             ]},
                         ]},
                         {"field": "adjusted_cn", "operator": ">", "value": 2.5},
@@ -378,7 +412,7 @@ chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454
             }
         }
 
-        for caller, cn, baf in [("Jumble", 1.97, 0.00), ("cnvkit", 1.85, 0.346), ("gatk", 1.87, 0.448)]:
+        for caller, cn, baf in [("jumble", 1.97, None), ("cnvkit", 1.85, 0.346), ("gatk", 1.87, 0.448)]:
             cnv = CNV(
                 caller=caller, chromosome="chr1", genes=["MCPH1"], start=100, length=1000,
                 type="DEL", cn=cn, baf=baf, extra={"artifact_af": 0.01},

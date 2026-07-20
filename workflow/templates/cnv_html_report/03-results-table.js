@@ -122,17 +122,30 @@ class ResultsTable extends EventTarget {
   }
 
   // Recursively evaluate a structured any_of/all_of/not/leaf filter condition
-  // (same shape as merge_cnv_json.py's evaluate_filter_condition) against a
-  // plain {adjustedCn, baf, length, caller, extra} fields object.
+  // (same shape and same three-valued semantics as merge_cnv_json.py's
+  // evaluate_filter_condition) against a plain {adjustedCn, baf, length,
+  // caller, extra} fields object. A leaf on a field with no data returns
+  // null ("unknown") rather than false, so that not(unknown) stays unknown
+  // instead of spuriously becoming true - e.g. not(BAF-in-neutral-range)
+  // must not pass just because BAF wasn't measured for this call.
+  // #firstMatchingGroup only treats an exact `true` result as a match, so
+  // null (like false) never matches - no special-casing needed there.
   #evaluateCondition(fields, condition) {
     if ("any_of" in condition) {
-      return condition.any_of.some((c) => this.#evaluateCondition(fields, c));
+      const results = condition.any_of.map((c) => this.#evaluateCondition(fields, c));
+      if (results.some((r) => r === true)) return true;
+      if (results.some((r) => r === null)) return null;
+      return false;
     }
     if ("all_of" in condition) {
-      return condition.all_of.every((c) => this.#evaluateCondition(fields, c));
+      const results = condition.all_of.map((c) => this.#evaluateCondition(fields, c));
+      if (results.some((r) => r === false)) return false;
+      if (results.some((r) => r === null)) return null;
+      return true;
     }
     if ("not" in condition) {
-      return !this.#evaluateCondition(fields, condition.not);
+      const result = this.#evaluateCondition(fields, condition.not);
+      return result === null ? null : !result;
     }
 
     const { field, operator, value } = condition;
@@ -144,7 +157,7 @@ class ResultsTable extends EventTarget {
     };
     const cnvValue = field in fixed ? fixed[field] : fields.extra?.[field];
     if (cnvValue === null || cnvValue === undefined) {
-      return false;
+      return null;
     }
 
     switch (operator) {

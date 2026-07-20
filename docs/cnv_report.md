@@ -67,14 +67,14 @@ loh:
     - {field: adjusted_cn, operator: ">=", value: 1.4}
     - {field: adjusted_cn, operator: "<=", value: 2.5}
     - not:
-        any_of:
-          - all_of:
-              - {field: baf, operator: ">", value: 0.3}
-              - {field: baf, operator: "<", value: 0.7}
-          - {field: caller, operator: "=", value: "jumble"}
+        all_of:
+          - {field: baf, operator: ">", value: 0.3}
+          - {field: baf, operator: "<", value: 0.7}
 ```
 
 The `loh` group above illustrates a real subtlety: a call can have a completely neutral copy number and still be clinically significant — a skewed BAF at CN≈2 indicates copy-neutral loss of heterozygosity (one allele lost, compensated by duplication of the other), distinct from an actual copy-number loss. Splitting these into separate named groups (rather than folding LOH detection into a single "deletion"/"loss" group) keeps the Type column from mislabeling a genuinely neutral-CN call as a deletion just because its BAF happens to be skewed.
+
+Note that this `loh` group needs no caller-specific carve-out for callers that never measure BAF (e.g. Jumble): a leaf whose field has no data for a given call evaluates to "unknown" rather than false, and that unknown propagates through `not`/`any_of`/`all_of` instead of being silently treated as false. Concretely, `not({baf-in-neutral-range})` for a call with no BAF data evaluates to `not(unknown)`, which stays unknown — not `true` — so it does not, by itself, qualify the call as LOH. A plain two-valued evaluator would get this backwards (`not(false) = true`), incorrectly turning "we don't know the BAF" into "confirmed skewed" for every caller with missing BAF, not just one.
 
 `operator` is one of `=`, `!=`, `<`, `>`, `<=`, `>=`. `field` may be:
 

@@ -278,7 +278,12 @@ properties:
           a call if it matches any group, unless that group sets
           `filter: false` (Type classification only, excluded from the filter
           toggle — e.g. an intermediate "duplication" group that shouldn't
-          itself hard-filter). Leaf `field` may be `adjusted_cn` (the call's copy number —
+          itself hard-filter). A leaf whose field has no data for a given call
+          (e.g. a caller that never measured BAF for a segment) evaluates to
+          "unknown" rather than false, and `not`/`any_of`/`all_of` propagate
+          that three-valued logic — so `not` of an unknown condition stays
+          unknown instead of becoming true, and a group only matches on a
+          definite true result. Leaf `field` may be `adjusted_cn` (the call's copy number —
           recomputed live in the browser as the ploidy/purity/rounding
           controls are adjusted), `baf`, `length`, `caller`, or any field
           name listed in `extra_info_fields` below. `operator` is one of

@@ -384,18 +384,38 @@ def get_cnvs(vcf_filename, skip=None, extra_info_fields=None) -> Dict[str, Dict[
 def evaluate_filter_condition(cnv, condition):
     """
     Recursively evaluate a structured any_of/all_of/not/leaf filter condition
-    against a CNV record. Leaf conditions are {field, operator, value}, where
-    field is one of the fixed names "adjusted_cn" (mapped to cnv.cn, since
-    there's no live baseline/purity concept server-side), "baf", "length",
-    "caller", or any pipeline-configured name from merge_cnv_json.extra_info_fields
-    (looked up in cnv.extra).
+    against a CNV record, using three-valued logic: a leaf on a field with no
+    data (e.g. a caller that never measured BAF for this segment) evaluates
+    to None ("unknown") rather than False. This matters because a plain
+    two-valued not(missing)=not(False)=True would otherwise turn "we don't
+    know" into "definitely true" - e.g. a not(BAF-in-neutral-range) check
+    would spuriously pass for a call with no BAF data at all, rather than
+    correctly staying undetermined. classify_cnv/passes_table_filter only
+    treat an exact True result as a match; None (like False) does not match.
+
+    Leaf conditions are {field, operator, value}, where field is one of the
+    fixed names "adjusted_cn" (mapped to cnv.cn, since there's no live
+    baseline/purity concept server-side), "baf", "length", "caller", or any
+    pipeline-configured name from merge_cnv_json.extra_info_fields (looked up
+    in cnv.extra).
     """
     if "any_of" in condition:
-        return any(evaluate_filter_condition(cnv, c) for c in condition["any_of"])
+        results = [evaluate_filter_condition(cnv, c) for c in condition["any_of"]]
+        if any(r is True for r in results):
+            return True
+        if any(r is None for r in results):
+            return None
+        return False
     if "all_of" in condition:
-        return all(evaluate_filter_condition(cnv, c) for c in condition["all_of"])
+        results = [evaluate_filter_condition(cnv, c) for c in condition["all_of"]]
+        if any(r is False for r in results):
+            return False
+        if any(r is None for r in results):
+            return None
+        return True
     if "not" in condition:
-        return not evaluate_filter_condition(cnv, condition["not"])
+        result = evaluate_filter_condition(cnv, condition["not"])
+        return None if result is None else not result
 
     field_name = condition["field"]
     operator = condition["operator"]
@@ -409,7 +429,7 @@ def evaluate_filter_condition(cnv, condition):
     }
     cnv_value = field_map[field_name] if field_name in field_map else cnv.extra.get(field_name)
     if cnv_value is None:
-        return False
+        return None
 
     if operator == "=":
         return cnv_value == value
