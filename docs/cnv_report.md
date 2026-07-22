@@ -62,7 +62,7 @@ deletion:
   all_of:
     - {field: adjusted_cn, operator: "<", value: 1.4}
 loh:
-  label: "Copy-neutral LOH"  # overrides the auto-generated "Loh" — useful for acronyms/exact wording
+  label: "LOH"  # overrides the auto-generated "Loh" — useful for acronyms/exact wording
   all_of:
     - {field: adjusted_cn, operator: ">=", value: 1.4}
     - {field: adjusted_cn, operator: "<=", value: 2.5}
@@ -172,18 +172,22 @@ Both the chromosome and genome-wide plots can be switched between two Y-axis vie
 - **Log2 ratio** (default) — the raw, purity-independent log₂ ratio. If "Simulate purity" is also enabled, values are TC-adjusted before being expressed as a log₂ ratio.
 - **Copy number** — a linear, absolute copy-number scale (0–5 by default) instead of log₂ ratio. This view works even without "Simulate purity" enabled, in which case it assumes 100% purity; enabling "Simulate purity" makes the displayed numbers reflect the actual TC-adjusted copy number.
 
-The two views differ in how the baseline-offset slider and "Adjust to ploidy" button behave:
+The two views differ in how the baseline offset (whether set via the slider or the "Estimate baseline + TC" button) behaves:
 
-- In **Log2 ratio** view, the baseline offset shifts the plotted values, same as before — a log₂ ratio of 0 corresponds to whichever ploidy the offset represents.
-- In **Copy number** view, segments and points always show their **true absolute copy number**, unshifted. "Adjust to ploidy" and the baseline slider instead draw a highlighted horizontal reference line at the ploidy value, so you compare data against the line rather than the data moving to meet it. This avoids the copy-number axis mislabeling the true value once shifted.
+- In **Log2 ratio** view, the baseline offset shifts the plotted values, same as before — a log₂ ratio of 0 corresponds to whichever copy number the offset represents.
+- In **Copy number** view, segments and points always show their **true absolute copy number**, unshifted. The baseline offset instead draws a highlighted horizontal reference line at the corresponding copy number, so you compare data against the line rather than the data moving to meet it. This avoids the copy-number axis mislabeling the true value once shifted.
 
-Both views also always show a second, fixed reference line at true absolute copy number 2 (diploid) — independent of the baseline/ploidy adjustment, so there's a stable anchor to judge an adjusted baseline against, in either view. This line is styled distinctly (purple, long-dashed) so it isn't confused with the ploidy-adjustable baseline line, which is intentionally kept subdued in color so it doesn't draw attention away from the data.
+Both views also always show a second, fixed reference line at true absolute copy number 2 (diploid) — independent of the baseline adjustment, so there's a stable anchor to judge an adjusted baseline against, in either view. This line is styled the same as the mouse-hover guide line (solid gray), since it serves the same purpose: a neutral visual reference to read values against, not data that moves.
 
 The secondary axis on the right-hand side of each plot always shows copy number regardless of the active view (in Copy number view it mirrors the primary axis exactly), and the BAF row is labelled on both the left and right for readability.
 
-### Ploidy-adjusted baseline
+### Baseline and tumor content estimation
 
-The report includes a baseline offset slider and an "Adjust to ploidy" button, driven by the same mechanism described above. The ploidy field is pre-filled with the value estimated by PureCN when a `cnv_sv/purecn/{sample}_{type}.csv` file is available for the sample, but it can be freely edited, so the feature also works for samples where PureCN was not run.
+The report includes a baseline offset slider, driven by the mechanism described above, and an "Estimate baseline + TC" button that suggests values for both the baseline offset and the tumor cell content (TC) directly from the currently selected caller's own data — without relying on an external ploidy estimate, which can be wrong for samples with degenerate or heterogeneous purity/ploidy.
+
+The button looks for the lowest-log₂, sufficiently large (5 Mb by default), BAF-balanced segment genome-wide (autosomes only — chrX/Y are excluded, since chrX's BAF pattern is confounded by X-inactivation and sex-chromosome copy number doesn't follow the same model) and treats it as the CN=2 anchor, setting the baseline offset accordingly. It then looks for a segment with skewed BAF that isn't clearly *above* that baseline and, if one is found, sets the tumor cell content to the value that would resolve the segment's observed BAF skew back to a pure single-allele loss (BAF near 0 or 1) — enabling "Simulate purity" automatically so the estimated TC takes visible effect. This deliberately doesn't require the segment to sit below the baseline: a segment at roughly the same log₂ level as the anchor but with skewed BAF is a copy-neutral LOH (e.g. one allele lost, the other duplicated to compensate, so total copy number matches the background) — just as valid a TC source as a genuine lower-log₂ deletion. If no suitable baseline segment or deletion/LOH segment is found, a message explains what could not be determined; the baseline offset is still applied if only the TC step fails.
+
+Once a baseline offset is active (whether set by this button or entered manually), the report remembers which raw log₂ value it currently treats as exactly 2 copies. Because the mapping between a raw (TC-diluted) log₂ value and its absolute copy number depends on TC once "Simulate purity" is in effect, adjusting the TC slider afterwards — or toggling "Simulate purity" itself, which switches the TC actually applied between 1 and the real value — automatically re-solves the baseline offset so that same reference point stays pinned at exactly 2 copies, rather than silently drifting out of sync with the newly-adjusted TC.
 
 ### Gene Focus
 
@@ -230,7 +234,7 @@ The report includes the following interactive features:
 | Log2 ratio / Copy number toggle | Switches the Y-axis between log₂ ratio and a linear, absolute copy-number scale; see [Log2 ratio vs. Copy number view](#log2-ratio-vs-copy-number-view) |
 | Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
 | Absolute copy number | Snaps segment lines to whole-number copy number; requires **Simulate purity** to be enabled first |
-| Adjust to ploidy | Button that marks (Copy number view) or shifts to (Log2 ratio view) a chosen ploidy, pre-filled from PureCN when available |
+| Estimate baseline + TC | Button that finds a balanced baseline segment and a skewed deletion segment from the current caller's own data and sets the baseline offset and tumor cell content accordingly, without relying on an external ploidy estimate |
 | Gene Focus | Displays data points with equal spacing along the x-axis instead of by genomic position |
 | Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
 | Caller toggle | Switch between callers (CNVkit, GATK, Jumble) in the chromosome and genome plots |

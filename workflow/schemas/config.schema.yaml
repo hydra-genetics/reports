@@ -273,8 +273,8 @@ properties:
           and `{field, operator, value}` leaves. A call's Type is the name of
           the first group (in definition order) whose criteria it satisfies
           (title-cased, or the group's `label` if it sets one — useful for
-          acronyms like "Copy-neutral LOH" that shouldn't be auto-capitalized
-          as "Loh"), or "Copy neutral" if none match. The filter toggle shows
+          acronyms like "LOH" that shouldn't be auto-capitalized as "Loh"),
+          or "Copy neutral" if none match. The filter toggle shows
           a call if it matches any group, unless that group sets
           `filter: false` (Type classification only, excluded from the filter
           toggle — e.g. an intermediate "duplication" group that shouldn't

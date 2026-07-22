@@ -63,19 +63,36 @@
           are left unrounded.
         </p>
         <p>
-          The "Adjust to ploidy" button shifts the baseline offset so that a
-          log2 ratio of 0 corresponds to the given ploidy instead of the
-          default assumption of 2 (diploid). The ploidy field is pre-filled
-          with PureCN's estimate when available, but can be edited freely.
+          The "Estimate baseline + TC" button finds the lowest-log2,
+          sufficiently large, BAF-balanced segment genome-wide for the
+          currently selected caller and sets the baseline offset so that
+          segment corresponds to 2 copies — rather than relying on an
+          external ploidy estimate, which can be wrong for degenerate or
+          heterogeneous samples. It then looks for a clear, BAF-skewed
+          deletion relative to that baseline and, if one is found, also sets
+          the tumor cell content to the value that would resolve the
+          deletion's observed BAF skew back to a pure loss (BAF near 0 or 1).
+          If no suitable baseline segment is found, or no suitable deletion
+          is found, a message explains what could not be determined.
+        </p>
+        <p>
+          Once a baseline has been set (by this button, or by manually
+          entering a value), the report remembers which raw log&#8322; value
+          that baseline treats as exactly 2 copies. Adjusting the tumor cell
+          content slider afterwards, or toggling "Simulate purity", keeps
+          that same reference point pinned at 2 copies by automatically
+          re-adjusting the baseline offset — since the two are mathematically
+          linked once purity is simulated, this avoids the baseline silently
+          becoming inconsistent with a newly-adjusted tumor cell content.
         </p>
         <p>
           The "Log2 ratio" / "Copy number" switch changes how the ratio plots
           are displayed. "Copy number" shows a linear, absolute copy-number
           scale (assuming 100% purity if "Simulate purity" is not checked)
           instead of log2 ratio. In this view, segments and points always
-          show their true absolute copy number — "Adjust to ploidy" and the
-          baseline-offset slider don't shift them, they instead draw a
-          highlighted reference line at the ploidy value for comparison.
+          show their true absolute copy number — the baseline-offset slider
+          doesn't shift them, it instead draws a highlighted reference line
+          at the corresponding copy number for comparison.
         </p>
 
         {% if metadata.show_table %}
@@ -216,10 +233,7 @@
               </div>
 
               <div class="control-group">
-                <label for="ploidy-input">Ploidy</label>
-                <input type="number" min="1" max="16" step="0.1" id="ploidy-input"
-                  value="{{ metadata.ploidy if metadata.ploidy is not none else 2 }}" />
-                <button id="adjust-to-ploidy">Adjust to ploidy</button>
+                <button id="estimate-baseline-tc">Estimate baseline + TC</button>
               </div>
 
               <div class="control-group">
@@ -313,7 +327,6 @@
     const decompressed = pako.inflate(bytes, { to: 'string' });
     let cnvData = JSON.parse(decompressed);
     const originalTc = {{ metadata.tc if metadata.tc is not none else 1 }};
-    const purecnPloidy = {{ metadata.ploidy if metadata.ploidy is not none else 2 }};
     const widePlotWidth = {{ metadata.wide_plot_width | lower if metadata.wide_plot_width is boolean else metadata.wide_plot_width }};
   </script>
   <!-- prettier-ignore -->

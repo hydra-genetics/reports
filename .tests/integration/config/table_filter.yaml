@@ -10,7 +10,7 @@ deletion:
   all_of:
     - {field: adjusted_cn, operator: "<", value: 1.4}
 loh:
-  label: "Copy-neutral LOH"
+  label: "LOH"
   all_of:
     - {field: adjusted_cn, operator: ">=", value: 1.4}
     - {field: adjusted_cn, operator: "<=", value: 2.5}

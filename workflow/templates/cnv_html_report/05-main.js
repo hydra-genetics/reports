@@ -264,6 +264,55 @@ const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
 const currentBaselineOffset = d3.select("#current-baseline-offset");
 const baselineOffsetReset = d3.select("#reset-baseline-offset");
 
+// The raw log2 value the currently active baseline offset treats as exactly
+// 2 absolute copies (see baselineOffsetFromAnchor/anchorLog2FromBaselineOffset
+// in 06-baseline-tc-estimator.js). baselineOffset alone isn't TC-independent
+// once "Simulate purity" is active - the same anchor point needs a different
+// baselineOffset at a different TC to keep resolving to exactly 2 copies -
+// so this is tracked separately and used to keep the two in sync whenever TC
+// changes (or "Simulate purity" is toggled, which switches the TC that's
+// actually applied between 1 and the real value). Starts at 0 to match the
+// default baselineOffset=0, which is itself TC-independent (see derivation).
+let lastAnchorLog2 = 0;
+
+// simulatePurity/currentTc are declared further below, but this is only
+// ever called from within event handlers, which all run after the entire
+// script (including those declarations) has finished executing.
+function effectiveTc() {
+  return simulatePurity.node().checked ? parseFloat(currentTc.node().value) : 1;
+}
+
+// Applies a baseline offset value to the slider/display/views only - does
+// not touch lastAnchorLog2. Callers decide separately whether this offset
+// should update the tracked anchor (a manual/estimated change should) or not
+// (reapplyBaselineFromAnchor recomputes an offset *from* the existing
+// anchor, so it must leave it untouched).
+function setBaselineOffsetUI(dy) {
+  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  baselineOffsetSlider.node().value = dy;
+  currentBaselineOffset.node().value = strdy;
+  currentBaselineOffset.node().classList.remove("invalid");
+  currentBaselineOffset.node().title = "";
+  baselineOffsetReset.property("disabled", dy === 0);
+  chromosomePlot.setBaselineOffset(dy);
+  genomePlot.setBaselineOffset(dy);
+  resultsTable.setBaselineOffset(dy);
+}
+
+// Recomputes the baseline offset from the tracked anchor at whatever TC is
+// currently effective, keeping that anchor pinned at exactly 2 absolute
+// copies as TC changes. No-op if no anchor has ever been established.
+function reapplyBaselineFromAnchor() {
+  if (lastAnchorLog2 === null) return;
+  const minDy = parseFloat(baselineOffsetSlider.node().min);
+  const maxDy = parseFloat(baselineOffsetSlider.node().max);
+  const dy = Math.min(
+    maxDy,
+    Math.max(minDy, baselineOffsetFromAnchor(lastAnchorLog2, effectiveTc()))
+  );
+  setBaselineOffsetUI(dy);
+}
+
 baselineOffsetSlider.on("change", () => {
   currentBaselineOffset.node().dispatchEvent(new Event("change"));
 });
@@ -288,20 +337,10 @@ currentBaselineOffset.on("change", (e) => {
     return;
   }
 
-  e.target.classList.remove("invalid");
-  e.target.title = "";
-
-  baselineOffsetReset.property("disabled", true);
-  if (dy != 0) {
-    baselineOffsetReset.property("disabled", false);
-  }
-
-  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  baselineOffsetSlider.node().value = dy;
-  currentBaselineOffset.node().value = strdy;
-  chromosomePlot.setBaselineOffset(dy);
-  genomePlot.setBaselineOffset(dy);
-  resultsTable.setBaselineOffset(dy);
+  setBaselineOffsetUI(dy);
+  // A manual edit defines a fresh anchor at whichever raw log2 this offset
+  // currently corresponds to, at the currently-effective TC.
+  lastAnchorLog2 = anchorLog2FromBaselineOffset(dy, effectiveTc());
 });
 
 baselineOffsetReset.on("click", () => {
@@ -309,34 +348,6 @@ baselineOffsetReset.on("click", () => {
   baselineOffsetReset.property("disabled", true);
   currentBaselineOffset.node().value = "0.00";
   baselineOffsetSlider.node().dispatchEvent(new Event("change"));
-});
-
-const ploidyInput = d3.select("#ploidy-input");
-const adjustToPloidyButton = d3.select("#adjust-to-ploidy");
-
-adjustToPloidyButton.on("click", () => {
-  const ploidyValue = parseFloat(ploidyInput.node().value);
-  if (isNaN(ploidyValue) || ploidyValue <= 0) {
-    return;
-  }
-
-  const minDy = parseFloat(baselineOffsetSlider.node().min);
-  const maxDy = parseFloat(baselineOffsetSlider.node().max);
-  const dy = Math.min(maxDy, Math.max(minDy, Math.log2(ploidyValue / 2)));
-  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
-
-  // Apply the full-precision dy directly rather than round-tripping it
-  // through the (rounded, display-only) number input's value + change event —
-  // that round trip previously lost precision (e.g. 0.58496... -> "0.585"),
-  // which could silently shift which points a downstream floor-clamp comparison excludes.
-  baselineOffsetSlider.node().value = dy;
-  currentBaselineOffset.node().value = strdy;
-  currentBaselineOffset.node().classList.remove("invalid");
-  currentBaselineOffset.node().title = "";
-  baselineOffsetReset.property("disabled", dy === 0);
-  chromosomePlot.setBaselineOffset(dy);
-  genomePlot.setBaselineOffset(dy);
-  resultsTable.setBaselineOffset(dy);
 });
 
 const simulatePurity = d3.select("#simulate-purity");
@@ -437,6 +448,12 @@ currentTc.on("change", (e) => {
   chromosomePlot.setTc(tc);
   genomePlot.setTc(tc);
   resultsTable.setTc(tc);
+
+  // Keep whichever anchor is currently tracked pinned at exactly 2 copies
+  // under the new TC. This also fires whenever "Simulate purity" is
+  // toggled, since that handler unconditionally dispatches "change" on
+  // currentTc to apply the effective-TC switch between 1 and the real value.
+  reapplyBaselineFromAnchor();
 });
 
 tcAdjustReset.on("click", () => {
@@ -444,6 +461,66 @@ tcAdjustReset.on("click", () => {
   tcAdjustReset.property("disabled", true);
   currentTc.node().value = originalTc;
   tcAdjustSlider.node().dispatchEvent(new Event("change"));
+});
+
+const estimateBaselineTcButton = d3.select("#estimate-baseline-tc");
+
+estimateBaselineTcButton.on("click", () => {
+  const result = estimateBaselineAndTc(
+    cnvData,
+    chromosomePlot.activeCaller,
+    parseFloat(currentTc.node().value)
+  );
+
+  if (result === null) {
+    setModalMessage(
+      "Could not find a segment suitable to use as the baseline anchor " +
+      "(no sufficiently large, BAF-balanced segment was found for this caller).",
+      "warning"
+    );
+    messageModal.showModal();
+    return;
+  }
+
+  const minDy = parseFloat(baselineOffsetSlider.node().min);
+  const maxDy = parseFloat(baselineOffsetSlider.node().max);
+  const dy = Math.min(maxDy, Math.max(minDy, result.baselineOffset));
+
+  // Apply the full-precision dy directly rather than round-tripping it
+  // through the (rounded, display-only) number input's value + change event —
+  // see the "Adjust to ploidy"-derived comment further up for why this matters.
+  setBaselineOffsetUI(dy);
+  lastAnchorLog2 = result.anchorLog2;
+
+  if (result.tc === null) {
+    setModalMessage(
+      "Baseline offset updated. No suitable deletion segment was found to " +
+      "estimate tumor cell content from, so tumor cell content was left unchanged.",
+      "warning"
+    );
+    messageModal.showModal();
+    return;
+  }
+
+  const minTc = parseFloat(tcAdjustSlider.node().min);
+  const maxTc = parseFloat(tcAdjustSlider.node().max);
+  const tc = Math.min(maxTc, Math.max(minTc, result.tc));
+  const strtc = tc.toLocaleString("en-US", { minimumFractionDigits: 2 });
+
+  // Pre-stage the estimated TC before enabling "Simulate purity", so that
+  // whichever change cascade ends up applying it (the simulatePurity toggle
+  // below, and/or the explicit dispatch that follows) reads this final
+  // value rather than whatever TC was active before this click - that
+  // cascade is also what runs reapplyBaselineFromAnchor, so the baseline set
+  // above stays consistent with whichever TC ends up active.
+  tcAdjustSlider.node().value = tc;
+  currentTc.node().value = strtc;
+
+  if (!simulatePurity.node().checked) {
+    simulatePurity.property("checked", true);
+    simulatePurity.node().dispatchEvent(new Event("change"));
+  }
+  currentTc.node().dispatchEvent(new Event("change"));
 });
 
 d3.selectAll("input[name=dataset]").on("change", (e) => {
