@@ -92,6 +92,18 @@ function isAutosome(chromosome) {
 // isAutosome), with its length and BAF balance statistic attached. Segments
 // where the balance call is unreliable (segmentBalance returned null) are
 // dropped entirely.
+//
+// Known limitation: this reliability check runs per raw segment, BEFORE
+// clusterByLog2Proximity groups same-event neighbors together. A caller
+// whose segmentation happens to fragment part of a real event into pieces
+// too small to individually clear MIN_SNPS_PER_SEGMENT will lose that part
+// of the event entirely, even though the same underlying BAF data (shared
+// across callers) might have been dense enough if pooled across the whole
+// event first. This can make two callers' depth-based TC estimates for
+// what's really the same deletion diverge, if one caller's segmentation is
+// coarser (keeping the event whole) than another's (splitting it up).
+// Moving this check to run on each cluster's pooled points, after
+// clustering, would fix this, but is a real restructuring - not done here.
 function collectCandidates(cnvData, callerIndex) {
   const candidates = [];
   cnvData.forEach((chromData) => {
@@ -172,43 +184,119 @@ function findBaselineAnchor(cnvData, callerIndex, currentTc) {
   return largestSurvivor.log2;
 }
 
+// Greedily groups pre-sorted-by-log2 segments into clusters: a new segment
+// joins the current cluster if it's within `tolerance` of the cluster's
+// current LAST (i.e. highest-so-far) member, otherwise it starts a new
+// cluster. This is what correctly merges same-event segments that
+// segmentation split apart (e.g. two adjacent, near-identical-log2 segments
+// separated only by a small intervening outlier segment) into one larger,
+// more reliable combined candidate, rather than comparing each in isolation.
+function clusterByLog2Proximity(segments, tolerance) {
+  if (segments.length === 0) return [];
+  const sorted = [...segments].sort((a, b) => a.log2 - b.log2);
+  const clusters = [[sorted[0]]];
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    const currentCluster = clusters[clusters.length - 1];
+    const previous = currentCluster[currentCluster.length - 1];
+    if (current.log2 - previous.log2 <= tolerance) {
+      currentCluster.push(current);
+    } else {
+      clusters.push([current]);
+    }
+  }
+  return clusters;
+}
+
 // Among segments no higher than the anchor's own cluster range (raw log2
 // space, scale-invariant - doesn't need TC to already be known beyond what
 // clusterTolerance already uses) and BAF-skewed (unlike the balanced anchor
-// candidates), pick the largest as the most reliable TC-solving candidate.
-// Deliberately has NO lower bound: a segment doesn't need to sit below the
-// anchor to be a valid single-allele-loss candidate. A segment at roughly
-// the SAME log2 as the anchor but with skewed BAF is a copy-neutral LOH
-// (e.g. 2+0 - one allele lost, the other duplicated to compensate, so total
-// copy number matches the background) - just as valid a source for the
-// BAF-skew TC formula as a genuine lower-log2 deletion (e.g. 1+0), since
-// both are fully monoallelic in the pure tumor. Segments CLEARLY ABOVE the
-// anchor are excluded because a real gain more plausibly retains both
-// alleles in some ratio (e.g. 3+1) rather than being fully monoallelic,
-// which the zero-BAF-in-pure-tumor assumption doesn't hold for. Any segment
-// length is eligible here - these events can be focal/small, unlike the
-// anchor which needs to be large.
+// candidates), group same-event neighbors together (see
+// clusterByLog2Proximity) and pick the largest resulting cluster - preferring
+// a genuine NET LOSS cluster (clearly below the anchor) over a SAME-LEVEL
+// (copy-neutral LOH) cluster whenever both exist, regardless of size: a
+// depth-confirmed net loss is a more reliable signal than BAF skew alone,
+// which has no independent depth cross-check at the anchor's own level (see
+// estimateTcFromNetLoss vs estimateTcFromDeletion).
+//
+// Deliberately has NO lower bound on the candidate pool itself: a segment
+// doesn't need to sit below the anchor to be a valid single-allele-loss
+// candidate. A segment at roughly the SAME log2 as the anchor but with
+// skewed BAF is a copy-neutral LOH (e.g. 2+0 - one allele lost, the other
+// duplicated to compensate, so total copy number matches the background) -
+// just as valid a source for the BAF-skew TC formula as a genuine
+// lower-log2 deletion (e.g. 1+0), since both are fully monoallelic in the
+// pure tumor. Segments CLEARLY ABOVE the anchor are excluded because a real
+// gain more plausibly retains both alleles in some ratio (e.g. 3+1) rather
+// than being fully monoallelic, which the zero-BAF-in-pure-tumor assumption
+// doesn't hold for. Any segment length is eligible here - these events can
+// be focal/small, unlike the anchor which needs to be large.
+//
+// Returns { cluster: { log2, balance, length }, isNetLoss } | null, where
+// log2/balance are length-weighted across the cluster's members.
 function findDeletionSegment(cnvData, callerIndex, anchorLog2, currentTc) {
-  const upperBound = anchorLog2 + clusterTolerance(currentTc);
+  const tolerance = clusterTolerance(currentTc);
+  const upperBound = anchorLog2 + tolerance;
+  const lowerBoundForSameLevel = anchorLog2 - tolerance;
+
   const all = collectCandidates(cnvData, callerIndex);
-  const deletions = all.filter(
+  const skewed = all.filter(
     (s) => s.log2 <= upperBound && s.balance > BALANCED_BAF_THRESHOLD
   );
-  if (deletions.length === 0) return null;
-  return deletions.reduce((best, s) => (s.length > best.length ? s : best));
+  if (skewed.length === 0) return null;
+
+  const clusters = clusterByLog2Proximity(skewed, tolerance).map((members) => {
+    const length = members.reduce((sum, s) => sum + s.length, 0);
+    return {
+      members,
+      length,
+      log2: weightedMedianLog2(members),
+      balance: members.reduce((sum, s) => sum + s.balance * s.length, 0) / length,
+    };
+  });
+
+  const netLoss = clusters.filter((c) => c.log2 < lowerBoundForSameLevel);
+  const sameLevel = clusters.filter((c) => c.log2 >= lowerBoundForSameLevel);
+  const pool = netLoss.length > 0 ? netLoss : sameLevel;
+
+  const chosen = pool.reduce((best, c) => (c.length > best.length ? c : best));
+  return { cluster: chosen, isNetLoss: netLoss.length > 0 };
 }
 
 // Solve transformBAF's purity-dilution model (observed = tc*pureTumorBAF +
-// (1-tc)*0.5) for TC, assuming the deletion is fully resolved in the pure
-// tumor (pureTumorBAF = 0 or 1): tc = 1 - 2*minorAlleleFraction. Reuses
+// (1-tc)*0.5) for TC, assuming the LOH is fully resolved in the pure tumor
+// (pureTumorBAF = 0 or 1): tc = 1 - 2*minorAlleleFraction. Reuses
 // segmentBalance's already-correctly-folded "balance" statistic rather than
 // a separately pooled BAF median - folding each point to |baf-0.5| first
 // and taking the median afterwards is order-preserving, so
 // minorAlleleFraction = 0.5 - balance exactly; a plain median of pooled,
-// unfolded BAF values would not be (see segmentBalance's comment).
-function estimateTcFromDeletion(deletionSegment) {
-  const minorAlleleFraction = 0.5 - deletionSegment.balance;
+// unfolded BAF values would not be (see segmentBalance's comment). Used for
+// SAME-LEVEL (copy-neutral LOH) clusters, where depth is uninformative by
+// construction (see estimateTcFromNetLoss).
+function estimateTcFromDeletion(cluster) {
+  const minorAlleleFraction = 0.5 - cluster.balance;
   const tc = 1 - 2 * minorAlleleFraction;
+  return Math.min(1, Math.max(0, tc));
+}
+
+// Solves #toAbsoluteCopyNumber's model directly for TC, assuming the
+// cluster is a genuine NET LOSS (exactly 1 absolute copy) relative to the
+// anchor: adjCopies(anchorLog2)=2 and adjCopies(cluster.log2)=1 hold
+// simultaneously for the same TC. Since K = tc*psi + 2*(1-tc) = 2^(1-anchorLog2)
+// is fixed by the anchor equation alone (tc-independent - see
+// baselineOffsetFromAnchor/clusterTolerance's derivation), substituting into
+// the second equation and solving directly for tc gives a closed form with
+// no need to know psi/baselineOffset first:
+//   tc = 2 - 2^(1 + cluster.log2 - anchorLog2)
+// Only valid when the cluster sits clearly BELOW the anchor - AT the
+// anchor's own level this is degenerate (cluster.log2≈anchorLog2 gives
+// tc≈0, meaningless), which is exactly why same-level LOH clusters use
+// estimateTcFromDeletion (BAF-based) instead. Depth is generally a more
+// reliable signal than a single cluster's BAF here (better SNR), which is
+// also why net-loss clusters are preferred over same-level ones in
+// findDeletionSegment whenever both exist.
+function estimateTcFromNetLoss(cluster, anchorLog2) {
+  const tc = 2 - 2 ** (1 + cluster.log2 - anchorLog2);
   return Math.min(1, Math.max(0, tc));
 }
 
@@ -251,8 +339,13 @@ function estimateBaselineAndTc(cnvData, callerIndex, currentTc) {
   const anchorLog2 = findBaselineAnchor(cnvData, callerIndex, currentTc);
   if (anchorLog2 === null) return null;
 
-  const deletionSegment = findDeletionSegment(cnvData, callerIndex, anchorLog2, currentTc);
-  const tc = deletionSegment === null ? null : estimateTcFromDeletion(deletionSegment);
+  const found = findDeletionSegment(cnvData, callerIndex, anchorLog2, currentTc);
+  const tc =
+    found === null
+      ? null
+      : found.isNetLoss
+        ? estimateTcFromNetLoss(found.cluster, anchorLog2)
+        : estimateTcFromDeletion(found.cluster);
 
   // Solve the baseline offset against whichever TC will actually end up
   // active once this result is applied: the newly estimated TC if one was
