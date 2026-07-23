@@ -397,7 +397,12 @@ def evaluate_filter_condition(cnv, condition):
     fixed names "adjusted_cn" (mapped to cnv.cn, since there's no live
     baseline/purity concept server-side), "baf", "length", "caller", or any
     pipeline-configured name from merge_cnv_json.extra_info_fields (looked up
-    in cnv.extra).
+    in cnv.extra). A leaf may set "default" to a value used in place of
+    missing data instead of returning None - e.g. a caller that only reports
+    a co-located variant's AF when one exists can set default=0 on that leaf,
+    so "no matching variant" is treated as "no evidence of a problem" rather
+    than blocking classification entirely (see config_table_filter.yaml's
+    Twist_AF leaves).
     """
     if "any_of" in condition:
         results = [evaluate_filter_condition(cnv, c) for c in condition["any_of"]]
@@ -429,7 +434,9 @@ def evaluate_filter_condition(cnv, condition):
     }
     cnv_value = field_map[field_name] if field_name in field_map else cnv.extra.get(field_name)
     if cnv_value is None:
-        return None
+        if "default" not in condition:
+            return None
+        cnv_value = condition["default"]
 
     if operator == "=":
         return cnv_value == value

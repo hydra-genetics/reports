@@ -129,7 +129,12 @@ class ResultsTable extends EventTarget {
   // instead of spuriously becoming true - e.g. not(BAF-in-neutral-range)
   // must not pass just because BAF wasn't measured for this call.
   // #firstMatchingGroup only treats an exact `true` result as a match, so
-  // null (like false) never matches - no special-casing needed there.
+  // null (like false) never matches - no special-casing needed there. A leaf
+  // may set `default` to a value used in place of missing data instead of
+  // returning null - e.g. a caller that only reports a co-located variant's
+  // AF when one exists can set `default: 0` on that leaf, so "no matching
+  // variant" is treated as "no evidence of a problem" rather than blocking
+  // classification entirely (see config_table_filter.yaml's Twist_AF leaves).
   #evaluateCondition(fields, condition) {
     if ("any_of" in condition) {
       const results = condition.any_of.map((c) => this.#evaluateCondition(fields, c));
@@ -155,9 +160,10 @@ class ResultsTable extends EventTarget {
       length: fields.length,
       caller: fields.caller,
     };
-    const cnvValue = field in fixed ? fixed[field] : fields.extra?.[field];
+    let cnvValue = field in fixed ? fixed[field] : fields.extra?.[field];
     if (cnvValue === null || cnvValue === undefined) {
-      return null;
+      if (!("default" in condition)) return null;
+      cnvValue = condition.default;
     }
 
     switch (operator) {
@@ -195,7 +201,11 @@ class ResultsTable extends EventTarget {
   // static (VCF SVTYPE) classification when no table_filter_config is
   // configured, or when there's no usable live CN to classify — necessary
   // since caller SVTYPE vocabularies aren't standardized (cnvkit: DUP/DEL/
-  // COPY_NORMAL, GATK: <COPY_GAIN>/<COPY_LOSS>/<COPY_NORMAL>).
+  // COPY_NORMAL, GATK: <COPY_GAIN>/<COPY_LOSS>/<COPY_NORMAL>). Once a live CN
+  // is available, "no group matched" is trusted as genuine "Copy neutral" -
+  // any leaf that would otherwise block a match on missing data (e.g. a
+  // caller reporting no BAF) is expected to declare a `default` if it
+  // shouldn't be a blocker (see #evaluateCondition).
   #liveType(fields, staticType) {
     if (!this.#filterConfig) return staticType;
     if (fields.adjustedCn === null || fields.adjustedCn === undefined) return staticType;
