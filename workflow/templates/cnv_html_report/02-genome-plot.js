@@ -132,8 +132,17 @@ class GenomePlot extends EventTarget {
         g.call(d3.axisRight(this.ratioYScale).tickValues(positions).tickFormat(format));
       } else {
         // Fixed domain (see #updateCnAxis - no longer baseline-shifted), so
-        // this always shows the same standard powers-of-2 positions.
-        g.call(d3.axisRight(this.cnYScale).ticks(5));
+        // tick positions don't move. The printed labels are relabeled by the
+        // same multiplicative scaleFactor as the copy-number-view axis (see
+        // 01-chromosome-plot.js's cnYAxis for the full rationale), so this
+        // reads consistently with baseline adjustments in both view modes.
+        const scaleFactor = 2 ** this.baselineOffset;
+        g.call(
+          d3
+            .axisRight(this.cnYScale)
+            .ticks(5)
+            .tickFormat((d) => d3.format("~g")(d * scaleFactor))
+        );
       }
     };
 
@@ -343,7 +352,10 @@ class GenomePlot extends EventTarget {
     const tc = this.simulatePurity ? this.tc : 1;
     let adjCopies = (2 ** x * (tc * 2 + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (isSegment && this.roundSegmentsToInteger) {
-      adjCopies = Math.round(adjCopies);
+      // Round in the axis's relabeled space, not raw position space - see
+      // 01-chromosome-plot.js's identical #toAbsoluteCopyNumber for why.
+      const scaleFactor = 2 ** this.baselineOffset;
+      adjCopies = Math.round(adjCopies * scaleFactor) / scaleFactor;
     }
     return Math.max(adjCopies, MIN_COPY_NUMBER);
   }
@@ -514,14 +526,19 @@ class GenomePlot extends EventTarget {
     let values, yScale;
 
     if (integerMode) {
+      // cnYScale is baseline-independent (see #toAbsoluteCopyNumber), so a
+      // label n corresponds to raw CN n/scaleFactor - matching
+      // ChromosomePlot's #plotIntegerGridlines (see there for the full
+      // rationale on why raw integers would drift from the labels).
+      const scaleFactor = 2 ** this.baselineOffset;
       const [cnMin, cnMax] = this.cnYScale.domain();
-      const startN = Math.max(0, Math.ceil(cnMin));
-      const endN = Math.floor(cnMax);
+      const startLabel = Math.max(0, Math.ceil(cnMin * scaleFactor));
+      const endLabel = Math.floor(cnMax * scaleFactor);
       values = [];
-      for (let n = startN; n <= endN; n++) {
-        values.push(n);
+      for (let label = startLabel; label <= endLabel; label++) {
+        values.push(label);
       }
-      yScale = this.cnYScale;
+      yScale = (d) => this.cnYScale(d / scaleFactor);
     } else if (this.viewMode === "copyNumber") {
       // Reuse the axis's own tick positions (see cnTicksAndFormat) rather
       // than independently recomputing raw integer positions - copy number
@@ -1001,9 +1018,14 @@ class GenomePlot extends EventTarget {
               .attr("opacity", 1);
           },
           (update) => {
+            // Applied directly, not via .transition(): see
+            // 01-chromosome-plot.js's identical #plotSegments fix - two
+            // update() calls fired back-to-back (e.g. "Simulate purity"
+            // auto-switching view mode, immediately followed by "Round
+            // segments to integer") can leave an element's position stuck
+            // at the first (unrounded/pre-toggle) value instead of the
+            // latest one.
             return update
-              .transition()
-              .duration(self.animationDuration)
               .attr("y1", (d) => self.ratioYScale(d.log2))
               .attr("y2", (d) => self.ratioYScale(d.log2));
           },

@@ -97,10 +97,11 @@
           copy number always renders at the same position. What changes
           instead is how the axes are labelled: in "Log2 ratio" view, the
           primary axis's "0" label moves to wherever the current baseline
-          sits (the secondary copy-number axis on the right stays at its
-          standard, fixed positions); in "Copy number" view, the axis's
-          labels rescale to show what each fixed row currently represents
-          under the chosen baseline. Small triangle markers on the left and
+          sits, and the secondary copy-number axis on the right relabels the
+          same way (its tick positions stay fixed, standard powers of 2, but
+          the printed numbers rescale with the baseline); in "Copy number"
+          view, the axis's labels rescale to show what each fixed row
+          currently represents under the chosen baseline. Small triangle markers on the left and
           right edges of the plot point at wherever the current baseline sits
           (i.e. the row currently labelled "2" / "0"), while a thicker,
           full-width reference line always marks the FIXED position of true

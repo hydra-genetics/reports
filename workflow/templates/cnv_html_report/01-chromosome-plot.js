@@ -13,6 +13,14 @@ class YCursor {
     this.secondaryYScale = config?.secondaryYScale
       ? config.secondaryYScale
       : null;
+    // Applied to the raw inverted value before display - lets callers whose
+    // axis relabels its ticks (e.g. the baseline-relabeled copy-number/log2
+    // axes) show the same relabeled number the axis itself prints at that
+    // row, instead of the raw underlying value.
+    this.format = config?.format ? config.format : (v) => v.toLocaleString();
+    this.secondaryFormat = config?.secondaryFormat
+      ? config.secondaryFormat
+      : (v) => v.toLocaleString();
     this.hidden = config?.hidden ? config.hidden : true;
 
     if (this.yScale === null) {
@@ -80,14 +88,14 @@ class YCursor {
   }
 
   set(y) {
-    let label = this.yScale.invert(y).toLocaleString();
+    let label = this.format(this.yScale.invert(y));
     let textWidth = getTextDimensions(label, this.fontSize)[0];
     let labelWidth = textWidth + this.labelMargin.left + this.labelMargin.right;
 
     this.cursor.attr("opacity", 1).attr("transform", `translate(0,${y})`);
 
     if (this.secondaryYScale !== null) {
-      let secondaryLabel = this.secondaryYScale.invert(y).toLocaleString();
+      let secondaryLabel = this.secondaryFormat(this.secondaryYScale.invert(y));
       let secondaryTextWidth = getTextDimensions(
         secondaryLabel,
         this.fontSize
@@ -346,9 +354,19 @@ class ChromosomePlot extends EventTarget {
         g.call(d3.axisRight(this.ratioYScale).tickValues(positions).tickFormat(format));
       } else {
         // Fixed domain (see #updateAxes - no longer baseline-shifted), so
-        // this always shows the same standard powers-of-2 positions - d3's
-        // own log-scale tick picker already produces clean values here.
-        g.call(d3.axisRight(this.cnYScale).ticks(5));
+        // tick positions don't move - d3's own log-scale tick picker already
+        // produces clean values here. The printed labels are relabeled by
+        // the same multiplicative scaleFactor as the copy-number-view axis
+        // (see cnTicksAndFormat), so this reads consistently with baseline
+        // adjustments in both view modes rather than always showing the
+        // raw, unadjusted copy number.
+        const scaleFactor = 2 ** this.baselineOffset;
+        g.call(
+          d3
+            .axisRight(this.cnYScale)
+            .ticks(5)
+            .tickFormat((d) => d3.format("~g")(d * scaleFactor))
+        );
       }
     };
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
@@ -568,7 +586,14 @@ class ChromosomePlot extends EventTarget {
     const tc = this.simulatePurity ? this.tc : 1;
     let adjCopies = (2 ** x * (tc * 2 + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (isSegment && this.roundSegmentsToInteger) {
-      adjCopies = Math.round(adjCopies);
+      // Round in the axis's relabeled space (same scaleFactor as
+      // cnTicksAndFormat), not raw position space - positions here are
+      // pinned to a fixed psi=2 (baseline offset ignored, see class comment
+      // above), so a segment rounded to a raw integer would land off the
+      // axis's own "nice integer" gridlines once baselineOffset != 0 (those
+      // gridlines sit at label/scaleFactor, not at raw integers).
+      const scaleFactor = 2 ** this.baselineOffset;
+      adjCopies = Math.round(adjCopies * scaleFactor) / scaleFactor;
     }
     return Math.max(adjCopies, MIN_COPY_NUMBER);
   }
@@ -1049,9 +1074,13 @@ class ChromosomePlot extends EventTarget {
 
   /**
    * Draw a faint horizontal reference line at every whole-number copy-number
-   * position currently visible, so rounded segments have something to
-   * visually snap to. Only active in "simulate purity" + "round segments"
-   * mode; otherwise the group is cleared.
+   * LABEL currently visible, so rounded segments have something to visually
+   * snap to. Only active in "simulate purity" + "round segments" mode;
+   * otherwise the group is cleared. cnYScale is baseline-independent (see
+   * #toAbsoluteCopyNumber), so a label n corresponds to raw CN n/scaleFactor
+   * - using raw integers directly here (as if labels were never relabeled)
+   * would draw these reference lines away from where segments actually
+   * round to once baselineOffset != 0.
    */
   #plotIntegerGridlines() {
     if (!(this.viewMode === "log2" && this.simulatePurity && this.roundSegmentsToInteger)) {
@@ -1059,12 +1088,13 @@ class ChromosomePlot extends EventTarget {
       return;
     }
 
+    const scaleFactor = 2 ** this.baselineOffset;
     const [cnMin, cnMax] = this.cnYScale.domain();
-    const startN = Math.max(0, Math.ceil(cnMin));
-    const endN = Math.floor(cnMax);
+    const startLabel = Math.max(0, Math.ceil(cnMin * scaleFactor));
+    const endLabel = Math.floor(cnMax * scaleFactor);
     const values = [];
-    for (let n = startN; n <= endN; n++) {
-      values.push(n);
+    for (let label = startLabel; label <= endLabel; label++) {
+      values.push(label);
     }
     const plotWidth = this.width - this.margin.left - this.margin.right;
 
@@ -1078,8 +1108,8 @@ class ChromosomePlot extends EventTarget {
             .attr("class", "integer-cn-gridline")
             .attr("x1", 0)
             .attr("x2", plotWidth)
-            .attr("y1", (d) => this.cnYScale(d))
-            .attr("y2", (d) => this.cnYScale(d))
+            .attr("y1", (d) => this.cnYScale(d / scaleFactor))
+            .attr("y2", (d) => this.cnYScale(d / scaleFactor))
             .attr("pointer-events", "none")
             // opacity 1 directly, not faded in — see the note on
             // #plotSegments()'s enter clause for why a transition scheduled
@@ -1092,8 +1122,8 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("x2", plotWidth)
-              .attr("y1", (d) => this.cnYScale(d))
-              .attr("y2", (d) => this.cnYScale(d))
+              .attr("y1", (d) => this.cnYScale(d / scaleFactor))
+              .attr("y2", (d) => this.cnYScale(d / scaleFactor))
           ),
         (exit) => exit.transition().duration(this.animationDuration).attr("opacity", 0).remove()
       );
@@ -1198,19 +1228,24 @@ class ChromosomePlot extends EventTarget {
             // this join.
             .attr("stroke-opacity", 1),
         (update) =>
-          update.attr("stroke-opacity", 1).call((update) =>
-            update
-              .transition()
-              .duration(this.animationDuration)
-              .attr("stroke-opacity", 1)
-              .attr(
-                "d",
-                (d) =>
-                  `M${this.xScale(d.start)} ${this.ratioYScale(
-                    d.log2
-                  )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
-              )
-          ),
+          // Applied directly, not via .transition(): two update() calls
+          // fired back-to-back (e.g. "Simulate purity", which auto-switches
+          // view mode, immediately followed by "Round segments to integer")
+          // can schedule overlapping transitions on the same element, and
+          // the position can end up stuck at the first (unrounded/pre-
+          // toggle) value instead of the latest one - same root cause as
+          // the enter clause's stroke-opacity note above, extended to the
+          // position itself since a stale position is misleading, not just
+          // cosmetic.
+          update
+            .attr("stroke-opacity", 1)
+            .attr(
+              "d",
+              (d) =>
+                `M${this.xScale(d.start)} ${this.ratioYScale(
+                  d.log2
+                )} L ${this.xScale(d.end)} ${this.ratioYScale(d.log2)}`
+            ),
         (exit) => exit.transition().attr("stroke-opacity", 0).remove()
       );
   }
@@ -2131,6 +2166,17 @@ class ChromosomePlot extends EventTarget {
       element: mouseTrap.select("#lr-mousetrap"),
       width: this.width - this.margin.left - this.margin.right,
       yScale: this.ratioYScale,
+      // The primary axis's ticks are relabeled to reflect the current
+      // baseline (see ratioYAxis) while the underlying scale/domain stays
+      // fixed - so the hover readout must apply the same relabeling
+      // (multiplicative in copy-number view, additive in log2 view) to the
+      // raw inverted value, or it would show a number that doesn't match
+      // what's printed on the axis at that row.
+      format: (v) =>
+        (this.viewMode === "copyNumber"
+          ? v * 2 ** this.baselineOffset
+          : v + this.baselineOffset
+        ).toLocaleString(),
       // In copy-number view cnYAxis is repurposed to mirror ratioYScale
       // (a log scale can't represent CN=0), so the hover readout must
       // follow the same scale, or invert() on cnYScale's invalid domain
@@ -2139,6 +2185,13 @@ class ChromosomePlot extends EventTarget {
         invert: (y) =>
           (this.viewMode === "copyNumber" ? this.ratioYScale : this.cnYScale).invert(y),
       },
+      // The secondary copy-number axis is relabeled the same multiplicative
+      // way as the copy-number-view primary axis (see cnYAxis) in both view
+      // modes - in copy-number view this exactly mirrors the primary's own
+      // relabeled value, and in log2 view it keeps the secondary readout
+      // consistent with baseline adjustments instead of always showing the
+      // raw, unadjusted copy number.
+      secondaryFormat: (v) => (v * 2 ** this.baselineOffset).toLocaleString(),
     });
 
     const bafCursor = new YCursor({

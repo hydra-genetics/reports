@@ -179,8 +179,9 @@ axes are **labelled**:
 
 - In **Log2 ratio** view, the primary (left) axis's fixed positions are relabelled so the "0" label
   moves to wherever the current baseline sits — its underlying scale and the plotted data never
-  move. The secondary (right) copy-number axis stays at its standard, fixed positions (1, 2, 4,
-  8...), unaffected by the baseline.
+  move. The secondary (right) copy-number axis keeps its standard, fixed tick *positions* (1, 2, 4,
+  8...), but its printed labels rescale the same multiplicative way as Copy Number view's primary
+  axis, so the two views read consistently with each other under a shifted baseline.
 - In **Copy number** view, the primary axis's fixed whole-number positions are instead relabelled
   multiplicatively (a fixed row showing "2" at baseline 0 relabels to "2 × 2^baseline" once the
   baseline changes) — ticks are generally no longer round integers once the baseline is nonzero.
