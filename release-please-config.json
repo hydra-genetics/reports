@@ -8,7 +8,10 @@
       "include-v-in-tag": true,
       "include-component-in-tag": false,
       "draft": false,
-      "prerelease": false
+      "prerelease": false,
+      "extra-files": [
+        "workflow/templates/cnv_html_report/index.html"
+      ]
     }
   },
   "bootstrap-sha": "e1cc0175b277fc0194b00178117ac46354d2bcec"

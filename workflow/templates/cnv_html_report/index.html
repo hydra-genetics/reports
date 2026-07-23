@@ -63,27 +63,14 @@
           are left unrounded.
         </p>
         <p>
-          The "Estimate baseline + TC" button finds the lowest-log2,
-          sufficiently large, BAF-balanced segment genome-wide for the
-          currently selected caller and sets the baseline offset so that
-          segment corresponds to 2 copies — rather than relying on an
-          external ploidy estimate, which can be wrong for degenerate or
-          heterogeneous samples. It then looks for a clear, BAF-skewed
-          deletion relative to that baseline and, if one is found, also sets
-          the tumor cell content to the value that would resolve the
-          deletion's observed BAF skew back to a pure loss (BAF near 0 or 1).
-          If no suitable baseline segment is found, or no suitable deletion
-          is found, a message explains what could not be determined.
-        </p>
-        <p>
-          Once a baseline has been set (by this button, or by manually
-          entering a value), the report remembers which raw log&#8322; value
-          that baseline treats as exactly 2 copies. Adjusting the tumor cell
-          content slider afterwards, or toggling "Simulate purity", keeps
-          that same reference point pinned at 2 copies by automatically
-          re-adjusting the baseline offset — since the two are mathematically
-          linked once purity is simulated, this avoids the baseline silently
-          becoming inconsistent with a newly-adjusted tumor cell content.
+          Once a baseline has been set manually, the report remembers which
+          raw log&#8322; value that baseline treats as exactly 2 copies.
+          Adjusting the tumor cell content slider afterwards, or toggling
+          "Simulate purity", keeps that same reference point pinned at 2
+          copies by automatically re-adjusting the baseline offset — since
+          the two are mathematically linked once purity is simulated, this
+          avoids the baseline silently becoming inconsistent with a
+          newly-adjusted tumor cell content.
         </p>
         <p>
           The "Log2 ratio" / "Copy number" switch changes how the ratio plots
@@ -158,7 +145,7 @@
       <!-- x-release-please-start-version -->
       <p class="fix-right">
         <small>
-          <a href="https://github.com/hydra-genetics/reports/tree/v1.1.0">hydra-genetics/reports v1.1.0</a>
+          <a href="https://github.com/hydra-genetics/reports/tree/v1.3.0">hydra-genetics/reports v1.3.0</a>
         </small>
         <br />
         <a href="#" onclick="showHelp();" class="no-print help-link"><i class="bi bi-question-circle-fill"></i> Help</a>
@@ -251,10 +238,6 @@
                 <input type="range" id="chromosome-baseline-offset" min="-2" max="2" step="0.05" value="0" />
                 <input type="number" min="-2" max="2" step="0.05" id="current-baseline-offset" value="0.00" />
                 <button id="reset-baseline-offset" disabled>Reset</button>
-              </div>
-
-              <div class="control-group">
-                <button id="estimate-baseline-tc">Estimate baseline + TC</button>
               </div>
 
               <div class="control-group">

@@ -172,10 +172,9 @@ Both the chromosome and genome-wide plots can be switched between two Y-axis vie
 - **Log2 ratio** (default) — the raw, purity-independent log₂ ratio. If "Simulate purity" is also enabled, values are TC-adjusted before being expressed as a log₂ ratio.
 - **Copy number** — a linear, absolute copy-number scale (0–5 by default) instead of log₂ ratio. This view works even without "Simulate purity" enabled, in which case it assumes 100% purity; enabling "Simulate purity" makes the displayed numbers reflect the actual TC-adjusted copy number.
 
-**Copy number is the stable anchor in both views**: adjusting the baseline offset (whether via the
-slider or the "Estimate baseline + TC" button) never moves segments or points — a given absolute
-copy number always renders at the same position, in either view. What changes instead is how the
-axes are **labelled**:
+**Copy number is the stable anchor in both views**: adjusting the baseline offset slider never
+moves segments or points — a given absolute copy number always renders at the same position, in
+either view. What changes instead is how the axes are **labelled**:
 
 - In **Log2 ratio** view, the primary (left) axis's fixed positions are relabelled so the "0" label
   moves to wherever the current baseline sits — its underlying scale and the plotted data never
@@ -203,20 +202,11 @@ chromosome and genome-wide plots. This is independent of "Zoom to data extent" a
 (genomic position) zoom, and doesn't affect the BAF panel, whose Y-range is always fixed to
 `[0, 1]`. "Reset" restores the default (unzoomed) range.
 
-### Baseline and tumor content estimation
+### Baseline and tumor content
 
-The report includes a baseline offset slider, driven by the mechanism described above, and an "Estimate baseline + TC" button that suggests values for both the baseline offset and the tumor cell content (TC) directly from the currently selected caller's own data — without relying on an external ploidy estimate, which can be wrong for samples with degenerate or heterogeneous purity/ploidy.
+The report includes a baseline offset slider, driven by the mechanism described above.
 
-The button looks for the lowest-log₂, sufficiently large (5 Mb by default), BAF-balanced segment genome-wide (autosomes only — chrX/Y are excluded, since chrX's BAF pattern is confounded by X-inactivation and sex-chromosome copy number doesn't follow the same model) and treats it as the CN=2 anchor, setting the baseline offset accordingly.
-
-It then looks for skewed-BAF segments that aren't clearly *above* that anchor, groups neighboring same-level segments together (so a real event that a caller's segmentation happened to split into pieces is still recognized as one candidate), and picks the largest resulting group. Two distinct cases are handled differently:
-
-- A group sitting clearly *below* the anchor is a genuine **net loss** (fewer total copies than the background) — TC is solved directly from how far its depth sits below the anchor, since a real single-copy loss must correspond to exactly 1 absolute copy.
-- A group at roughly the *same* log₂ level as the anchor but with skewed BAF is a **copy-neutral LOH** (e.g. one allele lost, the other duplicated to compensate, so total copy number matches the background) — depth carries no information here, so TC is instead solved from the observed BAF skew directly.
-
-A net-loss group is always preferred over a same-level LOH group when both exist, regardless of size — a depth-confirmed net loss is a more reliable signal than BAF skew alone, which has no independent cross-check at the anchor's own level. "Simulate purity" is enabled automatically so the estimated TC takes visible effect. If no suitable baseline segment or deletion/LOH group is found, a message explains what could not be determined; the baseline offset is still applied if only the TC step fails.
-
-Once a baseline offset is active (whether set by this button or entered manually), the report remembers which raw log₂ value it currently treats as exactly 2 copies. Because the mapping between a raw (TC-diluted) log₂ value and its absolute copy number depends on TC once "Simulate purity" is in effect, adjusting the TC slider afterwards — or toggling "Simulate purity" itself, which switches the TC actually applied between 1 and the real value — automatically re-solves the baseline offset so that same reference point stays pinned at exactly 2 copies, rather than silently drifting out of sync with the newly-adjusted TC.
+Once a baseline offset is active (entered manually), the report remembers which raw log₂ value it currently treats as exactly 2 copies. Because the mapping between a raw (TC-diluted) log₂ value and its absolute copy number depends on TC once "Simulate purity" is in effect, adjusting the TC slider afterwards — or toggling "Simulate purity" itself, which switches the TC actually applied between 1 and the real value — automatically re-solves the baseline offset so that same reference point stays pinned at exactly 2 copies, rather than silently drifting out of sync with the newly-adjusted TC.
 
 ### Gene Focus
 
@@ -263,7 +253,6 @@ The report includes the following interactive features:
 | Log2 ratio / Copy number toggle | Switches the Y-axis between log₂ ratio and a linear, absolute copy-number scale; see [Log2 ratio vs. Copy number view](#log2-ratio-vs-copy-number-view) |
 | Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
 | Absolute copy number | Snaps segment lines to whole-number copy number; requires **Simulate purity** to be enabled first |
-| Estimate baseline + TC | Button that finds a balanced baseline segment and a skewed deletion segment from the current caller's own data and sets the baseline offset and tumor cell content accordingly, without relying on an external ploidy estimate |
 | Gene Focus | Displays data points with equal spacing along the x-axis instead of by genomic position |
 | Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
 | Caller toggle | Switch between callers (CNVkit, GATK, Jumble) in the chromosome and genome plots |

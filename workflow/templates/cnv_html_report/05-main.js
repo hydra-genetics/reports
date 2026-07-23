@@ -264,15 +264,45 @@ const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
 const currentBaselineOffset = d3.select("#current-baseline-offset");
 const baselineOffsetReset = d3.select("#reset-baseline-offset");
 
+// Converts the anchor's raw log2 value into the baseline-offset slider value
+// (psi = 2 * 2^baselineOffset is the assumed neutral copy number in the pure
+// -tumor frame - see #toAbsoluteCopyNumber). The anchor's raw log2 is the
+// *observed*, TC-diluted value, so recovering the pure-tumor-frame psi that
+// makes this segment resolve to exactly 2 absolute copies requires knowing
+// TC: solving adjCopies(anchorLog2) = 2 in #toAbsoluteCopyNumber's model for
+// psi (not assuming tc=1) gives psi = (K - 2*(1-tc)) / tc, where
+// K = 2^(1-anchorLog2) is tc-independent. Using tc=1 here (i.e. baselineOffset
+// = -anchorLog2) would only be correct when "Simulate purity" stays off -
+// since TC can change independently after a baseline is set, the offset must
+// be solved jointly with whichever TC value is currently effective.
+function baselineOffsetFromAnchor(anchorLog2, tc) {
+  const K = 2 ** (1 - anchorLog2);
+  const psi = (K - 2 * (1 - tc)) / tc;
+  return Math.log2(psi / 2);
+}
+
+// Exact inverse of baselineOffsetFromAnchor: given a baseline offset that is
+// (or is about to be) active at a given TC, what raw log2 value does it
+// currently treat as exactly 2 absolute copies? Used to keep a
+// baseline/anchor pair self-consistent whenever TC changes after the fact
+// (either via the TC slider, or via toggling "Simulate purity", which
+// switches the TC that's actually applied between 1 and the real value) -
+// see reapplyBaselineFromAnchor below.
+function anchorLog2FromBaselineOffset(baselineOffset, tc) {
+  const psi = 2 * 2 ** baselineOffset;
+  const K = tc * psi + 2 * (1 - tc);
+  return 1 - Math.log2(K);
+}
+
 // The raw log2 value the currently active baseline offset treats as exactly
 // 2 absolute copies (see baselineOffsetFromAnchor/anchorLog2FromBaselineOffset
-// in 06-baseline-tc-estimator.js). baselineOffset alone isn't TC-independent
-// once "Simulate purity" is active - the same anchor point needs a different
-// baselineOffset at a different TC to keep resolving to exactly 2 copies -
-// so this is tracked separately and used to keep the two in sync whenever TC
-// changes (or "Simulate purity" is toggled, which switches the TC that's
-// actually applied between 1 and the real value). Starts at 0 to match the
-// default baselineOffset=0, which is itself TC-independent (see derivation).
+// above). baselineOffset alone isn't TC-independent once "Simulate purity" is
+// active - the same anchor point needs a different baselineOffset at a
+// different TC to keep resolving to exactly 2 copies - so this is tracked
+// separately and used to keep the two in sync whenever TC changes (or
+// "Simulate purity" is toggled, which switches the TC that's actually applied
+// between 1 and the real value). Starts at 0 to match the default
+// baselineOffset=0, which is itself TC-independent (see derivation).
 let lastAnchorLog2 = 0;
 
 // simulatePurity/currentTc are declared further below, but this is only
@@ -461,66 +491,6 @@ tcAdjustReset.on("click", () => {
   tcAdjustReset.property("disabled", true);
   currentTc.node().value = originalTc;
   tcAdjustSlider.node().dispatchEvent(new Event("change"));
-});
-
-const estimateBaselineTcButton = d3.select("#estimate-baseline-tc");
-
-estimateBaselineTcButton.on("click", () => {
-  const result = estimateBaselineAndTc(
-    cnvData,
-    chromosomePlot.activeCaller,
-    parseFloat(currentTc.node().value)
-  );
-
-  if (result === null) {
-    setModalMessage(
-      "Could not find a segment suitable to use as the baseline anchor " +
-      "(no sufficiently large, BAF-balanced segment was found for this caller).",
-      "warning"
-    );
-    messageModal.showModal();
-    return;
-  }
-
-  const minDy = parseFloat(baselineOffsetSlider.node().min);
-  const maxDy = parseFloat(baselineOffsetSlider.node().max);
-  const dy = Math.min(maxDy, Math.max(minDy, result.baselineOffset));
-
-  // Apply the full-precision dy directly rather than round-tripping it
-  // through the (rounded, display-only) number input's value + change event —
-  // see the "Adjust to ploidy"-derived comment further up for why this matters.
-  setBaselineOffsetUI(dy);
-  lastAnchorLog2 = result.anchorLog2;
-
-  if (result.tc === null) {
-    setModalMessage(
-      "Baseline offset updated. No suitable deletion segment was found to " +
-      "estimate tumor cell content from, so tumor cell content was left unchanged.",
-      "warning"
-    );
-    messageModal.showModal();
-    return;
-  }
-
-  const minTc = parseFloat(tcAdjustSlider.node().min);
-  const maxTc = parseFloat(tcAdjustSlider.node().max);
-  const tc = Math.min(maxTc, Math.max(minTc, result.tc));
-  const strtc = tc.toLocaleString("en-US", { minimumFractionDigits: 2 });
-
-  // Pre-stage the estimated TC before enabling "Simulate purity", so that
-  // whichever change cascade ends up applying it (the simulatePurity toggle
-  // below, and/or the explicit dispatch that follows) reads this final
-  // value rather than whatever TC was active before this click - that
-  // cascade is also what runs reapplyBaselineFromAnchor, so the baseline set
-  // above stays consistent with whichever TC ends up active.
-  tcAdjustSlider.node().value = tc;
-  currentTc.node().value = strtc;
-
-  if (!simulatePurity.node().checked) {
-    simulatePurity.property("checked", true);
-    simulatePurity.node().dispatchEvent(new Event("change"));
-  }
-  currentTc.node().dispatchEvent(new Event("change"));
 });
 
 const Y_ZOOM_STEP = 0.8; // zoom-in shrink factor; zoom-out is 1/Y_ZOOM_STEP
