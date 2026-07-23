@@ -185,11 +185,10 @@ axes are **labelled**:
   multiplicatively (a fixed row showing "2" at baseline 0 relabels to "2 × 2^baseline" once the
   baseline changes) — ticks are generally no longer round integers once the baseline is nonzero.
 
-A highlighted reference line marks exactly where the current baseline sits (in either view), and a
-second, fixed reference line always marks true absolute copy number 2 (diploid) — independent of
-the baseline adjustment, so there's a stable anchor to judge an adjusted baseline against. Both
-lines are styled the same as the mouse-hover guide line (solid gray), since they serve the same
-purpose: a neutral visual reference to read values against, not data that moves.
+Small triangle markers on the left and right edges of the plot point at wherever the current
+baseline sits (the row currently labelled "2" / "0"), while a thicker, full-width reference line
+always marks the fixed position of true absolute copy number 2 (diploid) — independent of the
+baseline adjustment, so there's a stable anchor to judge an adjusted baseline against.
 
 The secondary axis on the right-hand side of each plot always shows copy number regardless of the
 active view (in Copy number view it mirrors the primary axis exactly), and the BAF row is labelled

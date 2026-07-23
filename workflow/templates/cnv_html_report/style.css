@@ -251,30 +251,35 @@ svg .segment {
 }
 
 svg .gridline {
-  stroke: #dddddd;
+  stroke: #a0a0a0;
   stroke-width: 0.5px;
   shape-rendering: crispedges;
 }
 
-svg .gridline.baseline {
-  stroke: #aaaaaa;
+svg .baseline-marker {
+  fill: #707070;
+}
+
+svg .baf-zero-line {
+  stroke: #888888;
   stroke-width: 1px;
   opacity: 0.5;
 }
 
 svg .integer-cn-gridline {
-  stroke: #4a90d9;
+  stroke: #2f6fb8;
   stroke-width: 1px;
   stroke-dasharray: 4, 3;
   shape-rendering: crispedges;
 }
 
 svg .gridline.diploid-reference {
-  stroke: #888888;
+  stroke: #707070;
+  stroke-width: 2px;
 }
 
 svg .cursor-line {
-  stroke: #888888;
+  stroke: #707070;
 }
 
 svg .cursor-label {

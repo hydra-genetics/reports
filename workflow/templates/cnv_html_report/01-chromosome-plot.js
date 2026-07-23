@@ -414,7 +414,10 @@ class ChromosomePlot extends EventTarget {
       .append("g")
       .attr("class", "integer-cn-gridlines");
 
-    this.#baselineRefGroup = this.#lrArea
+    // Parented to #plotArea, not #lrArea: the marker extends to negative x
+    // (into the left margin, pointing at the axis), which #lrArea's
+    // clip-path (starting at x=0) would otherwise cut off.
+    this.#baselineRefGroup = this.#plotArea
       .append("g")
       .attr("class", "baseline-ref-line");
 
@@ -557,12 +560,10 @@ class ChromosomePlot extends EventTarget {
 
   // Positions are always computed against a fixed psi=2 (baseline offset pinned
   // to 0) so that adjusting the baseline never moves plotted data - only axis
-  // labels and the baseline/diploid reference lines change to reflect the
-  // current baseline (see #plotBaselineReference/#plotDiploidReference and the
-  // tick-format changes in ratioYAxis/cnYAxis). TC/"Simulate purity" still
-  // applies exactly as before, since that's a genuine "show purity-corrected
-  // data" transform, unlike baseline, which is purely a relabeling of the same
-  // measurement.
+  // labels change to reflect the current baseline (see the tick-format changes
+  // in ratioYAxis/cnYAxis). TC/"Simulate purity" still applies exactly as
+  // before, since that's a genuine "show purity-corrected data" transform,
+  // unlike baseline, which is purely a relabeling of the same measurement.
   #toAbsoluteCopyNumber(x, isSegment) {
     const tc = this.simulatePurity ? this.tc : 1;
     let adjCopies = (2 ** x * (tc * 2 + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
@@ -1099,47 +1100,51 @@ class ChromosomePlot extends EventTarget {
   }
 
   /**
-   * Since data no longer shifts with baseline (copy number is the stable
-   * anchor - see #toAbsoluteCopyNumber), this line marks the FIXED position
-   * whose relabeled axis tick currently reads "2 copies" / "0" (log2) - i.e.
-   * where the current baseline/anchor sits, in both view modes. In
-   * copy-number view a fixed position k is labeled k * 2^baselineOffset (see
-   * ratioYAxis/cnYAxis), so the position currently labeled "2" is
-   * 2 / 2^baselineOffset = 2^(1-baselineOffset). In log2 view a fixed
-   * position y is labeled y + baselineOffset, so the position currently
-   * labeled "0" is -baselineOffset.
+   * Small triangle markers at the FIXED true absolute copy number = 2
+   * (diploid) position, independent of baseline offset and ploidy
+   * hypothesis - data no longer shifts with baseline (copy number is the
+   * stable anchor - see #toAbsoluteCopyNumber), so this never moves in
+   * either view mode. Drawn on both the left and right edges of the plot
+   * (rather than a full-width line) so it stays visible regardless of which
+   * part of the chromosome is in view.
    */
   #plotBaselineReference() {
-    this.#baselineRefGroup.selectAll("line").remove();
+    this.#baselineRefGroup.selectAll("path").remove();
+
+    const y = this.viewMode === "copyNumber" ? 2 : 0;
+    const [dMin, dMax] = this.ratioYScale.domain();
+    if (y < dMin || y > dMax) return;
+
+    const py = this.ratioYScale(y);
+    const plotWidth = this.width - this.margin.left - this.margin.right;
+    this.#baselineRefGroup
+      .append("path")
+      .attr("class", "baseline-marker")
+      .attr("d", `M 0,${py} L -6,${py - 3.5} L -6,${py + 3.5} Z`);
+    this.#baselineRefGroup
+      .append("path")
+      .attr("class", "baseline-marker")
+      .attr("d", `M ${plotWidth},${py} L ${plotWidth + 6},${py - 3.5} L ${plotWidth + 6},${py + 3.5} Z`);
+  }
+
+  /**
+   * Thick, full-width reference line at the tick currently labeled "2
+   * copies" / "0" (log2) - i.e. wherever the current baseline/anchor sits
+   * on the relabeled axis (see ratioYAxis/cnYAxis). In copy-number view a
+   * fixed row k is labeled k * 2^baselineOffset, so the row currently
+   * labeled "2" is 2 / 2^baselineOffset = 2^(1-baselineOffset); in log2 view
+   * a fixed row y is labeled y + baselineOffset, so the row currently
+   * labeled "0" is -baselineOffset. Styled thicker than the regular
+   * gridlines so it stands out as a deliberate reference, not an incidental
+   * tick.
+   */
+  #plotDiploidReference() {
+    this.#diploidRefGroup.selectAll("line").remove();
 
     const y =
       this.viewMode === "copyNumber"
         ? 2 ** (1 - this.baselineOffset)
         : -this.baselineOffset;
-    const [dMin, dMax] = this.ratioYScale.domain();
-    if (y < dMin || y > dMax) return;
-
-    this.#baselineRefGroup
-      .append("line")
-      .attr("class", "gridline baseline")
-      .attr("x1", 0)
-      .attr("x2", this.width - this.margin.left - this.margin.right)
-      .attr("y1", this.ratioYScale(y))
-      .attr("y2", this.ratioYScale(y));
-  }
-
-  /**
-   * Fixed reference line at true absolute copy number = 2 (diploid),
-   * independent of the ploidy hypothesis and of baseline offset. Unlike
-   * #plotBaselineReference() (which tracks the current baseline/ploidy
-   * guess), this line never moves in either view mode — giving a stable
-   * anchor to judge whether an adjusted baseline looks correct relative to
-   * true diploid.
-   */
-  #plotDiploidReference() {
-    this.#diploidRefGroup.selectAll("line").remove();
-
-    const y = this.viewMode === "copyNumber" ? 2 : 0;
     const [dMin, dMax] = this.ratioYScale.domain();
     if (y < dMin || y > dMax) return;
 
@@ -2294,17 +2299,14 @@ class ChromosomePlot extends EventTarget {
 
     this.svg.selectAll(".gridline").remove();
     if (!(this.viewMode === "log2" && this.simulatePurity && this.roundSegmentsToInteger)) {
-      // Ratio axis: the tick at raw position 0 (log2 view) is the FIXED
-      // diploid position now (copy number is the stable anchor - see
-      // #toAbsoluteCopyNumber), not the movable baseline - #plotBaselineReference()
-      // draws the actual current-baseline line separately, in both view modes.
+      // The FIXED true-diploid position (raw log2 = 0 / raw copy number = 2)
+      // is marked separately by #plotDiploidReference()'s dedicated line,
+      // not by highlighting a gridline here.
       this.svg
         .selectAll(".ratio-y-axis .tick")
         .lower()
         .append("line")
-        .attr("class", (d) => {
-          return this.viewMode === "log2" && d == 0 ? "gridline diploid-reference" : "gridline";
-        })
+        .attr("class", "gridline")
         .attr("x2", this.xScale.range()[1]);
 
       this.svg
@@ -2312,7 +2314,9 @@ class ChromosomePlot extends EventTarget {
         .lower()
         .append("line")
         .attr("class", (d) => {
-          return d == 0 ? "gridline baseline" : "gridline";
+          // Unrelated to the ploidy baseline - just a subtle highlight for
+          // the BAF axis's own zero position.
+          return d == 0 ? "gridline baf-zero-line" : "gridline";
         })
         .attr("x2", this.xScale.range()[1]);
     }

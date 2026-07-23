@@ -14,6 +14,7 @@ class GenomePlot extends EventTarget {
   #ctx;
   #showAllData;
   #oorPanels;
+  #baselineRefGroup;
 
   constructor(config) {
     super();
@@ -90,8 +91,11 @@ class GenomePlot extends EventTarget {
     // domain below 0; copy number can never actually be negative, since data
     // is hard-floored at MIN_COPY_NUMBER in #toAbsoluteCopyNumber. See
     // 01-chromosome-plot.js's identical cnTicksAndFormat for the full
-    // rationale.
-    const cnTicksAndFormat = () => {
+    // rationale. An instance method (not a local const) since
+    // #updateLrGridLines() also needs it, to keep the copy-number-view
+    // gridlines at the exact same (relabeled) positions as the axis ticks
+    // they're meant to align with.
+    this.cnTicksAndFormat = () => {
       const [domainMin, domainMax] = this.ratioYScale.domain();
       const scaleFactor = 2 ** this.baselineOffset;
       const labels = integerLabelsInRange(
@@ -107,7 +111,7 @@ class GenomePlot extends EventTarget {
     this.ratioYAxis = (g) => {
       const axis = d3.axisLeft(this.ratioYScale);
       if (this.viewMode === "copyNumber") {
-        const { positions, format } = cnTicksAndFormat();
+        const { positions, format } = this.cnTicksAndFormat();
         axis.tickValues(positions).tickFormat(format);
       } else {
         const [domainMin, domainMax] = this.ratioYScale.domain();
@@ -124,7 +128,7 @@ class GenomePlot extends EventTarget {
     this.cnYAxis = (g) => {
       if (this.viewMode === "copyNumber") {
         // Mirrors ratioYAxis's own (relabeled, integer) ticks.
-        const { positions, format } = cnTicksAndFormat();
+        const { positions, format } = this.cnTicksAndFormat();
         g.call(d3.axisRight(this.ratioYScale).tickValues(positions).tickFormat(format));
       } else {
         // Fixed domain (see #updateCnAxis - no longer baseline-shifted), so
@@ -332,10 +336,9 @@ class GenomePlot extends EventTarget {
 
   // Positions are always computed against a fixed psi=2 (baseline offset
   // pinned to 0) so that adjusting the baseline never moves plotted data -
-  // only axis labels and the baseline/diploid reference lines change to
-  // reflect the current baseline (see 01-chromosome-plot.js's identical
-  // #toAbsoluteCopyNumber for the full rationale). TC/"Simulate purity"
-  // still applies exactly as before.
+  // only axis labels change to reflect the current baseline (see
+  // 01-chromosome-plot.js's identical #toAbsoluteCopyNumber for the full
+  // rationale). TC/"Simulate purity" still applies exactly as before.
   #toAbsoluteCopyNumber(x, isSegment) {
     const tc = this.simulatePurity ? this.tc : 1;
     let adjCopies = (2 ** x * (tc * 2 + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
@@ -439,6 +442,15 @@ class GenomePlot extends EventTarget {
       )
       .attr("class", "y-axis")
       .call(this.bafYAxisRight);
+
+    // Single shared marker at the ratio-y-axis (unlike the per-panel
+    // gridlines - genome view has only one shared y-axis for all
+    // chromosome panels, so the baseline marker only needs to be drawn once,
+    // at the same position/transform as that axis, not once per panel).
+    this.#baselineRefGroup = this.svg
+      .append("g")
+      .attr("transform", `translate(${this.margin.left}, ${this.margin.top})`)
+      .attr("class", "baseline-ref-line");
   }
 
   #updateCnAxis() {
@@ -511,16 +523,13 @@ class GenomePlot extends EventTarget {
       }
       yScale = this.cnYScale;
     } else if (this.viewMode === "copyNumber") {
-      // Whole-number gridlines only — ratioYScale.ticks() with no explicit
-      // count can pick a fractional step (e.g. 0.5) that doesn't match the
-      // axis's own whole-number ticks.
-      const [cnMin, cnMax] = this.ratioYScale.domain();
-      const startN = Math.max(0, Math.ceil(cnMin));
-      const endN = Math.floor(cnMax);
-      values = [];
-      for (let n = startN; n <= endN; n++) {
-        values.push(n);
-      }
+      // Reuse the axis's own tick positions (see cnTicksAndFormat) rather
+      // than independently recomputing raw integer positions - copy number
+      // is the stable anchor, so a fixed position's relabeled value is
+      // generally not a round integer once baselineOffset != 0, and
+      // recomputing separately here would draw gridlines that no longer
+      // line up with what the axis itself labels as "1", "2", "3"...
+      values = this.cnTicksAndFormat().positions;
       yScale = this.ratioYScale;
     } else {
       values = this.ratioYScale.ticks();
@@ -530,7 +539,7 @@ class GenomePlot extends EventTarget {
     this.lrPanels
       .select(".grid")
       .selectAll(".gridline")
-      .data(values, (d) => d)
+      .data(values)
       .join("line")
       .attr(
         "x1",
@@ -544,46 +553,42 @@ class GenomePlot extends EventTarget {
       .attr("y2", (d) => yScale(d))
       .attr("class", (d) => {
         if (integerMode) return "integer-cn-gridline";
-        // Raw position 0 (log2 view) is the FIXED diploid position now
-        // (copy number is the stable anchor - see #toAbsoluteCopyNumber),
-        // not the movable baseline - the baseline-ref-line below draws the
-        // actual current-baseline line separately, in both view modes.
-        return this.viewMode === "log2" && d === 0 ? "gridline diploid-reference" : "gridline";
+        return "gridline";
       });
 
-    // Marks the FIXED position whose relabeled axis tick currently reads "2
-    // copies" / "0" (log2) - i.e. where the current baseline/anchor sits, in
-    // both view modes (see #plotBaselineReference in 01-chromosome-plot.js
-    // for the full derivation).
-    const refCn =
+    // Small triangle markers at the FIXED true absolute copy number = 2
+    // (diploid) position, independent of baseline offset and ploidy
+    // hypothesis - data no longer shifts with baseline (copy number is the
+    // stable anchor - see #toAbsoluteCopyNumber), so this never moves in
+    // either view mode. Drawn once at each edge (left/right) of the shared
+    // ratio-y-axis, not once per panel, since genome view has only one
+    // shared y-axis for all chromosome panels.
+    const refCn = this.viewMode === "copyNumber" ? 2 : 0;
+    const [dMin, dMax] = this.ratioYScale.domain();
+
+    this.#baselineRefGroup.selectAll("path").remove();
+    if (refCn >= dMin && refCn <= dMax) {
+      const py = this.ratioYScale(refCn);
+      const plotWidth = this.width - this.margin.left - this.margin.right;
+      this.#baselineRefGroup
+        .append("path")
+        .attr("class", "baseline-marker")
+        .attr("d", `M 0,${py} L -6,${py - 3.5} L -6,${py + 3.5} Z`);
+      this.#baselineRefGroup
+        .append("path")
+        .attr("class", "baseline-marker")
+        .attr("d", `M ${plotWidth},${py} L ${plotWidth + 6},${py - 3.5} L ${plotWidth + 6},${py + 3.5} Z`);
+    }
+
+    // Thick reference line at the tick currently labeled "2 copies" / "0"
+    // (log2) - i.e. wherever the current baseline/anchor sits on the
+    // relabeled axis (see #plotBaselineReference/#plotDiploidReference in
+    // 01-chromosome-plot.js for the full derivation). Styled thicker than
+    // the regular gridlines so it stands out as a deliberate reference.
+    const diploidY =
       this.viewMode === "copyNumber"
         ? 2 ** (1 - this.baselineOffset)
         : -this.baselineOffset;
-    const [dMin, dMax] = this.ratioYScale.domain();
-    const showRef = refCn >= dMin && refCn <= dMax;
-
-    this.lrPanels
-      .select(".grid")
-      .selectAll(".baseline-ref-line")
-      .data(showRef ? [refCn] : [])
-      .join("line")
-      .attr("class", "gridline baseline baseline-ref-line")
-      .attr(
-        "x1",
-        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[0]
-      )
-      .attr(
-        "x2",
-        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[1]
-      )
-      .attr("y1", (d) => this.ratioYScale(d))
-      .attr("y2", (d) => this.ratioYScale(d));
-
-    // Fixed reference line at true absolute copy number = 2 (diploid),
-    // independent of the ploidy hypothesis and of baseline offset — unlike
-    // the baseline-ref-line above (which tracks the current baseline/ploidy
-    // guess), this never moves in either view mode.
-    const diploidY = this.viewMode === "copyNumber" ? 2 : 0;
     const showDiploidRef = diploidY >= dMin && diploidY <= dMax;
 
     this.lrPanels
