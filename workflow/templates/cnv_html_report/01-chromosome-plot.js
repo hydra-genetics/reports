@@ -249,6 +249,7 @@ class ChromosomePlot extends EventTarget {
     this.#activeCaller = config?.caller ? config.caller : 0;
     this.zoomRange = [0, this.length];
     this.minZoomRange = config?.minZoomRange ? config.minZoomRange : 20;
+    this.yZoomFactor = 1;
     this.#fitToData = config?.fitToData ? config.fitToData : false;
     this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
     this.simulatePurity = config?.simulatePurity
@@ -298,6 +299,18 @@ class ChromosomePlot extends EventTarget {
       .domain([0, 1])
       .range([this.plotHeight, 0]);
 
+    // Copy number is the stable anchor: fixed tick POSITIONS never move with
+    // baselineOffset (a given absolute copy number always renders at the same
+    // row), but the printed LABEL at a fixed position k is rescaled to show
+    // what that position means under the current baseline - multiplicatively
+    // (k * 2^baselineOffset), since copy-number space is linear/exponential
+    // rather than log2/additive. Ticks are generally no longer round integers
+    // once baselineOffset != 0, hence the 2-decimal fallback format.
+    const formatCnLabel = (k) => {
+      const scaled = k * 2 ** this.baselineOffset;
+      return this.baselineOffset === 0 ? d3.format("d")(scaled) : d3.format(".2~f")(scaled);
+    };
+
     this.xAxis = (g) => g.call(d3.axisBottom(this.xScale).ticks(5));
     this.ratioYAxis = (g) => {
       const axis = d3.axisLeft(this.ratioYScale);
@@ -306,9 +319,17 @@ class ChromosomePlot extends EventTarget {
         // hit approximately N ticks, which isn't necessarily an integer
         // for a [0, CN_VIEW_Y_MAX] domain. tickValues() bypasses .ticks()'s
         // auto-format selection too, so set an explicit integer format.
-        axis.tickValues(this.#wholeNumberCnTicks()).tickFormat(d3.format("d"));
+        axis.tickValues(this.#wholeNumberCnTicks()).tickFormat(formatCnLabel);
       } else {
-        axis.ticks(8).tickFormat((y, i) => (i % 2 == 0 ? y : ""));
+        // Fixed tick positions (same "0" row always), but the printed label
+        // is the raw position PLUS baselineOffset - the "0" (neutral) label
+        // visually moves to wherever the current baseline/anchor sits,
+        // without moving the fixed domain, ticks, or any data.
+        axis
+          .ticks(8)
+          .tickFormat((y, i) =>
+            i % 2 == 0 ? d3.format(".2~f")(y + this.baselineOffset) : ""
+          );
       }
       g.call(axis);
     };
@@ -318,9 +339,11 @@ class ChromosomePlot extends EventTarget {
           d3
             .axisRight(this.ratioYScale)
             .tickValues(this.#wholeNumberCnTicks())
-            .tickFormat(d3.format("d"))
+            .tickFormat(formatCnLabel)
         );
       } else {
+        // Fixed domain (see #updateAxes - no longer baseline-shifted), so
+        // this always shows the same standard powers-of-2 positions.
         g.call(d3.axisRight(this.cnYScale).ticks(5));
       }
     };
@@ -528,21 +551,21 @@ class ChromosomePlot extends EventTarget {
     }
   }
 
+  // Positions are always computed against a fixed psi=2 (baseline offset pinned
+  // to 0) so that adjusting the baseline never moves plotted data - only axis
+  // labels and the baseline/diploid reference lines change to reflect the
+  // current baseline (see #plotBaselineReference/#plotDiploidReference and the
+  // tick-format changes in ratioYAxis/cnYAxis). TC/"Simulate purity" still
+  // applies exactly as before, since that's a genuine "show purity-corrected
+  // data" transform, unlike baseline, which is purely a relabeling of the same
+  // measurement.
   #toAbsoluteCopyNumber(x, isSegment) {
     const tc = this.simulatePurity ? this.tc : 1;
-    // Ploidy (psi) scales the sample's own average copy content, since coverage
-    // ratios are normalised relative to the sample's own median, not a fixed
-    // diploid reference. baselineOffset already encodes the assumed ploidy.
-    const psi = 2 * 2 ** this.baselineOffset;
-    let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
+    let adjCopies = (2 ** x * (tc * 2 + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (isSegment && this.roundSegmentsToInteger) {
       adjCopies = Math.round(adjCopies);
     }
     return Math.max(adjCopies, MIN_COPY_NUMBER);
-  }
-
-  get #slidingWindowOffset() {
-    return this.viewMode === "copyNumber" ? 0 : this.baselineOffset;
   }
 
   get #slidingWindowMinValue() {
@@ -552,8 +575,7 @@ class ChromosomePlot extends EventTarget {
   transformLog2Ratio(x, isSegment = false) {
     if (x === undefined || x === null || isNaN(x)) return 0;
     const tx = Math.log2(this.#toAbsoluteCopyNumber(x, isSegment) / 2);
-    const res = tx - this.baselineOffset;
-    return isFinite(res) ? res : (tx < 0 ? -10 : 10);
+    return isFinite(tx) ? tx : (tx < 0 ? -10 : 10);
   }
 
   transformCopyNumber(x, isSegment = false) {
@@ -871,12 +893,15 @@ class ChromosomePlot extends EventTarget {
 
     const isSummarized = ratioData.length > MAX_POINTS && !this.#showAllData;
     if (isSummarized) {
+      // Offset is always 0 now: transformValue's output no longer depends on
+      // baselineOffset (see #toAbsoluteCopyNumber), so the floor-clamp
+      // threshold below doesn't need shifting to match a baseline-shifted frame.
       ratioData = slidingPixelWindow(
         ratioData,
         this.xScale,
         "start",
         "log2",
-        this.#slidingWindowOffset,
+        0,
         3,
         true,
         this.#slidingWindowMinValue
@@ -1070,41 +1095,47 @@ class ChromosomePlot extends EventTarget {
   }
 
   /**
-   * In Copy-number view, "Adjust to ploidy" / the baseline-offset slider must
-   * not shift plotted data (it should stay at its true absolute copy
-   * number) — instead, mark the ploidy-equivalent CN value with a
-   * highlighted reference line, reusing the existing baseline gridline style.
+   * Since data no longer shifts with baseline (copy number is the stable
+   * anchor - see #toAbsoluteCopyNumber), this line marks the FIXED position
+   * whose relabeled axis tick currently reads "2 copies" / "0" (log2) - i.e.
+   * where the current baseline/anchor sits, in both view modes. In
+   * copy-number view a fixed position k is labeled k * 2^baselineOffset (see
+   * ratioYAxis/cnYAxis), so the position currently labeled "2" is
+   * 2 / 2^baselineOffset = 2^(1-baselineOffset). In log2 view a fixed
+   * position y is labeled y + baselineOffset, so the position currently
+   * labeled "0" is -baselineOffset.
    */
   #plotBaselineReference() {
     this.#baselineRefGroup.selectAll("line").remove();
-    if (this.viewMode !== "copyNumber") return;
 
-    const refCn = 2 * 2 ** this.baselineOffset;
+    const y =
+      this.viewMode === "copyNumber"
+        ? 2 ** (1 - this.baselineOffset)
+        : -this.baselineOffset;
     const [dMin, dMax] = this.ratioYScale.domain();
-    if (refCn < dMin || refCn > dMax) return;
+    if (y < dMin || y > dMax) return;
 
     this.#baselineRefGroup
       .append("line")
       .attr("class", "gridline baseline")
       .attr("x1", 0)
       .attr("x2", this.width - this.margin.left - this.margin.right)
-      .attr("y1", this.ratioYScale(refCn))
-      .attr("y2", this.ratioYScale(refCn));
+      .attr("y1", this.ratioYScale(y))
+      .attr("y2", this.ratioYScale(y));
   }
 
   /**
    * Fixed reference line at true absolute copy number = 2 (diploid),
-   * independent of the ploidy hypothesis. Unlike #plotBaselineReference()
-   * (which tracks the current baseline/ploidy guess), this line never
-   * moves in copy-number view, and in log2 view sits at y = -baselineOffset
-   * (the log2-space position where a segment's true absolute CN is exactly
-   * 2, regardless of purity) — giving a stable anchor to judge whether an
-   * adjusted baseline looks correct relative to true diploid.
+   * independent of the ploidy hypothesis and of baseline offset. Unlike
+   * #plotBaselineReference() (which tracks the current baseline/ploidy
+   * guess), this line never moves in either view mode — giving a stable
+   * anchor to judge whether an adjusted baseline looks correct relative to
+   * true diploid.
    */
   #plotDiploidReference() {
     this.#diploidRefGroup.selectAll("line").remove();
 
-    const y = this.viewMode === "copyNumber" ? 2 : -this.baselineOffset;
+    const y = this.viewMode === "copyNumber" ? 2 : 0;
     const [dMin, dMax] = this.ratioYScale.domain();
     if (y < dMin || y > dMax) return;
 
@@ -2207,15 +2238,21 @@ class ChromosomePlot extends EventTarget {
           yMin = mid - 0.5;
           yMax = mid + 0.5;
       }
+      // Y-axis zoom: narrow/widen around whatever center the fit-to-data
+      // logic above already picked.
+      const zoomMid = (yMin + yMax) / 2;
+      const zoomHalfSpan = ((yMax - yMin) / 2) * this.yZoomFactor;
+      yMin = zoomMid - zoomHalfSpan;
+      yMax = zoomMid + zoomHalfSpan;
+
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
+      // Fixed (baseline-independent) domain in log2 view - see the class
+      // comment on #toAbsoluteCopyNumber for why baseline no longer shifts this.
       this.cnYScale.domain(
         this.viewMode === "copyNumber"
           ? [yMin - padding, yMax + padding]
-          : [
-              cnFromRatio(yMin - padding + this.baselineOffset),
-              cnFromRatio(yMax + padding + this.baselineOffset),
-            ]
+          : [cnFromRatio(yMin - padding), cnFromRatio(yMax + padding)]
       );
     } else {
       this.dispatchEvent(
@@ -2223,15 +2260,21 @@ class ChromosomePlot extends EventTarget {
           detail: { dataOutsideRange: yMin < staticYMin || yMax > staticYMax },
         })
       );
-      const padding = (staticYMax - staticYMin) * 0.05;
-      this.ratioYScale.domain([staticYMin - padding, staticYMax + padding]);
+      // Y-axis zoom: narrow/widen around the static range's own center. The
+      // dataOutsideRange check above intentionally still compares against the
+      // unzoomed static range - that warning is about the natural default
+      // view, independent of the user's manual Y-zoom choice.
+      const zoomMid = (staticYMin + staticYMax) / 2;
+      const zoomHalfSpan = ((staticYMax - staticYMin) / 2) * this.yZoomFactor;
+      const zoomedYMin = zoomMid - zoomHalfSpan;
+      const zoomedYMax = zoomMid + zoomHalfSpan;
+
+      const padding = (zoomedYMax - zoomedYMin) * 0.05;
+      this.ratioYScale.domain([zoomedYMin - padding, zoomedYMax + padding]);
       this.cnYScale.domain(
         this.viewMode === "copyNumber"
-          ? [staticYMin - padding, staticYMax + padding]
-          : [
-              cnFromRatio(staticYMin - padding + this.baselineOffset),
-              cnFromRatio(staticYMax + padding + this.baselineOffset),
-            ]
+          ? [zoomedYMin - padding, zoomedYMax + padding]
+          : [cnFromRatio(zoomedYMin - padding), cnFromRatio(zoomedYMax + padding)]
       );
     }
 
@@ -2250,15 +2293,16 @@ class ChromosomePlot extends EventTarget {
 
     this.svg.selectAll(".gridline").remove();
     if (!(this.viewMode === "log2" && this.simulatePurity && this.roundSegmentsToInteger)) {
-      // Ratio axis: in Copy-number view, "0" is an ordinary tick — the
-      // baseline/ploidy reference is drawn separately by
-      // #plotBaselineReference(), so don't also highlight the 0 tick here.
+      // Ratio axis: the tick at raw position 0 (log2 view) is the FIXED
+      // diploid position now (copy number is the stable anchor - see
+      // #toAbsoluteCopyNumber), not the movable baseline - #plotBaselineReference()
+      // draws the actual current-baseline line separately, in both view modes.
       this.svg
         .selectAll(".ratio-y-axis .tick")
         .lower()
         .append("line")
         .attr("class", (d) => {
-          return this.viewMode === "log2" && d == 0 ? "gridline baseline" : "gridline";
+          return this.viewMode === "log2" && d == 0 ? "gridline diploid-reference" : "gridline";
         })
         .attr("x2", this.xScale.range()[1]);
 
@@ -2291,6 +2335,18 @@ class ChromosomePlot extends EventTarget {
   resetZoom() {
     this.zoomRange = [0, this.length];
     this.xScale.domain(this.zoomRange);
+  }
+
+  setYZoom(factor) {
+    this.yZoomFactor = Math.min(
+      MAX_Y_ZOOM_FACTOR,
+      Math.max(MIN_Y_ZOOM_FACTOR, factor)
+    );
+    this.update();
+  }
+
+  resetYZoom() {
+    this.setYZoom(1);
   }
 
   setBaselineOffset(dy) {

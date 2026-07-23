@@ -25,6 +25,7 @@ class GenomePlot extends EventTarget {
     this.#data = config?.data;
     this.#showAllData = config?.showAllData ? config.showAllData : false;
     this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
+    this.yZoomFactor = 1;
     this.#activeCaller = config?.caller ? config.caller : 0;
     this.#selectedChromosome = config?.selectedChromosome
       ? config.selectedChromosome
@@ -77,17 +78,47 @@ class GenomePlot extends EventTarget {
       .scaleLinear()
       .domain([0, 1])
       .range([this.panelHeight, 0]);
-    this.ratioYAxis = (g) => g.call(d3.axisLeft(this.ratioYScale).ticks(5));
+
+    // Copy number is the stable anchor: fixed tick POSITIONS never move with
+    // baselineOffset, but the printed LABEL at a fixed position k is rescaled
+    // to show what that position means under the current baseline -
+    // multiplicatively (k * 2^baselineOffset) in copy-number view, additively
+    // (y + baselineOffset) in log2 view - see 01-chromosome-plot.js's
+    // identical formatCnLabel/ratioYAxis for the full rationale.
+    const formatCnLabel = (k) => {
+      const scaled = k * 2 ** this.baselineOffset;
+      return this.baselineOffset === 0 ? d3.format("d")(scaled) : d3.format(".2~f")(scaled);
+    };
+
+    // Copy number can never actually be negative (data is hard-floored at
+    // MIN_COPY_NUMBER in #toAbsoluteCopyNumber), but zooming the Y-axis out
+    // can widen the copy-number-view domain below 0 - drop any auto-picked
+    // tick at a negative position rather than show a nonsensical label there.
+    const nonNegativeTicks = () => this.ratioYScale.ticks(5).filter((t) => t >= 0);
+
+    this.ratioYAxis = (g) => {
+      const axis = d3.axisLeft(this.ratioYScale);
+      if (this.viewMode === "copyNumber") {
+        axis.tickValues(nonNegativeTicks()).tickFormat(formatCnLabel);
+      } else {
+        axis.ticks(5).tickFormat((y) => d3.format(".2~f")(y + this.baselineOffset));
+      }
+      g.call(axis);
+    };
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
     this.bafYAxisRight = (g) => g.call(d3.axisRight(this.bafYScale).ticks(5));
 
     this.cnYScale = d3.scaleLog().base(2).range([this.panelHeight, 0]);
-    this.cnYAxis = (g) =>
-      g.call(
-        d3
-          .axisRight(this.viewMode === "copyNumber" ? this.ratioYScale : this.cnYScale)
-          .ticks(5)
-      );
+    this.cnYAxis = (g) => {
+      if (this.viewMode === "copyNumber") {
+        // Mirrors ratioYScale's own (relabeled, non-negative) ticks.
+        g.call(d3.axisRight(this.ratioYScale).tickValues(nonNegativeTicks()).tickFormat(formatCnLabel));
+      } else {
+        // Fixed domain (see #updateCnAxis - no longer baseline-shifted), so
+        // this always shows the same standard powers-of-2 positions.
+        g.call(d3.axisRight(this.cnYScale).ticks(5));
+      }
+    };
 
     this.svg = d3.select("#genome-view");
     if (this.widePlotWidth) {
@@ -235,6 +266,12 @@ class GenomePlot extends EventTarget {
       this.ratioYMin = this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange;
       this.ratioYMax = this.ratioYScaleRange;
     }
+    // Y-axis zoom: narrow/widen around this range's own center.
+    const zoomMid = (this.ratioYMin + this.ratioYMax) / 2;
+    const zoomHalfSpan = ((this.ratioYMax - this.ratioYMin) / 2) * this.yZoomFactor;
+    this.ratioYMin = zoomMid - zoomHalfSpan;
+    this.ratioYMax = zoomMid + zoomHalfSpan;
+
     this.ratioYScale.domain([this.ratioYMin, this.ratioYMax]);
     // Called once before `drawAxes()` sets up the DOM (during construction,
     // where `drawAxes()`'s own initial render picks up this domain) and
@@ -271,21 +308,19 @@ class GenomePlot extends EventTarget {
     }
   }
 
+  // Positions are always computed against a fixed psi=2 (baseline offset
+  // pinned to 0) so that adjusting the baseline never moves plotted data -
+  // only axis labels and the baseline/diploid reference lines change to
+  // reflect the current baseline (see 01-chromosome-plot.js's identical
+  // #toAbsoluteCopyNumber for the full rationale). TC/"Simulate purity"
+  // still applies exactly as before.
   #toAbsoluteCopyNumber(x, isSegment) {
     const tc = this.simulatePurity ? this.tc : 1;
-    // Ploidy (psi) scales the sample's own average copy content, since coverage
-    // ratios are normalised relative to the sample's own median, not a fixed
-    // diploid reference. baselineOffset already encodes the assumed ploidy.
-    const psi = 2 * 2 ** this.baselineOffset;
-    let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
+    let adjCopies = (2 ** x * (tc * 2 + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (isSegment && this.roundSegmentsToInteger) {
       adjCopies = Math.round(adjCopies);
     }
     return Math.max(adjCopies, MIN_COPY_NUMBER);
-  }
-
-  get #slidingWindowOffset() {
-    return this.viewMode === "copyNumber" ? 0 : this.baselineOffset;
   }
 
   get #slidingWindowMinValue() {
@@ -295,8 +330,7 @@ class GenomePlot extends EventTarget {
   transformLog2Ratio(x, isSegment = false) {
     if (x === undefined || x === null || isNaN(x)) return 0;
     const tx = Math.log2(this.#toAbsoluteCopyNumber(x, isSegment) / 2);
-    const res = tx - this.baselineOffset;
-    return isFinite(res) ? res : (tx < 0 ? -10 : 10);
+    return isFinite(tx) ? tx : (tx < 0 ? -10 : 10);
   }
 
   transformCopyNumber(x, isSegment = false) {
@@ -386,13 +420,12 @@ class GenomePlot extends EventTarget {
   }
 
   #updateCnAxis() {
+    // Fixed (baseline-independent) domain in log2 view - see the comment on
+    // #toAbsoluteCopyNumber for why baseline no longer shifts this.
     this.cnYScale.domain(
       this.viewMode === "copyNumber"
         ? [this.ratioYMin, this.ratioYMax]
-        : [
-            cnFromRatio(this.ratioYMin + this.baselineOffset),
-            cnFromRatio(this.ratioYMax + this.baselineOffset),
-          ]
+        : [cnFromRatio(this.ratioYMin), cnFromRatio(this.ratioYMax)]
     );
     // Not transitioned — see #updateRatioRange for why (this is invoked
     // back-to-back with it from setSimulatePurity/setViewMode).
@@ -489,15 +522,23 @@ class GenomePlot extends EventTarget {
       .attr("y2", (d) => yScale(d))
       .attr("class", (d) => {
         if (integerMode) return "integer-cn-gridline";
-        return this.viewMode === "log2" && d === 0 ? "gridline baseline" : "gridline";
+        // Raw position 0 (log2 view) is the FIXED diploid position now
+        // (copy number is the stable anchor - see #toAbsoluteCopyNumber),
+        // not the movable baseline - the baseline-ref-line below draws the
+        // actual current-baseline line separately, in both view modes.
+        return this.viewMode === "log2" && d === 0 ? "gridline diploid-reference" : "gridline";
       });
 
-    // Copy-number view: "Adjust to ploidy" / baseline-offset marks a
-    // reference line at the ploidy-equivalent CN value instead of shifting
-    // data (unlike Log2 view's baseline-shift behavior).
-    const refCn = this.viewMode === "copyNumber" ? 2 * 2 ** this.baselineOffset : null;
+    // Marks the FIXED position whose relabeled axis tick currently reads "2
+    // copies" / "0" (log2) - i.e. where the current baseline/anchor sits, in
+    // both view modes (see #plotBaselineReference in 01-chromosome-plot.js
+    // for the full derivation).
+    const refCn =
+      this.viewMode === "copyNumber"
+        ? 2 ** (1 - this.baselineOffset)
+        : -this.baselineOffset;
     const [dMin, dMax] = this.ratioYScale.domain();
-    const showRef = refCn !== null && refCn >= dMin && refCn <= dMax;
+    const showRef = refCn >= dMin && refCn <= dMax;
 
     this.lrPanels
       .select(".grid")
@@ -517,12 +558,10 @@ class GenomePlot extends EventTarget {
       .attr("y2", (d) => this.ratioYScale(d));
 
     // Fixed reference line at true absolute copy number = 2 (diploid),
-    // independent of the ploidy hypothesis — unlike the baseline-ref-line
-    // above (which tracks the current baseline/ploidy guess), this never
-    // moves in copy-number view, and in log2 view sits at
-    // y = -baselineOffset (see #plotDiploidReference in
-    // 01-chromosome-plot.js for the derivation).
-    const diploidY = this.viewMode === "copyNumber" ? 2 : -this.baselineOffset;
+    // independent of the ploidy hypothesis and of baseline offset — unlike
+    // the baseline-ref-line above (which tracks the current baseline/ploidy
+    // guess), this never moves in either view mode.
+    const diploidY = this.viewMode === "copyNumber" ? 2 : 0;
     const showDiploidRef = diploidY >= dMin && diploidY <= dMax;
 
     this.lrPanels
@@ -632,12 +671,14 @@ class GenomePlot extends EventTarget {
       });
 
       if (ratioPointsPerChromosome > MAX_POINTS_GENOME) {
+        // Offset is always 0 now: transformValue's output no longer depends
+        // on baselineOffset (see #toAbsoluteCopyNumber).
         panelRatios = slidingPixelWindow(
           panelRatios,
           xScale,
           "start",
           "log2",
-          this.#slidingWindowOffset,
+          0,
           3,
           true,
           this.#slidingWindowMinValue
@@ -683,7 +724,7 @@ class GenomePlot extends EventTarget {
           self.xScales[i],
           "start",
           "log2",
-          self.#slidingWindowOffset,
+          0,
           3,
           true,
           self.#slidingWindowMinValue
@@ -1154,8 +1195,26 @@ class GenomePlot extends EventTarget {
 
   setBaselineOffset(dy) {
     this.baselineOffset = dy;
+    // ratioYAxis's own tick labels are now baseline-dependent too (copy
+    // number is the stable anchor - see #toAbsoluteCopyNumber), so it needs
+    // an explicit re-render here, same as #updateCnAxis.
+    this.svg.select(".ratio-y-axis").call(this.ratioYAxis);
     this.#updateCnAxis();
     this.update();
+  }
+
+  setYZoom(factor) {
+    this.yZoomFactor = Math.min(
+      MAX_Y_ZOOM_FACTOR,
+      Math.max(MIN_Y_ZOOM_FACTOR, factor)
+    );
+    this.#updateRatioRange();
+    this.#updateCnAxis();
+    this.update();
+  }
+
+  resetYZoom() {
+    this.setYZoom(1);
   }
 
   #setupCanvas() {

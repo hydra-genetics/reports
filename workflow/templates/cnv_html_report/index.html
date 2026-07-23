@@ -89,10 +89,28 @@
           The "Log2 ratio" / "Copy number" switch changes how the ratio plots
           are displayed. "Copy number" shows a linear, absolute copy-number
           scale (assuming 100% purity if "Simulate purity" is not checked)
-          instead of log2 ratio. In this view, segments and points always
-          show their true absolute copy number — the baseline-offset slider
-          doesn't shift them, it instead draws a highlighted reference line
-          at the corresponding copy number for comparison.
+          instead of log2 ratio.
+        </p>
+        <p>
+          Copy number is the stable anchor in both views: adjusting the
+          baseline offset never moves segments or points — a given absolute
+          copy number always renders at the same position. What changes
+          instead is how the axes are labelled: in "Log2 ratio" view, the
+          primary axis's "0" label moves to wherever the current baseline
+          sits (the secondary copy-number axis on the right stays at its
+          standard, fixed positions); in "Copy number" view, the axis's
+          labels rescale to show what each fixed row currently represents
+          under the chosen baseline. A highlighted reference line marks
+          exactly where the current baseline sits, in either view, alongside
+          a second, fixed line marking true diploid (2 copies) for
+          comparison.
+        </p>
+        <p>
+          The "Y-axis zoom" buttons narrow or widen the visible range of the
+          ratio panel (log2 ratio or copy number, depending on the active
+          view) around its current center — useful for inspecting subtle
+          shifts more closely, or for seeing a wider range at once. "Reset"
+          restores the default range. This doesn't affect the BAF panel.
         </p>
 
         {% if metadata.show_table %}
@@ -234,6 +252,13 @@
 
               <div class="control-group">
                 <button id="estimate-baseline-tc">Estimate baseline + TC</button>
+              </div>
+
+              <div class="control-group">
+                <label>Y-axis zoom</label>
+                <button id="y-zoom-in">+</button>
+                <button id="y-zoom-out">−</button>
+                <button id="reset-y-zoom" disabled>Reset</button>
               </div>
 
               <div class="control-group">

@@ -523,6 +523,31 @@ estimateBaselineTcButton.on("click", () => {
   currentTc.node().dispatchEvent(new Event("change"));
 });
 
+const Y_ZOOM_STEP = 0.8; // zoom-in shrink factor; zoom-out is 1/Y_ZOOM_STEP
+
+const yZoomIn = d3.select("#y-zoom-in");
+const yZoomOut = d3.select("#y-zoom-out");
+const yZoomReset = d3.select("#reset-y-zoom");
+let currentYZoomFactor = 1;
+
+function applyYZoom(factor) {
+  // Clamp here too (setYZoom clamps internally) so the tracked factor never
+  // drifts past what's actually rendered - otherwise repeated zoom-in clicks
+  // past the floor would require extra zoom-out clicks before anything
+  // visibly changes again.
+  currentYZoomFactor = Math.min(
+    MAX_Y_ZOOM_FACTOR,
+    Math.max(MIN_Y_ZOOM_FACTOR, factor)
+  );
+  yZoomReset.property("disabled", currentYZoomFactor === 1);
+  chromosomePlot.setYZoom(currentYZoomFactor);
+  genomePlot.setYZoom(currentYZoomFactor);
+}
+
+yZoomIn.on("click", () => applyYZoom(currentYZoomFactor * Y_ZOOM_STEP));
+yZoomOut.on("click", () => applyYZoom(currentYZoomFactor / Y_ZOOM_STEP));
+yZoomReset.on("click", () => applyYZoom(1));
+
 d3.selectAll("input[name=dataset]").on("change", (e) => {
   chromosomePlot.activeCaller = parseInt(e.target.value);
   genomePlot.activeCaller = parseInt(e.target.value);

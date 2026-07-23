@@ -2,6 +2,8 @@ const MAX_POINTS = 1000;
 const MIN_COPY_NUMBER = 0.001;
 const MIN_LOG2_RATIO = Math.log2(MIN_COPY_NUMBER / 2);
 const CN_VIEW_Y_MAX = 5;
+const MIN_Y_ZOOM_FACTOR = 0.1; // prevents a degenerate zero-height Y domain
+const MAX_Y_ZOOM_FACTOR = 3; // prevents zooming out absurdly far past the natural range
 
 function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
   let offset = scale.domain()[0];
