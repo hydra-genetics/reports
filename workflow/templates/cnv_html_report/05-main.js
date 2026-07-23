@@ -534,9 +534,11 @@ function applyYZoom(factor) {
   // Clamp here too (setYZoom clamps internally) so the tracked factor never
   // drifts past what's actually rendered - otherwise repeated zoom-in clicks
   // past the floor would require extra zoom-out clicks before anything
-  // visibly changes again.
+  // visibly changes again. The max depends on the active view mode (copy
+  // number vs log2 have very different useful zoom-out ranges - see
+  // maxYZoomFactorFor); both plots share the same view mode.
   currentYZoomFactor = Math.min(
-    MAX_Y_ZOOM_FACTOR,
+    maxYZoomFactorFor(chromosomePlot.viewMode === "copyNumber"),
     Math.max(MIN_Y_ZOOM_FACTOR, factor)
   );
   yZoomReset.property("disabled", currentYZoomFactor === 1);

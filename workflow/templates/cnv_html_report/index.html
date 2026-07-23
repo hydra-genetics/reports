@@ -255,13 +255,6 @@
               </div>
 
               <div class="control-group">
-                <label>Y-axis zoom</label>
-                <button id="y-zoom-in">+</button>
-                <button id="y-zoom-out">−</button>
-                <button id="reset-y-zoom" disabled>Reset</button>
-              </div>
-
-              <div class="control-group">
                 <label for="tc-adjuster">Tumor cell content</label>
                 <input type="range" id="tc-adjuster" min="0.05" max="1" step="0.05"
                   value="{{ metadata.tc if metadata.tc is not none else 1 }}" disabled />
@@ -278,6 +271,13 @@
             </div>
           </div>
           <div id="chromosome-view-container" class="relative-container">
+            <div class="no-print y-zoom-controls">
+              <button id="reset-y-zoom" title="Reset Y-axis zoom" disabled>Reset</button>
+              <div class="y-zoom-in-out">
+                <button id="y-zoom-in" title="Zoom in (Y-axis)">+</button>
+                <button id="y-zoom-out" title="Zoom out (Y-axis)">−</button>
+              </div>
+            </div>
             <svg id="chromosome-view"></svg>
           </div>
           <dialog id="chromosome-view-dialog">

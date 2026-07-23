@@ -301,49 +301,53 @@ class ChromosomePlot extends EventTarget {
 
     // Copy number is the stable anchor: fixed tick POSITIONS never move with
     // baselineOffset (a given absolute copy number always renders at the same
-    // row), but the printed LABEL at a fixed position k is rescaled to show
-    // what that position means under the current baseline - multiplicatively
-    // (k * 2^baselineOffset), since copy-number space is linear/exponential
-    // rather than log2/additive. Ticks are generally no longer round integers
-    // once baselineOffset != 0, hence the 2-decimal fallback format.
-    const formatCnLabel = (k) => {
-      const scaled = k * 2 ** this.baselineOffset;
-      return this.baselineOffset === 0 ? d3.format("d")(scaled) : d3.format(".2~f")(scaled);
+    // row). Rather than keeping "nice" fixed positions and letting their
+    // relabeled values drift to arbitrary decimals, ticks are instead placed
+    // so their relabeled value is always a nice integer - copy-number view
+    // labels are always whole numbers, with no decimal exception (unlike the
+    // secondary copy-number axis shown in log2 view, which is a log scale
+    // and keeps d3's own natural sub-1 decimal ticks - see cnYAxis below).
+    const cnTicksAndFormat = () => {
+      const [domainMin, domainMax] = this.ratioYScale.domain();
+      const scaleFactor = 2 ** this.baselineOffset;
+      const labels = integerLabelsInRange(
+        Math.max(0, domainMin * scaleFactor),
+        domainMax * scaleFactor,
+        5
+      );
+      const positions = labels.map((label) => label / scaleFactor);
+      const format = (pos) => d3.format("d")(Math.round(pos * scaleFactor));
+      return { positions, format };
     };
 
     this.xAxis = (g) => g.call(d3.axisBottom(this.xScale).ticks(5));
     this.ratioYAxis = (g) => {
       const axis = d3.axisLeft(this.ratioYScale);
       if (this.viewMode === "copyNumber") {
-        // Whole-number ticks only — .ticks(N) picks a step (e.g. 0.5) to
-        // hit approximately N ticks, which isn't necessarily an integer
-        // for a [0, CN_VIEW_Y_MAX] domain. tickValues() bypasses .ticks()'s
-        // auto-format selection too, so set an explicit integer format.
-        axis.tickValues(this.#wholeNumberCnTicks()).tickFormat(formatCnLabel);
+        const { positions, format } = cnTicksAndFormat();
+        axis.tickValues(positions).tickFormat(format);
       } else {
-        // Fixed tick positions (same "0" row always), but the printed label
-        // is the raw position PLUS baselineOffset - the "0" (neutral) label
-        // visually moves to wherever the current baseline/anchor sits,
-        // without moving the fixed domain, ticks, or any data.
-        axis
-          .ticks(8)
-          .tickFormat((y, i) =>
-            i % 2 == 0 ? d3.format(".2~f")(y + this.baselineOffset) : ""
-          );
+        // Fixed tick positions (same "0" row always), but placed so the
+        // printed label (raw position PLUS baselineOffset) is always a nice
+        // integer - the "0" (neutral) label visually moves to wherever the
+        // current baseline/anchor sits, without moving the fixed domain or
+        // any data.
+        const [domainMin, domainMax] = this.ratioYScale.domain();
+        const labels = integerLabelsInRange(domainMin + this.baselineOffset, domainMax + this.baselineOffset, 8);
+        const positions = labels.map((label) => label - this.baselineOffset);
+        axis.tickValues(positions).tickFormat((pos) => Math.round(pos + this.baselineOffset));
       }
       g.call(axis);
     };
     this.cnYAxis = (g) => {
       if (this.viewMode === "copyNumber") {
-        g.call(
-          d3
-            .axisRight(this.ratioYScale)
-            .tickValues(this.#wholeNumberCnTicks())
-            .tickFormat(formatCnLabel)
-        );
+        // Mirrors ratioYAxis's own (relabeled, integer) ticks.
+        const { positions, format } = cnTicksAndFormat();
+        g.call(d3.axisRight(this.ratioYScale).tickValues(positions).tickFormat(format));
       } else {
         // Fixed domain (see #updateAxes - no longer baseline-shifted), so
-        // this always shows the same standard powers-of-2 positions.
+        // this always shows the same standard powers-of-2 positions - d3's
+        // own log-scale tick picker already produces clean values here.
         g.call(d3.axisRight(this.cnYScale).ticks(5));
       }
     };
@@ -2144,19 +2148,17 @@ class ChromosomePlot extends EventTarget {
     return this.simulatePurity ? [MIN_LOG2_RATIO, 2] : [-2, 2];
   }
 
-  #wholeNumberCnTicks() {
-    const [dMin, dMax] = this.ratioYScale.domain();
-    const startN = Math.max(0, Math.ceil(dMin));
-    const endN = Math.floor(dMax);
-    const values = [];
-    for (let n = startN; n <= endN; n++) {
-      values.push(n);
-    }
-    return values;
-  }
-
   #updateAxes() {
     const [staticYMin, staticYMax] = this.#staticYRange();
+    // Re-clamped fresh on every render (not just when setYZoom is called),
+    // since a stored zoom factor from one view mode's more permissive
+    // ceiling could otherwise carry over unclamped after switching to the
+    // other view mode (e.g. via the view-mode radio buttons, which don't go
+    // through setYZoom at all).
+    const effectiveYZoomFactor = Math.min(
+      this.yZoomFactor,
+      maxYZoomFactorFor(this.viewMode === "copyNumber")
+    );
 
     const [xMin, xMax] = this.zoomRange;
     let yMin, yMax;
@@ -2240,10 +2242,7 @@ class ChromosomePlot extends EventTarget {
       }
       // Y-axis zoom: narrow/widen around whatever center the fit-to-data
       // logic above already picked.
-      const zoomMid = (yMin + yMax) / 2;
-      const zoomHalfSpan = ((yMax - yMin) / 2) * this.yZoomFactor;
-      yMin = zoomMid - zoomHalfSpan;
-      yMax = zoomMid + zoomHalfSpan;
+      [yMin, yMax] = zoomYDomain(yMin, yMax, effectiveYZoomFactor, this.viewMode === "copyNumber");
 
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
@@ -2264,10 +2263,12 @@ class ChromosomePlot extends EventTarget {
       // dataOutsideRange check above intentionally still compares against the
       // unzoomed static range - that warning is about the natural default
       // view, independent of the user's manual Y-zoom choice.
-      const zoomMid = (staticYMin + staticYMax) / 2;
-      const zoomHalfSpan = ((staticYMax - staticYMin) / 2) * this.yZoomFactor;
-      const zoomedYMin = zoomMid - zoomHalfSpan;
-      const zoomedYMax = zoomMid + zoomHalfSpan;
+      const [zoomedYMin, zoomedYMax] = zoomYDomain(
+        staticYMin,
+        staticYMax,
+        effectiveYZoomFactor,
+        this.viewMode === "copyNumber"
+      );
 
       const padding = (zoomedYMax - zoomedYMin) * 0.05;
       this.ratioYScale.domain([zoomedYMin - padding, zoomedYMax + padding]);
@@ -2339,7 +2340,7 @@ class ChromosomePlot extends EventTarget {
 
   setYZoom(factor) {
     this.yZoomFactor = Math.min(
-      MAX_Y_ZOOM_FACTOR,
+      maxYZoomFactorFor(this.viewMode === "copyNumber"),
       Math.max(MIN_Y_ZOOM_FACTOR, factor)
     );
     this.update();

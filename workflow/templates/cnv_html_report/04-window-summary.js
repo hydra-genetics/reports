@@ -3,7 +3,63 @@ const MIN_COPY_NUMBER = 0.001;
 const MIN_LOG2_RATIO = Math.log2(MIN_COPY_NUMBER / 2);
 const CN_VIEW_Y_MAX = 5;
 const MIN_Y_ZOOM_FACTOR = 0.1; // prevents a degenerate zero-height Y domain
-const MAX_Y_ZOOM_FACTOR = 3; // prevents zooming out absurdly far past the natural range
+// Separate max zoom-out factors per view mode - a single shared max would
+// force an awkward compromise, since "reasonable" zoom-out differs hugely
+// between the two: copy number needs to reach real amplifications (which can
+// exceed 100 copies), while log2 ratio's meaningful range is only a handful
+// of units wide, and the same large factor would make it mostly blank space.
+// 40x the default [0, CN_VIEW_Y_MAX] range gives a max of 200 copies at full
+// zoom-out (with the floor-clamp in zoomYDomain keeping the bottom at 0).
+const MAX_Y_ZOOM_FACTOR_COPY_NUMBER = 40;
+// 5x the default [-2, 2] log2 range gives a max of roughly +/-10 - still
+// generous (2^10 = 1024-fold), but far short of copy number's 40x.
+const MAX_Y_ZOOM_FACTOR_LOG2 = 5;
+
+function maxYZoomFactorFor(isCopyNumberView) {
+  return isCopyNumberView ? MAX_Y_ZOOM_FACTOR_COPY_NUMBER : MAX_Y_ZOOM_FACTOR_LOG2;
+}
+
+// Shared axis tick-label helpers: pick tick POSITIONS so their (baseline
+// -relabeled) LABEL values are always nice integers, rather than fixing
+// positions at nice round numbers and letting labels drift to arbitrary
+// decimals once baselineOffset != 0. `lo`/`hi` are already in LABEL space
+// (i.e. post-relabeling); callers invert each returned label back to a
+// position themselves (label - baselineOffset for log2, label / 2^baselineOffset
+// for copy number).
+function integerTickStep(lo, hi, targetCount) {
+  const rawStep = (hi - lo) / Math.max(targetCount, 1);
+  return Math.max(1, Math.round(rawStep));
+}
+
+function integerLabelsInRange(lo, hi, targetCount) {
+  const step = integerTickStep(lo, hi, targetCount);
+  const start = Math.ceil(lo / step) * step;
+  const labels = [];
+  for (let l = start; l <= hi; l += step) labels.push(l);
+  return labels;
+}
+
+// Applies a Y-zoom factor around [yMin, yMax]'s center. In copy-number view,
+// zooming out symmetrically would push the bottom below 0 - a copy number
+// can never actually be negative, so instead of moving the "0" row up into
+// the plot (wasting half the zoom-out budget on meaningless space), the
+// bottom is clamped to 0 and the would-be-negative amount is redirected
+// upward instead, so the bottom of the visible range always stays at 0.
+// Named zoomYDomain (not applyYZoom) to avoid colliding with 05-main.js's
+// distinct, UI-level applyYZoom(factor) - all report JS files concatenate
+// into one script with no module namespacing, so a same-named top-level
+// function declared later silently overwrites an earlier one.
+function zoomYDomain(yMin, yMax, yZoomFactor, isCopyNumberView) {
+  const mid = (yMin + yMax) / 2;
+  const halfSpan = ((yMax - yMin) / 2) * yZoomFactor;
+  let newYMin = mid - halfSpan;
+  let newYMax = mid + halfSpan;
+  if (isCopyNumberView && newYMin < 0) {
+    newYMax += -newYMin;
+    newYMin = 0;
+  }
+  return [newYMin, newYMax];
+}
 
 function* generateWindowSlices(points, scale, posAttr, windowSize = 5) {
   let offset = scale.domain()[0];

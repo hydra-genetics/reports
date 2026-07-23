@@ -80,28 +80,40 @@ class GenomePlot extends EventTarget {
       .range([this.panelHeight, 0]);
 
     // Copy number is the stable anchor: fixed tick POSITIONS never move with
-    // baselineOffset, but the printed LABEL at a fixed position k is rescaled
-    // to show what that position means under the current baseline -
-    // multiplicatively (k * 2^baselineOffset) in copy-number view, additively
-    // (y + baselineOffset) in log2 view - see 01-chromosome-plot.js's
-    // identical formatCnLabel/ratioYAxis for the full rationale.
-    const formatCnLabel = (k) => {
-      const scaled = k * 2 ** this.baselineOffset;
-      return this.baselineOffset === 0 ? d3.format("d")(scaled) : d3.format(".2~f")(scaled);
+    // baselineOffset. Rather than keeping "nice" fixed positions and letting
+    // their relabeled values drift to arbitrary decimals, ticks are instead
+    // placed so their relabeled value is always a nice integer - copy-number
+    // view labels are always whole numbers, with no decimal exception
+    // (unlike the secondary copy-number axis shown in log2 view, which is a
+    // log scale and keeps d3's own natural sub-1 decimal ticks). This also
+    // excludes negative labels, relevant once Y-zooming out widens the
+    // domain below 0; copy number can never actually be negative, since data
+    // is hard-floored at MIN_COPY_NUMBER in #toAbsoluteCopyNumber. See
+    // 01-chromosome-plot.js's identical cnTicksAndFormat for the full
+    // rationale.
+    const cnTicksAndFormat = () => {
+      const [domainMin, domainMax] = this.ratioYScale.domain();
+      const scaleFactor = 2 ** this.baselineOffset;
+      const labels = integerLabelsInRange(
+        Math.max(0, domainMin * scaleFactor),
+        domainMax * scaleFactor,
+        5
+      );
+      const positions = labels.map((label) => label / scaleFactor);
+      const format = (pos) => d3.format("d")(Math.round(pos * scaleFactor));
+      return { positions, format };
     };
-
-    // Copy number can never actually be negative (data is hard-floored at
-    // MIN_COPY_NUMBER in #toAbsoluteCopyNumber), but zooming the Y-axis out
-    // can widen the copy-number-view domain below 0 - drop any auto-picked
-    // tick at a negative position rather than show a nonsensical label there.
-    const nonNegativeTicks = () => this.ratioYScale.ticks(5).filter((t) => t >= 0);
 
     this.ratioYAxis = (g) => {
       const axis = d3.axisLeft(this.ratioYScale);
       if (this.viewMode === "copyNumber") {
-        axis.tickValues(nonNegativeTicks()).tickFormat(formatCnLabel);
+        const { positions, format } = cnTicksAndFormat();
+        axis.tickValues(positions).tickFormat(format);
       } else {
-        axis.ticks(5).tickFormat((y) => d3.format(".2~f")(y + this.baselineOffset));
+        const [domainMin, domainMax] = this.ratioYScale.domain();
+        const labels = integerLabelsInRange(domainMin + this.baselineOffset, domainMax + this.baselineOffset, 5);
+        const positions = labels.map((label) => label - this.baselineOffset);
+        axis.tickValues(positions).tickFormat((pos) => Math.round(pos + this.baselineOffset));
       }
       g.call(axis);
     };
@@ -111,8 +123,9 @@ class GenomePlot extends EventTarget {
     this.cnYScale = d3.scaleLog().base(2).range([this.panelHeight, 0]);
     this.cnYAxis = (g) => {
       if (this.viewMode === "copyNumber") {
-        // Mirrors ratioYScale's own (relabeled, non-negative) ticks.
-        g.call(d3.axisRight(this.ratioYScale).tickValues(nonNegativeTicks()).tickFormat(formatCnLabel));
+        // Mirrors ratioYAxis's own (relabeled, integer) ticks.
+        const { positions, format } = cnTicksAndFormat();
+        g.call(d3.axisRight(this.ratioYScale).tickValues(positions).tickFormat(format));
       } else {
         // Fixed domain (see #updateCnAxis - no longer baseline-shifted), so
         // this always shows the same standard powers-of-2 positions.
@@ -266,11 +279,20 @@ class GenomePlot extends EventTarget {
       this.ratioYMin = this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange;
       this.ratioYMax = this.ratioYScaleRange;
     }
-    // Y-axis zoom: narrow/widen around this range's own center.
-    const zoomMid = (this.ratioYMin + this.ratioYMax) / 2;
-    const zoomHalfSpan = ((this.ratioYMax - this.ratioYMin) / 2) * this.yZoomFactor;
-    this.ratioYMin = zoomMid - zoomHalfSpan;
-    this.ratioYMax = zoomMid + zoomHalfSpan;
+    // Y-axis zoom: narrow/widen around this range's own center. Re-clamped
+    // fresh here (not just when setYZoom is called) since a stored zoom
+    // factor from one view mode's more permissive ceiling could otherwise
+    // carry over unclamped after switching to the other view mode.
+    const effectiveYZoomFactor = Math.min(
+      this.yZoomFactor,
+      maxYZoomFactorFor(this.viewMode === "copyNumber")
+    );
+    [this.ratioYMin, this.ratioYMax] = zoomYDomain(
+      this.ratioYMin,
+      this.ratioYMax,
+      effectiveYZoomFactor,
+      this.viewMode === "copyNumber"
+    );
 
     this.ratioYScale.domain([this.ratioYMin, this.ratioYMax]);
     // Called once before `drawAxes()` sets up the DOM (during construction,
@@ -1205,7 +1227,7 @@ class GenomePlot extends EventTarget {
 
   setYZoom(factor) {
     this.yZoomFactor = Math.min(
-      MAX_Y_ZOOM_FACTOR,
+      maxYZoomFactorFor(this.viewMode === "copyNumber"),
       Math.max(MIN_Y_ZOOM_FACTOR, factor)
     );
     this.#updateRatioRange();
