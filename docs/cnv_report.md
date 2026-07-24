@@ -172,23 +172,22 @@ Both the chromosome and genome-wide plots can be switched between two Y-axis vie
 - **Log2 ratio** (default) — the raw, purity-independent log₂ ratio. If "Simulate purity" is also enabled, values are TC-adjusted before being expressed as a log₂ ratio.
 - **Copy number** — a linear, absolute copy-number scale (0–5 by default) instead of log₂ ratio. This view works even without "Simulate purity" enabled, in which case it assumes 100% purity; enabling "Simulate purity" makes the displayed numbers reflect the actual TC-adjusted copy number.
 
-**Copy number is the stable anchor in both views**: adjusting the baseline offset slider never
-moves segments or points — a given absolute copy number always renders at the same position, in
-either view. What changes instead is how the axes are **labelled**:
+**The baseline offset is a tumor-ploidy hypothesis, not a display relabeling**: adjusting it changes
+`psi` (the assumed baseline/neutral copy number of the tumor clone itself) in the same standard
+tumor-purity/ploidy correction formula the table's "Adjusted CN" column uses
+(`psi = 2 × 2^baselineOffset`; a baseline offset of 0 means "assume diploid"). This means segments
+and points **do move** when the baseline offset changes, in either view, whenever TC is below 100%
+("Simulate purity" enabled with a real TC value) — the two only coincide with a pure relabeling
+when TC is 100%, since there's no normal-cell contamination to interact with `psi` in that case.
+Both plots and the table always agree, since they share the same formula. Axis labels are always
+the plain, standard values (whole-number copy numbers, or standard log₂ ticks) — there's no
+relabeling to keep track of.
 
-- In **Log2 ratio** view, the primary (left) axis's fixed positions are relabelled so the "0" label
-  moves to wherever the current baseline sits — its underlying scale and the plotted data never
-  move. The secondary (right) copy-number axis keeps its standard, fixed tick *positions* (1, 2, 4,
-  8...), but its printed labels rescale the same multiplicative way as Copy Number view's primary
-  axis, so the two views read consistently with each other under a shifted baseline.
-- In **Copy number** view, the primary axis's fixed whole-number positions are instead relabelled
-  multiplicatively (a fixed row showing "2" at baseline 0 relabels to "2 × 2^baseline" once the
-  baseline changes) — ticks are generally no longer round integers once the baseline is nonzero.
-
-Small triangle markers on the left and right edges of the plot point at wherever the current
-baseline sits (the row currently labelled "2" / "0"), while a thicker, full-width reference line
+Small triangle markers on the left and right edges of the plot mark wherever a hypothetically flat
+(no observed deviation) segment currently plots — i.e. exactly `psi` absolute copies, the current
+baseline hypothesis — moving with baseline and TC. A thicker, full-width reference line instead
 always marks the fixed position of true absolute copy number 2 (diploid) — independent of the
-baseline adjustment, so there's a stable anchor to judge an adjusted baseline against.
+baseline/TC hypothesis, a stable reference to judge the data against.
 
 The secondary axis on the right-hand side of each plot always shows copy number regardless of the
 active view (in Copy number view it mirrors the primary axis exactly), and the BAF row is labelled

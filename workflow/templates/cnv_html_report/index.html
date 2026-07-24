@@ -79,21 +79,21 @@
           instead of log2 ratio.
         </p>
         <p>
-          Copy number is the stable anchor in both views: adjusting the
-          baseline offset never moves segments or points — a given absolute
-          copy number always renders at the same position. What changes
-          instead is how the axes are labelled: in "Log2 ratio" view, the
-          primary axis's "0" label moves to wherever the current baseline
-          sits, and the secondary copy-number axis on the right relabels the
-          same way (its tick positions stay fixed, standard powers of 2, but
-          the printed numbers rescale with the baseline); in "Copy number"
-          view, the axis's labels rescale to show what each fixed row
-          currently represents under the chosen baseline. Small triangle markers on the left and
-          right edges of the plot point at wherever the current baseline sits
-          (i.e. the row currently labelled "2" / "0"), while a thicker,
-          full-width reference line always marks the FIXED position of true
-          diploid (2 copies), independent of the baseline adjustment — a
-          stable reference to judge an adjusted baseline against.
+          The baseline offset is a tumor-ploidy hypothesis, not a display
+          relabeling: adjusting it changes psi (the assumed baseline/neutral
+          copy number of the tumor clone) in the same standard tumor-purity/
+          ploidy correction formula the results table's "Adjusted CN" column
+          uses. This means segments and points DO move when the baseline
+          offset changes, in either view, whenever TC is below 100%
+          ("Simulate purity" enabled with a real TC value) — plots and table
+          always agree, since they share the same formula. Axis labels are
+          always the plain, standard values. Small triangle markers on the
+          left and right edges of the plot mark wherever a hypothetically
+          flat segment currently plots (i.e. the current baseline
+          hypothesis), moving with baseline and TC. A thicker, full-width
+          reference line instead always marks the FIXED position of true
+          diploid (2 copies), independent of the baseline/TC hypothesis — a
+          stable reference to judge the data against.
         </p>
         <p>
           The "Y-axis zoom" buttons narrow or widen the visible range of the

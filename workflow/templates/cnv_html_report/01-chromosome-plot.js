@@ -307,66 +307,34 @@ class ChromosomePlot extends EventTarget {
       .domain([0, 1])
       .range([this.plotHeight, 0]);
 
-    // Copy number is the stable anchor: fixed tick POSITIONS never move with
-    // baselineOffset (a given absolute copy number always renders at the same
-    // row). Rather than keeping "nice" fixed positions and letting their
-    // relabeled values drift to arbitrary decimals, ticks are instead placed
-    // so their relabeled value is always a nice integer - copy-number view
-    // labels are always whole numbers, with no decimal exception (unlike the
-    // secondary copy-number axis shown in log2 view, which is a log scale
-    // and keeps d3's own natural sub-1 decimal ticks - see cnYAxis below).
-    const cnTicksAndFormat = () => {
+    // Copy number is not a stable anchor across baseline changes: the
+    // baseline offset is the user's tumor-ploidy hypothesis and is baked
+    // directly into #toAbsoluteCopyNumber's psi, so data (and therefore
+    // these tick positions) genuinely move when baseline or TC change - see
+    // #toAbsoluteCopyNumber. Axis labels are always the plain, standard
+    // whole-number copy number at whatever row that ends up being - no
+    // relabeling needed.
+    const cnTicks = () => {
       const [domainMin, domainMax] = this.ratioYScale.domain();
-      const scaleFactor = 2 ** this.baselineOffset;
-      const labels = integerLabelsInRange(
-        Math.max(0, domainMin * scaleFactor),
-        domainMax * scaleFactor,
-        5
-      );
-      const positions = labels.map((label) => label / scaleFactor);
-      const format = (pos) => d3.format("d")(Math.round(pos * scaleFactor));
-      return { positions, format };
+      return integerLabelsInRange(Math.max(0, domainMin), domainMax, 5);
     };
 
     this.xAxis = (g) => g.call(d3.axisBottom(this.xScale).ticks(5));
     this.ratioYAxis = (g) => {
       const axis = d3.axisLeft(this.ratioYScale);
       if (this.viewMode === "copyNumber") {
-        const { positions, format } = cnTicksAndFormat();
-        axis.tickValues(positions).tickFormat(format);
+        axis.tickValues(cnTicks()).tickFormat(d3.format("d"));
       } else {
-        // Fixed tick positions (same "0" row always), but placed so the
-        // printed label (raw position PLUS baselineOffset) is always a nice
-        // integer - the "0" (neutral) label visually moves to wherever the
-        // current baseline/anchor sits, without moving the fixed domain or
-        // any data.
-        const [domainMin, domainMax] = this.ratioYScale.domain();
-        const labels = integerLabelsInRange(domainMin + this.baselineOffset, domainMax + this.baselineOffset, 8);
-        const positions = labels.map((label) => label - this.baselineOffset);
-        axis.tickValues(positions).tickFormat((pos) => Math.round(pos + this.baselineOffset));
+        axis.ticks(8);
       }
       g.call(axis);
     };
     this.cnYAxis = (g) => {
       if (this.viewMode === "copyNumber") {
-        // Mirrors ratioYAxis's own (relabeled, integer) ticks.
-        const { positions, format } = cnTicksAndFormat();
-        g.call(d3.axisRight(this.ratioYScale).tickValues(positions).tickFormat(format));
+        // Mirrors ratioYAxis's own ticks.
+        g.call(d3.axisRight(this.ratioYScale).tickValues(cnTicks()).tickFormat(d3.format("d")));
       } else {
-        // Fixed domain (see #updateAxes - no longer baseline-shifted), so
-        // tick positions don't move - d3's own log-scale tick picker already
-        // produces clean values here. The printed labels are relabeled by
-        // the same multiplicative scaleFactor as the copy-number-view axis
-        // (see cnTicksAndFormat), so this reads consistently with baseline
-        // adjustments in both view modes rather than always showing the
-        // raw, unadjusted copy number.
-        const scaleFactor = 2 ** this.baselineOffset;
-        g.call(
-          d3
-            .axisRight(this.cnYScale)
-            .ticks(5)
-            .tickFormat((d) => d3.format("~g")(d * scaleFactor))
-        );
+        g.call(d3.axisRight(this.cnYScale).ticks(5));
       }
     };
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
@@ -576,24 +544,24 @@ class ChromosomePlot extends EventTarget {
     }
   }
 
-  // Positions are always computed against a fixed psi=2 (baseline offset pinned
-  // to 0) so that adjusting the baseline never moves plotted data - only axis
-  // labels change to reflect the current baseline (see the tick-format changes
-  // in ratioYAxis/cnYAxis). TC/"Simulate purity" still applies exactly as
-  // before, since that's a genuine "show purity-corrected data" transform,
-  // unlike baseline, which is purely a relabeling of the same measurement.
+  // Standard tumor-purity/ploidy absolute-copy-number correction (the same
+  // formula used in ASCAT/Sequenza-style models, and identical to
+  // 03-results-table.js's #toAbsoluteCopyNumber): psi is the tumor's assumed
+  // baseline ploidy - a raw log2 ratio of 0 (no observed deviation) resolves
+  // to exactly psi copies. baselineOffset IS the user's ploidy hypothesis
+  // (psi = 2 * 2^baselineOffset, so baselineOffset=0 means "assume diploid"),
+  // baked directly into this formula rather than applied as a post-hoc axis
+  // relabeling - the two are only equivalent at tc=1 (100% purity), since the
+  // (1-tc)*2 normal-cell-contamination term doesn't scale with psi. This
+  // means adjusting the baseline DOES move plotted data whenever TC<100%,
+  // matching the table's/anchor-tracking's existing model instead of
+  // contradicting it.
   #toAbsoluteCopyNumber(x, isSegment) {
     const tc = this.simulatePurity ? this.tc : 1;
-    let adjCopies = (2 ** x * (tc * 2 + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
+    const psi = 2 * 2 ** this.baselineOffset;
+    let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (isSegment && this.roundSegmentsToInteger) {
-      // Round in the axis's relabeled space (same scaleFactor as
-      // cnTicksAndFormat), not raw position space - positions here are
-      // pinned to a fixed psi=2 (baseline offset ignored, see class comment
-      // above), so a segment rounded to a raw integer would land off the
-      // axis's own "nice integer" gridlines once baselineOffset != 0 (those
-      // gridlines sit at label/scaleFactor, not at raw integers).
-      const scaleFactor = 2 ** this.baselineOffset;
-      adjCopies = Math.round(adjCopies * scaleFactor) / scaleFactor;
+      adjCopies = Math.round(adjCopies);
     }
     return Math.max(adjCopies, MIN_COPY_NUMBER);
   }
@@ -923,9 +891,9 @@ class ChromosomePlot extends EventTarget {
 
     const isSummarized = ratioData.length > MAX_POINTS && !this.#showAllData;
     if (isSummarized) {
-      // Offset is always 0 now: transformValue's output no longer depends on
-      // baselineOffset (see #toAbsoluteCopyNumber), so the floor-clamp
-      // threshold below doesn't need shifting to match a baseline-shifted frame.
+      // Offset is 0: td.log2 above is already the fully-transformed display
+      // value (not a pre-shifted raw value the threshold needs correcting
+      // for), so the floor-clamp threshold needs no adjustment here.
       ratioData = slidingPixelWindow(
         ratioData,
         this.xScale,
@@ -1074,13 +1042,9 @@ class ChromosomePlot extends EventTarget {
 
   /**
    * Draw a faint horizontal reference line at every whole-number copy-number
-   * LABEL currently visible, so rounded segments have something to visually
-   * snap to. Only active in "simulate purity" + "round segments" mode;
-   * otherwise the group is cleared. cnYScale is baseline-independent (see
-   * #toAbsoluteCopyNumber), so a label n corresponds to raw CN n/scaleFactor
-   * - using raw integers directly here (as if labels were never relabeled)
-   * would draw these reference lines away from where segments actually
-   * round to once baselineOffset != 0.
+   * position currently visible, so rounded segments have something to
+   * visually snap to. Only active in "simulate purity" + "round segments"
+   * mode; otherwise the group is cleared.
    */
   #plotIntegerGridlines() {
     if (!(this.viewMode === "log2" && this.simulatePurity && this.roundSegmentsToInteger)) {
@@ -1088,13 +1052,12 @@ class ChromosomePlot extends EventTarget {
       return;
     }
 
-    const scaleFactor = 2 ** this.baselineOffset;
     const [cnMin, cnMax] = this.cnYScale.domain();
-    const startLabel = Math.max(0, Math.ceil(cnMin * scaleFactor));
-    const endLabel = Math.floor(cnMax * scaleFactor);
+    const startN = Math.max(0, Math.ceil(cnMin));
+    const endN = Math.floor(cnMax);
     const values = [];
-    for (let label = startLabel; label <= endLabel; label++) {
-      values.push(label);
+    for (let n = startN; n <= endN; n++) {
+      values.push(n);
     }
     const plotWidth = this.width - this.margin.left - this.margin.right;
 
@@ -1108,8 +1071,8 @@ class ChromosomePlot extends EventTarget {
             .attr("class", "integer-cn-gridline")
             .attr("x1", 0)
             .attr("x2", plotWidth)
-            .attr("y1", (d) => this.cnYScale(d / scaleFactor))
-            .attr("y2", (d) => this.cnYScale(d / scaleFactor))
+            .attr("y1", (d) => this.cnYScale(d))
+            .attr("y2", (d) => this.cnYScale(d))
             .attr("pointer-events", "none")
             // opacity 1 directly, not faded in — see the note on
             // #plotSegments()'s enter clause for why a transition scheduled
@@ -1122,26 +1085,31 @@ class ChromosomePlot extends EventTarget {
               .transition()
               .duration(this.animationDuration)
               .attr("x2", plotWidth)
-              .attr("y1", (d) => this.cnYScale(d / scaleFactor))
-              .attr("y2", (d) => this.cnYScale(d / scaleFactor))
+              .attr("y1", (d) => this.cnYScale(d))
+              .attr("y2", (d) => this.cnYScale(d))
           ),
         (exit) => exit.transition().duration(this.animationDuration).attr("opacity", 0).remove()
       );
   }
 
   /**
-   * Small triangle markers at the FIXED true absolute copy number = 2
-   * (diploid) position, independent of baseline offset and ploidy
-   * hypothesis - data no longer shifts with baseline (copy number is the
-   * stable anchor - see #toAbsoluteCopyNumber), so this never moves in
-   * either view mode. Drawn on both the left and right edges of the plot
-   * (rather than a full-width line) so it stays visible regardless of which
-   * part of the chromosome is in view.
+   * Small triangle markers at wherever a hypothetically flat (raw log2 = 0,
+   * no observed deviation) segment currently plots - i.e. the row that
+   * represents exactly psi = 2 * 2^baselineOffset absolute copies (the
+   * user's current ploidy hypothesis), or baselineOffset itself in log2
+   * terms (log2(psi/2) = baselineOffset). Since data moves with
+   * baseline/TC (see #toAbsoluteCopyNumber), this marker moves too. Drawn
+   * on both the left and right edges of the plot (rather than a full-width
+   * line) so it stays visible regardless of which part of the chromosome
+   * is in view.
    */
   #plotBaselineReference() {
     this.#baselineRefGroup.selectAll("path").remove();
 
-    const y = this.viewMode === "copyNumber" ? 2 : 0;
+    const y =
+      this.viewMode === "copyNumber"
+        ? 2 * 2 ** this.baselineOffset
+        : this.baselineOffset;
     const [dMin, dMax] = this.ratioYScale.domain();
     if (y < dMin || y > dMax) return;
 
@@ -1158,23 +1126,17 @@ class ChromosomePlot extends EventTarget {
   }
 
   /**
-   * Thick, full-width reference line at the tick currently labeled "2
-   * copies" / "0" (log2) - i.e. wherever the current baseline/anchor sits
-   * on the relabeled axis (see ratioYAxis/cnYAxis). In copy-number view a
-   * fixed row k is labeled k * 2^baselineOffset, so the row currently
-   * labeled "2" is 2 / 2^baselineOffset = 2^(1-baselineOffset); in log2 view
-   * a fixed row y is labeled y + baselineOffset, so the row currently
-   * labeled "0" is -baselineOffset. Styled thicker than the regular
-   * gridlines so it stands out as a deliberate reference, not an incidental
-   * tick.
+   * Thick, full-width reference line at the FIXED true absolute copy
+   * number = 2 (diploid) position - the standard, un-hypothesized diploid
+   * reference, always at the same row regardless of the current
+   * baseline/ploidy hypothesis or TC (unlike the moving triangle markers
+   * above). Styled thicker than the regular gridlines so it stands out as
+   * a deliberate reference, not an incidental tick.
    */
   #plotDiploidReference() {
     this.#diploidRefGroup.selectAll("line").remove();
 
-    const y =
-      this.viewMode === "copyNumber"
-        ? 2 ** (1 - this.baselineOffset)
-        : -this.baselineOffset;
+    const y = this.viewMode === "copyNumber" ? 2 : 0;
     const [dMin, dMax] = this.ratioYScale.domain();
     if (y < dMin || y > dMax) return;
 
@@ -2166,17 +2128,6 @@ class ChromosomePlot extends EventTarget {
       element: mouseTrap.select("#lr-mousetrap"),
       width: this.width - this.margin.left - this.margin.right,
       yScale: this.ratioYScale,
-      // The primary axis's ticks are relabeled to reflect the current
-      // baseline (see ratioYAxis) while the underlying scale/domain stays
-      // fixed - so the hover readout must apply the same relabeling
-      // (multiplicative in copy-number view, additive in log2 view) to the
-      // raw inverted value, or it would show a number that doesn't match
-      // what's printed on the axis at that row.
-      format: (v) =>
-        (this.viewMode === "copyNumber"
-          ? v * 2 ** this.baselineOffset
-          : v + this.baselineOffset
-        ).toLocaleString(),
       // In copy-number view cnYAxis is repurposed to mirror ratioYScale
       // (a log scale can't represent CN=0), so the hover readout must
       // follow the same scale, or invert() on cnYScale's invalid domain
@@ -2185,13 +2136,6 @@ class ChromosomePlot extends EventTarget {
         invert: (y) =>
           (this.viewMode === "copyNumber" ? this.ratioYScale : this.cnYScale).invert(y),
       },
-      // The secondary copy-number axis is relabeled the same multiplicative
-      // way as the copy-number-view primary axis (see cnYAxis) in both view
-      // modes - in copy-number view this exactly mirrors the primary's own
-      // relabeled value, and in log2 view it keeps the secondary readout
-      // consistent with baseline adjustments instead of always showing the
-      // raw, unadjusted copy number.
-      secondaryFormat: (v) => (v * 2 ** this.baselineOffset).toLocaleString(),
     });
 
     const bafCursor = new YCursor({
@@ -2304,8 +2248,9 @@ class ChromosomePlot extends EventTarget {
 
       const padding = (yMax - yMin) * 0.05;
       this.ratioYScale.domain([yMin - padding, yMax + padding]);
-      // Fixed (baseline-independent) domain in log2 view - see the class
-      // comment on #toAbsoluteCopyNumber for why baseline no longer shifts this.
+      // cnFromRatio converts the (already psi-adjusted) log2 domain into
+      // absolute copy number terms, so this correctly reflects the current
+      // baseline/TC hypothesis too.
       this.cnYScale.domain(
         this.viewMode === "copyNumber"
           ? [yMin - padding, yMax + padding]
