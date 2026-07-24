@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0](https://github.com/hydra-genetics/reports/compare/v1.3.0...v2.0.0) (2026-07-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* The segment filtering is now calculated in the report itself instead of ahead of time so that the table can be updated when the plots are adjusted. This is now done using a new filter yaml input file to the report. Thereby, the filtered input file is also removed from the rule.
+
+### Features
+
+* add a rule and script for xlsx variant report ([#165](https://github.com/hydra-genetics/reports/issues/165)) ([55dd295](https://github.com/hydra-genetics/reports/commit/55dd295e83fff9e91336122db79493e44716d001))
+* Update table ([#168](https://github.com/hydra-genetics/reports/issues/168)) ([6e18767](https://github.com/hydra-genetics/reports/commit/6e18767271645e34bfff708f6b7fb81e876c5b81))
+
+
+### Bug Fixes
+
+* use typing generics instead of __future__ annotations in compile_xlsx_report ([#167](https://github.com/hydra-genetics/reports/issues/167)) ([b51214e](https://github.com/hydra-genetics/reports/commit/b51214e16a759217f994405a1bc1fab3df55c037))
+
 ## [1.3.0](https://github.com/hydra-genetics/reports/compare/v1.2.0...v1.3.0) (2026-06-15)
 
 
