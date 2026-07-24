@@ -257,6 +257,23 @@ class ChromosomePlot extends EventTarget {
     this.#activeCaller = config?.caller ? config.caller : 0;
     this.zoomRange = [0, this.length];
     this.minZoomRange = config?.minZoomRange ? config.minZoomRange : 20;
+    // In Gene Focus (equalDistance) mode, this.xScale's domain is in data
+    // -point-index units, not base pairs - minZoomRange is a bp quantity, so
+    // using it directly there would apply a "20 bp" floor as if it meant "20
+    // data points", which is meaningless (could be far more or far less than
+    // 20bp of actual genomic distance depending on local probe density). Use
+    // this much smaller, unit-appropriate floor instead - see #minZoomRange.
+    this.minZoomRangeDataPoints = config?.minZoomRangeDataPoints ? config.minZoomRangeDataPoints : 5;
+    // Context padding applied when jumping to a specific region (e.g. the
+    // results table's "view" link), added on each side so the region isn't
+    // shown at its exact bounds with no surrounding context. In normal
+    // (bp) mode this is 50% of the region's own width per side, capped at
+    // maxContextPadding so a huge call doesn't zoom all the way out to a
+    // many-Mb view. In Gene Focus (equalDistance, datapoint-indexed) mode a
+    // percentage of the range isn't a meaningful unit, so a flat number of
+    // datapoints (contextPaddingDataPoints) is used per side instead.
+    this.maxContextPadding = config?.maxContextPadding ? config.maxContextPadding : 10000000;
+    this.contextPaddingDataPoints = config?.contextPaddingDataPoints ? config.contextPaddingDataPoints : 10;
     this.yZoomFactor = 1;
     this.#fitToData = config?.fitToData ? config.fitToData : false;
     this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
@@ -510,7 +527,18 @@ class ChromosomePlot extends EventTarget {
         start = this.getRatioIndex(start);
         end = this.getRatioIndex(end);
       }
-      this.zoomTo(start, end);
+      // Add context padding so jumping to a specific region shows some
+      // flanking context, not just its exact bounds. In Gene Focus mode
+      // (datapoint-indexed) always pad by a flat number of datapoints, since
+      // a percentage of the datapoint-count range is not a meaningful unit
+      // there. Otherwise pad by 50% of the region's own width per side,
+      // capped at maxContextPadding so a huge call doesn't zoom all the way
+      // out. zoomTo's own minimum-zoom floor still applies afterward as a
+      // safety net for regions too narrow for this to matter.
+      const padding = this.equalDistance
+        ? this.contextPaddingDataPoints
+        : Math.min((end - start) * 0.5, this.maxContextPadding);
+      this.zoomTo(start - padding, end + padding);
     }
 
     this.#ratios.attr("data-chromosome", this.data.chromosome);
@@ -606,6 +634,14 @@ class ChromosomePlot extends EventTarget {
       return this.#data.callers[this.#activeCaller].ratios.length;
     }
     return this.#data.length;
+  }
+
+  // The minimum zoom width in whatever units this.xScale's domain currently
+  // uses - data-point indices in Gene Focus mode, base pairs otherwise (see
+  // the constructor comment on minZoomRangeDataPoints for why these can't
+  // share a single constant).
+  get #effectiveMinZoomRange() {
+    return this.equalDistance ? this.minZoomRangeDataPoints : this.minZoomRange;
   }
 
   set equalDistance(equalDistance) {
@@ -2003,7 +2039,7 @@ class ChromosomePlot extends EventTarget {
               .attr("x", Math.max(0, Math.min(e.x, e.subject.x)))
               .attr("width", width);
 
-            if (genomeWidth < this.minZoomRange) {
+            if (genomeWidth < this.#effectiveMinZoomRange) {
               zoomRegion.attr("fill", "red");
             } else {
               zoomRegion.attr("fill", "#333");
@@ -2061,9 +2097,10 @@ class ChromosomePlot extends EventTarget {
           newWidth = this.length;
         }
 
-        // Limit zoom in to minZoomRange
-        if (newWidth < this.minZoomRange) {
-          newWidth = this.minZoomRange;
+        // Limit zoom in to the effective minimum (unit-appropriate for the
+        // current mode - see #effectiveMinZoomRange).
+        if (newWidth < this.#effectiveMinZoomRange) {
+          newWidth = this.#effectiveMinZoomRange;
         }
 
         // Calculate new xMin centered on mouse position
@@ -2339,10 +2376,31 @@ class ChromosomePlot extends EventTarget {
   }
 
   zoomTo(start, end) {
-    if (end - start < this.minZoomRange) {
+    const minRange = this.#effectiveMinZoomRange;
+    if (end - start < minRange) {
+      // Pad out symmetrically around the requested region's center instead
+      // of rejecting the zoom outright, so a narrow segment (e.g. from the
+      // results table's "view" link) still gets shown with some context
+      // rather than not zooming at all.
+      const mid = (start + end) / 2;
+      start = mid - minRange / 2;
+      end = mid + minRange / 2;
       this.dispatchEvent(new CustomEvent("max-zoom-reached", {}));
-      return this;
     }
+    // Clamp to the chromosome's bounds unconditionally - not just for the
+    // minimum-zoom case above - since context padding (applied by callers
+    // such as setData() before reaching here) can also push a region past
+    // either edge even when it's already wider than the minimum.
+    if (start < 0) {
+      end -= start;
+      start = 0;
+    }
+    if (end > this.length) {
+      start -= end - this.length;
+      end = this.length;
+    }
+    start = Math.max(0, start);
+    end = Math.min(this.length, end);
     this.zoomRange = [start, end];
     this.xScale.domain(this.zoomRange);
   }

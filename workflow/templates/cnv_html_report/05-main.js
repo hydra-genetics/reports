@@ -150,10 +150,13 @@ chromosomePlot.addEventListener("zoom", (e) => {
 });
 
 chromosomePlot.addEventListener("max-zoom-reached", () => {
+  const limit = chromosomePlot.equalDistance
+    ? `${chromosomePlot.minZoomRangeDataPoints} data points`
+    : `${chromosomePlot.minZoomRange} bp`;
   setModalMessage(
-    "Trying to zoom in too far. " +
-    `Current lower limit is ${chromosomePlot.minZoomRange} bp.`,
-    "error"
+    `The requested region is narrower than the minimum zoom width (${limit}), ` +
+    "so it's been padded out to that width for context.",
+    "info"
   );
   messageModal.showModal();
 });
