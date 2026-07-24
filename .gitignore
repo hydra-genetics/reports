@@ -3,7 +3,11 @@ __pycache__
 .snakemake
 describe_workflow.rst
 describe_jupyter_notebook.txt
-reports/
+/reports/
 site/
 logs/
 results/
+.idea/
+.vscode/
+.DS_Store
+CLAUDE.md

@@ -3,6 +3,7 @@ __copyright__ = "Copyright 2023, Niklas Mähler"
 __email__ = "niklas.mahler@regionvasterbotten.se"
 __license__ = "GPL-3"
 
+import csv
 import itertools
 import numpy as np
 import pathlib
@@ -182,13 +183,6 @@ def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     return config.get("merge_cnv_json", {}).get("germline_vcf", [])
 
 
-def get_filtered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    if not config.get("cnv_html_report", {}).get("show_table", True):
-        return []
-
-    return config.get("merge_cnv_json", {}).get("filtered_cnv_vcfs", [])
-
-
 def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
@@ -261,3 +255,23 @@ def get_tc_file(wildcards):
         return config["samples"]
     else:
         return f"cnv_sv/{tc_method}_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
+
+
+def get_ploidy_file(wildcards):
+    ploidy_file = f"cnv_sv/purecn/{wildcards.sample}_{wildcards.type}.csv"
+    if os.path.exists(ploidy_file):
+        return ploidy_file
+    return config["samples"]
+
+
+def get_ploidy(wildcards):
+    ploidy_file = f"cnv_sv/purecn/{wildcards.sample}_{wildcards.type}.csv"
+    if not os.path.exists(ploidy_file):
+        return None
+    with open(ploidy_file) as f:
+        reader = csv.DictReader(f)
+        try:
+            row = next(reader)
+            return float(row["Ploidy"])
+        except (StopIteration, ValueError, KeyError, TypeError):
+            return None

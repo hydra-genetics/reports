@@ -26,7 +26,79 @@ There are a couple of things that can be customised using the config file.
 
 ### Results table
 
-The CNV results table contains CNVs that have been called by the pipeline. In order for the table to be included in the final report, `show_table` under [`cnv_html_report`](/softwares/#configuration) has to be `true`. If this is the case, then both `filtered_cnv_vcfs` and `unfiltered_cnv_vcfs` have to be defined under [`merge_cnv_json`](/softwares/#configuration_2).
+The CNV results table contains CNVs that have been called by the pipeline. In order for the table to be included in the final report, `show_table` under [`cnv_html_report`](/softwares/#configuration) has to be `true`. If this is the case, then `unfiltered_cnv_vcfs` has to be defined under [`merge_cnv_json`](/softwares/#configuration_2).
+
+Alongside the static `CN` column (the caller's corrected copy number at report-build time), the table includes an **Adjusted CN** column. This is recomputed live in the browser from each call's own raw segment log₂ ratio, using the same calculation the plots use, so it updates immediately as the baseline-offset, TC, and "Absolute copy number" controls are changed, without needing a report rebuild. Unlike the plots' Log2 ratio view, this column always applies purity correction — by default using the sample's estimated TC, not an assumed 100% purity — so it reflects a real adjusted copy number even before "Simulate purity" is checked; checking it and moving the TC slider lets you explore a different purity assumption. If a call has no matching segment for its position, this column shows "NA".
+
+The **Type** column updates the same way when `table_filter_config` is set: it shows the name of the first group (see below) whose criteria the call's live Adjusted CN currently satisfies, title-cased (e.g. `amplification` → "Amplification"), or "Copy neutral" if no group matches. This replaces the caller's own static classification (whose vocabulary isn't standardized across callers — cnvkit reports `DUP`/`DEL`/`COPY_NORMAL`, GATK reports `<COPY_GAIN>`/`<COPY_LOSS>`/`<COPY_NORMAL>`) with one consistent, live vocabulary. Without `table_filter_config`, the column falls back to the caller's static classification, unchanged.
+
+#### Filter toggle
+
+The "filtered" checkbox above the table shows only calls that currently satisfy `table_filter_config` (see below), instead of a fixed pass/fail decision computed once at report-build time — so a call that only looks like a real amplification or loss under a different baseline/TC hypothesis becomes visible (or stops qualifying) as you adjust those controls, the same way the plots and the Adjusted CN column do. If a call from one caller doesn't currently qualify but an overlapping call from another caller does, the row is still shown (mirroring how overlapping calls are grouped elsewhere in the pipeline). If `table_filter_config` isn't set, the toggle has no criteria to filter by and shows every call.
+
+`table_filter_config` (optional, under [`merge_cnv_json`](/softwares/#configuration_2)) is the path to a YAML file with any number of named groups — not limited to a fixed set of names. Each group is a tree of `any_of`/`all_of`/`not` nodes with `{field, operator, value}` leaves:
+
+```yaml
+amplification:
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 6.0}
+deletion:
+  all_of:
+    - {field: adjusted_cn, operator: "<=", value: 1.4}
+```
+
+A call's Type is the name of the **first** group (in the order they're defined in the file) whose criteria it satisfies, title-cased (e.g. `amplification` → "Amplification") unless the group sets an explicit `label` (see below); if none match, it's "Copy neutral". The filter toggle shows a call if it matches any group — unless that group sets `filter: false`, in which case the group still affects Type but is excluded from the filter toggle's decision. This is useful for an intermediate classification that doesn't itself warrant hard-filtering, e.g. a "duplication" group for gains too small to count as a full amplification:
+
+```yaml
+amplification:
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 6.0}
+duplication:
+  filter: false  # Type-only: shows as "Duplication", but never makes the row visible under "filtered"
+  all_of:
+    - {field: adjusted_cn, operator: ">", value: 2.5}
+    - {field: adjusted_cn, operator: "<", value: 6.0}
+deletion:
+  all_of:
+    - {field: adjusted_cn, operator: "<", value: 1.4}
+loh:
+  label: "LOH"  # overrides the auto-generated "Loh" — useful for acronyms/exact wording
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 1.4}
+    - {field: adjusted_cn, operator: "<=", value: 2.5}
+    - not:
+        all_of:
+          - {field: baf, operator: ">", value: 0.3}
+          - {field: baf, operator: "<", value: 0.7}
+```
+
+The `loh` group above illustrates a real subtlety: a call can have a completely neutral copy number and still be clinically significant — a skewed BAF at CN≈2 indicates copy-neutral loss of heterozygosity (one allele lost, compensated by duplication of the other), distinct from an actual copy-number loss. Splitting these into separate named groups (rather than folding LOH detection into a single "deletion"/"loss" group) keeps the Type column from mislabeling a genuinely neutral-CN call as a deletion just because its BAF happens to be skewed.
+
+Note that this `loh` group needs no caller-specific carve-out for callers that never measure BAF (e.g. Jumble): a leaf whose field has no data for a given call evaluates to "unknown" rather than false, and that unknown propagates through `not`/`any_of`/`all_of` instead of being silently treated as false. Concretely, `not({baf-in-neutral-range})` for a call with no BAF data evaluates to `not(unknown)`, which stays unknown — not `true` — so it does not, by itself, qualify the call as LOH. A plain two-valued evaluator would get this backwards (`not(false) = true`), incorrectly turning "we don't know the BAF" into "confirmed skewed" for every caller with missing BAF, not just one.
+
+`operator` is one of `=`, `!=`, `<`, `>`, `<=`, `>=`. `field` may be:
+
+- `adjusted_cn` — the call's live copy number (same value shown in the Adjusted CN column)
+- `baf`, `length`, `caller` — always available, read from each call's VCF record
+- any name listed in `extra_info_fields` (also under `merge_cnv_json`) — additional VCF INFO fields to extract per call and make available under that same name, for criteria that depend on something pipeline-specific (e.g. an artifact-database frequency annotation). Nothing beyond `adjusted_cn`/`baf`/`length`/`caller` is hardcoded, so this works the same way regardless of what that field happens to be called in a given pipeline's VCFs:
+
+```yaml
+merge_cnv_json:
+  extra_info_fields:
+    - Twist_AF
+  table_filter_config: config/table_filter.yaml
+```
+```yaml
+# config/table_filter.yaml
+amplification:
+  all_of:
+    - {field: adjusted_cn, operator: ">=", value: 6.0}
+    - {field: Twist_AF, operator: "<=", value: 0.15, default: 0}
+```
+
+A gene-annotation-existence check isn't needed in this config — every call reaching the table already required a gene match to be included at all.
+
+By default, a leaf whose field has no data for a given call evaluates to "unknown" (see the `loh` example above) — the safe choice when missing data should leave the criterion undetermined rather than silently assuming a value. Sometimes, though, missing data has an obvious safe substitute: a call with no co-located small variant simply has no elevated-AF signal to worry about, so `Twist_AF` being absent should read the same as `Twist_AF: 0`, not "unknown". A leaf can opt into this with `default`, which substitutes for the field's value when it's missing, as in the `amplification` example above. Without `default: 0` there, a call with no matching small variant would leave that leaf — and therefore the whole `amplification` group — unresolved even when `adjusted_cn` alone clearly qualifies it, so the call would fall through to whatever group (if any) matches next, or "Copy neutral" if none does. Only set `default` when a missing value genuinely has an obvious neutral substitute — the `loh` group's `baf` leaves deliberately don't set one, since there's no safe stand-in for "we didn't measure BAF" when checking for an actual allelic imbalance.
 
 ### Additional tables
 
@@ -91,7 +163,74 @@ The report will then include a toggle to apply these colors to the gene annotati
 
 ### Manual tumor content adjustment
 
-The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The slider is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, adjusting the slider recalculates and redraws the expected copy number lines in the log₂-ratio plots in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
+The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The slider is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, adjusting the slider recalculates and redraws the expected copy number lines in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
+
+Enabling **"Simulate purity"** also switches both plots to the [Copy number view](#log2-ratio-vs-copy-number-view) by default (it can be switched back to log₂ ratio manually), and makes the **"Absolute copy number"** checkbox available. Enabling it snaps each segment line's recomputed copy number to the nearest whole number, which can make it easier to check the TC estimate against expected integer copy states. This does not affect the individual scatter points, only the segment lines. Unlike the view-mode toggle, "Absolute copy number" is only ever available while "Simulate purity" is checked.
+
+### Log2 ratio vs. Copy number view
+
+Both the chromosome and genome-wide plots can be switched between two Y-axis views:
+
+- **Log2 ratio** (default) — the raw, purity-independent log₂ ratio. If "Simulate purity" is also enabled, values are TC-adjusted before being expressed as a log₂ ratio.
+- **Copy number** — a linear, absolute copy-number scale (0–5 by default) instead of log₂ ratio. This view works even without "Simulate purity" enabled, in which case it assumes 100% purity; enabling "Simulate purity" makes the displayed numbers reflect the actual TC-adjusted copy number.
+
+**The baseline offset is a tumor-ploidy hypothesis, not a display relabeling**: adjusting it changes
+`psi` (the assumed baseline/neutral copy number of the tumor clone itself) in the same standard
+tumor-purity/ploidy correction formula the table's "Adjusted CN" column uses
+(`psi = 2 × 2^baselineOffset`; a baseline offset of 0 means "assume diploid"). This means segments
+and points **do move** when the baseline offset changes, in either view, whenever TC is below 100%
+("Simulate purity" enabled with a real TC value) — the two only coincide with a pure relabeling
+when TC is 100%, since there's no normal-cell contamination to interact with `psi` in that case.
+Both plots and the table always agree, since they share the same formula. Axis labels are always
+the plain, standard values (whole-number copy numbers, or standard log₂ ticks) — there's no
+relabeling to keep track of.
+
+Small triangle markers on the left and right edges of the plot mark wherever a hypothetically flat
+(no observed deviation) segment currently plots — i.e. exactly `psi` absolute copies, the current
+baseline hypothesis — moving with baseline and TC. A thicker, full-width reference line instead
+always marks the fixed position of true absolute copy number 2 (diploid) — independent of the
+baseline/TC hypothesis, a stable reference to judge the data against.
+
+The secondary axis on the right-hand side of each plot always shows copy number regardless of the
+active view (in Copy number view it mirrors the primary axis exactly), and the BAF row is labelled
+on both the left and right for readability.
+
+### Y-axis zoom
+
+The "Y-axis zoom" controls (+ / − / Reset) narrow or widen the visible range of the ratio panel
+(log2 ratio or copy number, depending on the active view) around its current center, on both the
+chromosome and genome-wide plots. This is independent of "Zoom to data extent" and of the X-axis
+(genomic position) zoom, and doesn't affect the BAF panel, whose Y-range is always fixed to
+`[0, 1]`. "Reset" restores the default (unzoomed) range.
+
+### Baseline and tumor content
+
+The report includes a baseline offset slider, driven by the mechanism described above.
+
+Once a baseline offset is active (entered manually), the report remembers which raw log₂ value it currently treats as exactly 2 copies. Because the mapping between a raw (TC-diluted) log₂ value and its absolute copy number depends on TC once "Simulate purity" is in effect, adjusting the TC slider afterwards — or toggling "Simulate purity" itself, which switches the TC actually applied between 1 and the real value — automatically re-solves the baseline offset so that same reference point stays pinned at exactly 2 copies, rather than silently drifting out of sync with the newly-adjusted TC.
+
+### Gene Focus
+
+The "Gene Focus" checkbox (chromosome view) displays data points with equal spacing along the x-axis, regardless of their genomic position. This allows for visualizing the sequential order of probes rather than their physical distance, which can be useful when probes are unevenly distributed — e.g. to inspect a densely-probed gene region without it being compressed by the surrounding sparser intergenic distance.
+
+### Default-checked controls
+
+Several checkboxes can be configured to be checked by default when the report is opened, via `cnv_html_report` in the config file:
+
+```yaml
+cnv_html_report:
+    default_simulate_purity: true
+    default_absolute_copy_number: true
+    default_gene_focus: true
+    default_show_all_datapoints: true
+```
+
+- `default_simulate_purity` — checks "Simulate purity" (and, per the behavior described above, switches the default view to Copy number).
+- `default_absolute_copy_number` — checks "Absolute copy number". Only takes effect if `default_simulate_purity` is also `true`, since the checkbox requires purity simulation to be active; if set without it, the checkbox is forced back to unchecked when the report loads.
+- `default_gene_focus` — checks "Gene Focus".
+- `default_show_all_datapoints` — checks "Show all data points".
+
+All four default to `false`.
 
 ### Wide Plots
 
@@ -112,9 +251,13 @@ The report includes the following interactive features:
 | Genome-wide plot | Overview of copy number across all chromosomes |
 | Linear chromosome view | Alternative linear view for each chromosome with per-caller toggle |
 | Gene search | Search box to quickly navigate the plot to a specific gene |
+| Log2 ratio / Copy number toggle | Switches the Y-axis between log₂ ratio and a linear, absolute copy-number scale; see [Log2 ratio vs. Copy number view](#log2-ratio-vs-copy-number-view) |
 | Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
+| Absolute copy number | Snaps segment lines to whole-number copy number; requires **Simulate purity** to be enabled first |
+| Gene Focus | Displays data points with equal spacing along the x-axis instead of by genomic position |
 | Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
 | Caller toggle | Switch between callers (CNVkit, GATK, Jumble) in the chromosome and genome plots |
+| Adjusted CN column | Live-recomputed copy-number column in the results table, following the baseline/TC/rounding controls; see [Results table](#results-table) |
 
 
 ## Customising the template
@@ -129,6 +272,7 @@ use rule cnv_html_report from reports as reports_cnv_html_report with:
         css_files=["path/to/custom/css/style.css"],
         js_files=["path/to/custom/js/script-1.js", "path/to/custom/js/script-2.js"],
         tc_file=reports.get_tc_file,
+        ploidy_file=reports.get_ploidy_file,
 ```
 
 The only template file that is strictly required is the html file `html_template`. Both `css_files` and `js_files` can be left out if you so wish, but the functionality will be severly limited without any javascript.

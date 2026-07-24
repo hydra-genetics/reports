@@ -22,5 +22,5 @@ merge_cnv_json:
   annotations:
   cytobands:
   germline_vcf:
-  filtered_cnv_vcfs:
   unfiltered_cnv_vcfs:
+  table_filter_config:

@@ -120,6 +120,7 @@ const genomePlot = new GenomePlot({
 
 const resultsTable = new ResultsTable(d3.select("#cnv-table"), {
   data: cnvData,
+  tc: originalTc,
   caller: initialCallerIndex !== -1 ? initialCallerIndex : 0,
   filter: d3.select("#table-filter-toggle").node().checked,
 });
@@ -149,10 +150,13 @@ chromosomePlot.addEventListener("zoom", (e) => {
 });
 
 chromosomePlot.addEventListener("max-zoom-reached", () => {
+  const limit = chromosomePlot.equalDistance
+    ? `${chromosomePlot.minZoomRangeDataPoints} data points`
+    : `${chromosomePlot.minZoomRange} bp`;
   setModalMessage(
-    "Trying to zoom in too far. " +
-    `Current lower limit is ${chromosomePlot.minZoomRange} bp.`,
-    "error"
+    `The requested region is narrower than the minimum zoom width (${limit}), ` +
+    "so it's been padded out to that width for context.",
+    "info"
   );
   messageModal.showModal();
 });
@@ -263,6 +267,85 @@ const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
 const currentBaselineOffset = d3.select("#current-baseline-offset");
 const baselineOffsetReset = d3.select("#reset-baseline-offset");
 
+// Converts the anchor's raw log2 value into the baseline-offset slider value
+// (psi = 2 * 2^baselineOffset is the assumed neutral copy number in the pure
+// -tumor frame - see #toAbsoluteCopyNumber). The anchor's raw log2 is the
+// *observed*, TC-diluted value, so recovering the pure-tumor-frame psi that
+// makes this segment resolve to exactly 2 absolute copies requires knowing
+// TC: solving adjCopies(anchorLog2) = 2 in #toAbsoluteCopyNumber's model for
+// psi (not assuming tc=1) gives psi = (K - 2*(1-tc)) / tc, where
+// K = 2^(1-anchorLog2) is tc-independent. Using tc=1 here (i.e. baselineOffset
+// = -anchorLog2) would only be correct when "Simulate purity" stays off -
+// since TC can change independently after a baseline is set, the offset must
+// be solved jointly with whichever TC value is currently effective.
+function baselineOffsetFromAnchor(anchorLog2, tc) {
+  const K = 2 ** (1 - anchorLog2);
+  const psi = (K - 2 * (1 - tc)) / tc;
+  return Math.log2(psi / 2);
+}
+
+// Exact inverse of baselineOffsetFromAnchor: given a baseline offset that is
+// (or is about to be) active at a given TC, what raw log2 value does it
+// currently treat as exactly 2 absolute copies? Used to keep a
+// baseline/anchor pair self-consistent whenever TC changes after the fact
+// (either via the TC slider, or via toggling "Simulate purity", which
+// switches the TC that's actually applied between 1 and the real value) -
+// see reapplyBaselineFromAnchor below.
+function anchorLog2FromBaselineOffset(baselineOffset, tc) {
+  const psi = 2 * 2 ** baselineOffset;
+  const K = tc * psi + 2 * (1 - tc);
+  return 1 - Math.log2(K);
+}
+
+// The raw log2 value the currently active baseline offset treats as exactly
+// 2 absolute copies (see baselineOffsetFromAnchor/anchorLog2FromBaselineOffset
+// above). baselineOffset alone isn't TC-independent once "Simulate purity" is
+// active - the same anchor point needs a different baselineOffset at a
+// different TC to keep resolving to exactly 2 copies - so this is tracked
+// separately and used to keep the two in sync whenever TC changes (or
+// "Simulate purity" is toggled, which switches the TC that's actually applied
+// between 1 and the real value). Starts at 0 to match the default
+// baselineOffset=0, which is itself TC-independent (see derivation).
+let lastAnchorLog2 = 0;
+
+// simulatePurity/currentTc are declared further below, but this is only
+// ever called from within event handlers, which all run after the entire
+// script (including those declarations) has finished executing.
+function effectiveTc() {
+  return simulatePurity.node().checked ? parseFloat(currentTc.node().value) : 1;
+}
+
+// Applies a baseline offset value to the slider/display/views only - does
+// not touch lastAnchorLog2. Callers decide separately whether this offset
+// should update the tracked anchor (a manual/estimated change should) or not
+// (reapplyBaselineFromAnchor recomputes an offset *from* the existing
+// anchor, so it must leave it untouched).
+function setBaselineOffsetUI(dy) {
+  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  baselineOffsetSlider.node().value = dy;
+  currentBaselineOffset.node().value = strdy;
+  currentBaselineOffset.node().classList.remove("invalid");
+  currentBaselineOffset.node().title = "";
+  baselineOffsetReset.property("disabled", dy === 0);
+  chromosomePlot.setBaselineOffset(dy);
+  genomePlot.setBaselineOffset(dy);
+  resultsTable.setBaselineOffset(dy);
+}
+
+// Recomputes the baseline offset from the tracked anchor at whatever TC is
+// currently effective, keeping that anchor pinned at exactly 2 absolute
+// copies as TC changes. No-op if no anchor has ever been established.
+function reapplyBaselineFromAnchor() {
+  if (lastAnchorLog2 === null) return;
+  const minDy = parseFloat(baselineOffsetSlider.node().min);
+  const maxDy = parseFloat(baselineOffsetSlider.node().max);
+  const dy = Math.min(
+    maxDy,
+    Math.max(minDy, baselineOffsetFromAnchor(lastAnchorLog2, effectiveTc()))
+  );
+  setBaselineOffsetUI(dy);
+}
+
 baselineOffsetSlider.on("change", () => {
   currentBaselineOffset.node().dispatchEvent(new Event("change"));
 });
@@ -287,19 +370,10 @@ currentBaselineOffset.on("change", (e) => {
     return;
   }
 
-  e.target.classList.remove("invalid");
-  e.target.title = "";
-
-  baselineOffsetReset.property("disabled", true);
-  if (dy != 0) {
-    baselineOffsetReset.property("disabled", false);
-  }
-
-  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  baselineOffsetSlider.node().value = dy;
-  currentBaselineOffset.node().value = strdy;
-  chromosomePlot.setBaselineOffset(dy);
-  genomePlot.setBaselineOffset(dy);
+  setBaselineOffsetUI(dy);
+  // A manual edit defines a fresh anchor at whichever raw log2 this offset
+  // currently corresponds to, at the currently-effective TC.
+  lastAnchorLog2 = anchorLog2FromBaselineOffset(dy, effectiveTc());
 });
 
 baselineOffsetReset.on("click", () => {
@@ -314,16 +388,59 @@ const tcAdjustSlider = d3.select("#tc-adjuster");
 const currentTc = d3.select("#current-tc");
 const tcAdjustReset = d3.select("#reset-tc");
 
+const roundSegmentsToInteger = d3.select("#round-segments-integer");
+const viewModeInputs = d3.selectAll("input[name=view-mode]");
+
+function updateRoundSegmentsEnablement() {
+  const enable = simulatePurity.node().checked;
+  roundSegmentsToInteger.property("disabled", !enable);
+  if (!enable) {
+    roundSegmentsToInteger.property("checked", false);
+    roundSegmentsToInteger.node().dispatchEvent(new Event("change"));
+  }
+}
+
+function applyViewMode(mode) {
+  viewModeInputs.property("checked", function () {
+    return this.value === mode;
+  });
+  chromosomePlot.setViewMode(mode);
+  genomePlot.setViewMode(mode);
+  updateRoundSegmentsEnablement();
+}
+
 simulatePurity.on("change", (e) => {
   const checked = e.target.checked;
   tcAdjustSlider.property("disabled", !checked);
   currentTc.property("disabled", !checked);
-  currentTc.node().dispatchEvent(new Event("change"));
   if (!checked) {
+    // resultsTable always applies TC (unlike the plots, which assume 100%
+    // purity while "Simulate purity" is off) — reset the (now-disabled)
+    // TC input back to the default so the table doesn't keep using a
+    // stale, no-longer-adjustable TC the user tried earlier.
+    tcAdjustSlider.node().value = originalTc;
+    currentTc.node().value = originalTc;
     tcAdjustReset.property("disabled", true);
   }
+  currentTc.node().dispatchEvent(new Event("change"));
   chromosomePlot.setSimulatePurity(checked);
   genomePlot.setSimulatePurity(checked);
+  if (checked) {
+    applyViewMode("copyNumber");
+  } else {
+    applyViewMode("log2");
+  }
+});
+
+roundSegmentsToInteger.on("change", (e) => {
+  const checked = e.target.checked;
+  chromosomePlot.setRoundSegmentsToInteger(checked);
+  genomePlot.setRoundSegmentsToInteger(checked);
+  resultsTable.setRoundSegmentsToInteger(checked);
+});
+
+viewModeInputs.on("change", (e) => {
+  applyViewMode(e.target.value);
 });
 
 tcAdjustSlider.on("change", () => {
@@ -363,6 +480,13 @@ currentTc.on("change", (e) => {
   currentTc.node().value = strtc;
   chromosomePlot.setTc(tc);
   genomePlot.setTc(tc);
+  resultsTable.setTc(tc);
+
+  // Keep whichever anchor is currently tracked pinned at exactly 2 copies
+  // under the new TC. This also fires whenever "Simulate purity" is
+  // toggled, since that handler unconditionally dispatches "change" on
+  // currentTc to apply the effective-TC switch between 1 and the real value.
+  reapplyBaselineFromAnchor();
 });
 
 tcAdjustReset.on("click", () => {
@@ -371,6 +495,33 @@ tcAdjustReset.on("click", () => {
   currentTc.node().value = originalTc;
   tcAdjustSlider.node().dispatchEvent(new Event("change"));
 });
+
+const Y_ZOOM_STEP = 0.8; // zoom-in shrink factor; zoom-out is 1/Y_ZOOM_STEP
+
+const yZoomIn = d3.select("#y-zoom-in");
+const yZoomOut = d3.select("#y-zoom-out");
+const yZoomReset = d3.select("#reset-y-zoom");
+let currentYZoomFactor = 1;
+
+function applyYZoom(factor) {
+  // Clamp here too (setYZoom clamps internally) so the tracked factor never
+  // drifts past what's actually rendered - otherwise repeated zoom-in clicks
+  // past the floor would require extra zoom-out clicks before anything
+  // visibly changes again. The max depends on the active view mode (copy
+  // number vs log2 have very different useful zoom-out ranges - see
+  // maxYZoomFactorFor); both plots share the same view mode.
+  currentYZoomFactor = Math.min(
+    maxYZoomFactorFor(chromosomePlot.viewMode === "copyNumber"),
+    Math.max(MIN_Y_ZOOM_FACTOR, factor)
+  );
+  yZoomReset.property("disabled", currentYZoomFactor === 1);
+  chromosomePlot.setYZoom(currentYZoomFactor);
+  genomePlot.setYZoom(currentYZoomFactor);
+}
+
+yZoomIn.on("click", () => applyYZoom(currentYZoomFactor * Y_ZOOM_STEP));
+yZoomOut.on("click", () => applyYZoom(currentYZoomFactor / Y_ZOOM_STEP));
+yZoomReset.on("click", () => applyYZoom(1));
 
 d3.selectAll("input[name=dataset]").on("change", (e) => {
   chromosomePlot.activeCaller = parseInt(e.target.value);
@@ -505,7 +656,7 @@ d3.select("#gene-search").on("change", (e) => {
 // Add keydown listener to force cycle on Enter even if value hasn't changed
 d3.select("#gene-search").on("keydown", (e) => {
     if (e.key === "Enter") {
-        e.preventDefault(); 
+        e.preventDefault();
         // Manually trigger the change logic if value is same as last search
         if (e.target.value === lastSearchTerm) {
              d3.select("#gene-search").dispatch("change");
@@ -514,4 +665,31 @@ d3.select("#gene-search").on("keydown", (e) => {
              e.target.blur(); // Trigger change
         }
     }
+});
+
+// Reconcile "Absolute copy number"'s enabled/checked state with whatever
+// "Simulate purity" was rendered as, in case a site configures
+// default_absolute_copy_number=true without default_simulate_purity=true
+// (that combination is invalid — absolute copy number requires purity
+// simulation — and this forces the checkbox back to unchecked+disabled
+// before anything below can act on its template-rendered "checked" state).
+updateRoundSegmentsEnablement();
+
+// Apply config-driven default-checked state for controls whose "checked"
+// attribute alone doesn't apply its side effects (enabling other controls,
+// informing the plot objects) — dispatch "change" as if the user had just
+// clicked it, going through the exact same handlers/cascade above.
+// Order matters: simulate-purity first, since round-segments-integer's own
+// enablement (and default-checked state, if misconfigured without purity
+// simulation) depends on that cascade having already run.
+[
+  "#simulate-purity",
+  "#round-segments-integer",
+  "#chromosome-equal-distance",
+  "#chromosome-show-all-datapoints",
+].forEach((selector) => {
+  const node = d3.select(selector).node();
+  if (node.checked) {
+    node.dispatchEvent(new Event("change"));
+  }
 });

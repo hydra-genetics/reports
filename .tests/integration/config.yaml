@@ -36,6 +36,10 @@ general_html_report:
   final_directory_depth: 3
   multiqc_config: "config/reports/multiqc_config_dna.yaml"
 
+compile_xlsx_report:
+  filters: config/reports/xlsx_report_filters.yaml
+  genes: config/xlsx_report_genes.bed
+
 merge_cnv_json:
   annotations:
     - config/amp_genes.bed
@@ -44,13 +48,11 @@ merge_cnv_json:
   cytobands: config/cytobands.txt
   ref_genes: reference/ref_genes_test.txt
   cancer_genes: config/cancer_genes_test.csv
-  filtered_cnv_vcfs:
-    - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_amp_genes.filter.cnv_hard_filter_amp.vcf
-    - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_loh_genes.filter.cnv_hard_filter_loh.vcf
   germline_vcf: snv_indels/bcbio_variation_recall_ensemble/{sample}_{type}.ensembled.vep_annotated.filter.germline.exclude.blacklist.vcf
   unfiltered_cnv_vcfs:
     - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_amp_genes.vcf
     - cnv_sv/svdb_query/{sample}_{type}.{tc_method}.svdb_query.annotate_cnv.cnv_loh_genes.vcf
+  table_filter_config: config/table_filter.yaml
 
 svdb_merge:
   tc_method:

@@ -10,3 +10,4 @@ The reports module consists of a set of rules for creating various reports of re
 
 - General report
 - CNV report
+- XLSX report

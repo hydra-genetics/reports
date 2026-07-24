@@ -181,12 +181,6 @@ properties:
             description: >
               Optional VCF file with germline variants. Supplied by input
               function that takes it from the config.
-          filtered_cnv_vcfs:
-            type: string
-            description: >
-              Zero or more VCF files containing filtered CNV calls that should
-              be displayed in the results table. Supplied by input function that
-              takes these from the config.
           cnv_vcfs:
             type: string
             description: >
@@ -204,6 +198,12 @@ properties:
               Optional path to a CSV file with cancer gene coloring definitions.
               The CSV must have at least three columns with headers: "Gene" (gene name), "Role" (e.g., OG_consensus, TSG_consensus), and "Simple_Color" (hex color code).
               If a gene in this file is also present in `ref_genes` (but not in `annotations`), its coordinates will be automatically fetched and it will be highlighted in the chromosome plot.
+          table_filter_config:
+            type: string
+            description: >
+              Optional path to a YAML file defining structured CN/BAF/extra-field
+              criteria for the results table's filter toggle. Supplied by input
+              function that takes it from the config.
       output:
         type: object
         description: list of outputs
@@ -213,3 +213,33 @@ properties:
             description: >
               Merged JSON file with CNV calls and other sample information that
               is ready to be included in the final report.
+
+  reports_compile_xlsx_report:
+    type: object
+    description: input and output parameters for reports_compile_xlsx_report
+    properties:
+      input:
+        type: object
+        description: list of inputs
+        properties:
+          vcf_snv:
+            type: string
+            description: >
+              VEP-annotated, phased SNV/indel VCF for the sample.
+          vcf_sv:
+            type: string
+            description: >
+              SVDB-merged structural variant VCF for the sample.
+          vcf_cnv:
+            type: string
+            description: >
+              Filtered, annotated CNVkit CNV VCF for the sample.
+      output:
+        type: object
+        description: list of outputs
+        properties:
+          xlsx:
+            type: string
+            description: >
+              Combined Excel workbook with SNV, TP53, Translocations, SV, CNV
+              and Software Versions sheets.
