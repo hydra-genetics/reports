@@ -32,6 +32,28 @@
   display: block;
 }
 
+.y-zoom-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  z-index: 1;
+}
+
+.y-zoom-in-out {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.y-zoom-controls button {
+  padding: 0 0.3rem;
+  line-height: 1.2;
+  font-size: 0.7rem;
+  min-width: 0;
+}
+
 header {
   margin: 1em 0 0.5em 0;
 }
@@ -229,18 +251,35 @@ svg .segment {
 }
 
 svg .gridline {
-  stroke: #dddddd;
+  stroke: #a0a0a0;
   stroke-width: 0.5px;
-  shape-rendering: crispEdges;
+  shape-rendering: crispedges;
 }
 
-svg .gridline.baseline {
-  stroke: #777777;
-  stroke-width: 1.5px;
+svg .baseline-marker {
+  fill: #707070;
+}
+
+svg .baf-zero-line {
+  stroke: #888888;
+  stroke-width: 1px;
+  opacity: 0.5;
+}
+
+svg .integer-cn-gridline {
+  stroke: #2f6fb8;
+  stroke-width: 1px;
+  stroke-dasharray: 4, 3;
+  shape-rendering: crispedges;
+}
+
+svg .gridline.diploid-reference {
+  stroke: #707070;
+  stroke-width: 2px;
 }
 
 svg .cursor-line {
-  stroke: #888888;
+  stroke: #707070;
 }
 
 svg .cursor-label {
@@ -398,15 +437,19 @@ th {
 }
 
 #cnv-table th:nth-child(5) {
-  width: 10%;
+  width: 12%;
 }
 
 #cnv-table th:nth-child(6) {
-  width: 10%;
+  width: 6%;
 }
 
 #cnv-table th:nth-child(7) {
-  width: 10%;
+  width: 6%;
+}
+
+#cnv-table th:nth-child(8) {
+  width: 6%;
 }
 
 thead {

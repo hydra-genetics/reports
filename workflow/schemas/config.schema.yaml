@@ -80,8 +80,8 @@ properties:
         default: true
         description: >
           Whether or not to display a table of called CNVs in the report. If
-          this is true, then the attributes `filtered_cnv_vcfs` and
-          `unfiltered_cnv_vcfs` under `merge_cnv_json` are required.
+          this is true, then the attribute `unfiltered_cnv_vcfs` under
+          `merge_cnv_json` is required.
       extra_tables:
         type: array
         description: >
@@ -109,6 +109,7 @@ properties:
             - name
             - path
       wide_plot_width:
+        type: [integer, boolean]
         oneOf:
           - type: integer
           - type: boolean
@@ -118,6 +119,32 @@ properties:
           Fixed horizontal width for plots in pixels. If set, plots will stack
           vertically and allow horizontal scrolling on smaller screens. Set to
           `false` for responsive behavior.
+      default_simulate_purity:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Simulate purity" checkbox should be checked by default
+          when the report is opened.
+      default_absolute_copy_number:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Absolute copy number" checkbox should be checked by
+          default when the report is opened. Only takes effect if
+          `default_simulate_purity` is also true, since this option requires
+          tumor purity simulation to be active.
+      default_gene_focus:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Gene Focus" checkbox (chromosome view) should
+          be checked by default when the report is opened.
+      default_show_all_datapoints:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Show all data points" checkbox should be checked by
+          default when the report is opened.
     required:
       - show_table
 
@@ -213,23 +240,6 @@ properties:
           position (exclusive), name, and Giemsa stain result. The Giemsa stain
           results should match with the config under
           `cnv_html_report.cytoband_config`
-      filtered_cnv_vcfs:
-        type: array
-        description: >
-          VCF files containing filtered CNV calls that should be displayed in
-          the results table. Will only have an effect if `show_table` is true,
-          and if `show_table` is true, this attribute is required.
-        items:
-          type: string
-          format: uri-reference
-          description: >
-            Path to a filtered CNV VCF file that will be presented in the
-            results table of the report. The file should contain merged calls
-            from all callers that are listed for `svdb_merge`, and the INFO
-            field should have a `CALLER` attribute that lists the caller that
-            called the variant in question. This file should be a subset of
-            `unfiltered_cnv_vcfs`. The path supports `sample`, `type` and
-            `tc_method` wildcards.
       germline_vcf:
         type: string
         format: uri-reference
@@ -240,20 +250,62 @@ properties:
       unfiltered_cnv_vcfs:
         type: array
         description: >
-          VCF files containing unfiltered CNV calls that should be displayed in
-          the results table. Will only have an effect if `show_table` is true,
+          VCF files containing CNV calls that should be displayed in the
+          results table. Will only have an effect if `show_table` is true,
           and if `show_table` is true, this attribute is required.
         items:
           type: string
           format: uri-reference
           description: >
-            Path to an unfiltered CNV VCF file that will be presented in the
-            results table of the report. The file should contain merged calls
-            from all callers that are listed for `svdb_merge`, and the INFO
-            field should have a `CALLER` attribute that lists the caller that
-            called the variant in question. This file should be a superset of
-            `filtered_cnv_vcfs`. The path supports `sample`, `type` and
-            `tc_method` wildcards.
+            Path to a CNV VCF file that will be presented in the results table
+            of the report. The file should contain merged calls from all
+            callers that are listed for `svdb_merge`, and the INFO field
+            should have a `CALLER` attribute that lists the caller that
+            called the variant in question. The path supports `sample`,
+            `type` and `tc_method` wildcards.
+      table_filter_config:
+        type: string
+        format: uri-reference
+        description: >
+          Optional path to a YAML file defining structured criteria for the
+          results table's Type column and filter toggle, as any number of
+          top-level named groups, each a tree of `any_of`/`all_of`/`not` nodes
+          and `{field, operator, value}` leaves. A call's Type is the name of
+          the first group (in definition order) whose criteria it satisfies
+          (title-cased, or the group's `label` if it sets one — useful for
+          acronyms like "LOH" that shouldn't be auto-capitalized as "Loh"),
+          or "Copy neutral" if none match. The filter toggle shows
+          a call if it matches any group, unless that group sets
+          `filter: false` (Type classification only, excluded from the filter
+          toggle — e.g. an intermediate "duplication" group that shouldn't
+          itself hard-filter). A leaf whose field has no data for a given call
+          (e.g. a caller that never measured BAF for a segment) evaluates to
+          "unknown" rather than false, and `not`/`any_of`/`all_of` propagate
+          that three-valued logic — so `not` of an unknown condition stays
+          unknown instead of becoming true, and a group only matches on a
+          definite true result. A leaf may set `default` to a value used in
+          place of missing data instead of evaluating to "unknown" — only
+          appropriate when a missing value has an obvious neutral substitute
+          (e.g. a caller with no co-located small variant has no elevated-AF
+          signal to worry about, so `{field: Twist_AF, operator: "<=",
+          value: 0.15, default: 0}` treats a missing Twist_AF the same as
+          Twist_AF=0, letting the rest of the group's criteria still resolve
+          instead of leaving the whole group unresolved). Leaf `field` may be `adjusted_cn` (the call's copy number —
+          recomputed live in the browser as the ploidy/purity/rounding
+          controls are adjusted), `baf`, `length`, `caller`, or any field
+          name listed in `extra_info_fields` below. `operator` is one of
+          `=`, `!=`, `<`, `>`, `<=`, `>=`. If omitted, the filter toggle has
+          no criteria to filter by and shows every call.
+      extra_info_fields:
+        type: array
+        description: >
+          Names of additional VCF INFO fields to extract from each CNV call
+          (e.g. a pipeline-specific artifact-database frequency annotation)
+          and make available to `table_filter_config` by that same name. Not
+          needed unless `table_filter_config` references a field beyond the
+          built-in ones.
+        items:
+          type: string
 
   compile_xlsx_report:
     type: object

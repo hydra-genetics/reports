@@ -14,6 +14,7 @@ class GenomePlot extends EventTarget {
   #ctx;
   #showAllData;
   #oorPanels;
+  #baselineRefGroup;
 
   constructor(config) {
     super();
@@ -25,6 +26,7 @@ class GenomePlot extends EventTarget {
     this.#data = config?.data;
     this.#showAllData = config?.showAllData ? config.showAllData : false;
     this.baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
+    this.yZoomFactor = 1;
     this.#activeCaller = config?.caller ? config.caller : 0;
     this.#selectedChromosome = config?.selectedChromosome
       ? config.selectedChromosome
@@ -36,7 +38,7 @@ class GenomePlot extends EventTarget {
       ? config.margin
       : {
         top: 10,
-        right: 30,
+        right: 60,
         bottom: 60,
         left: 60,
         between: 20,
@@ -45,6 +47,10 @@ class GenomePlot extends EventTarget {
     this.simulatePurity = config?.simulatePurity
       ? config.simulatePurity
       : false;
+    this.roundSegmentsToInteger = config?.roundSegmentsToInteger
+      ? config.roundSegmentsToInteger
+      : false;
+    this.viewMode = config?.viewMode ? config.viewMode : "log2";
     this.tc = config?.tc ? config.tc : 1;
 
     this.totalLength = d3.sum(this.#data.map((d) => d.length));
@@ -66,17 +72,49 @@ class GenomePlot extends EventTarget {
     );
 
     this.ratioYScaleRange = 2;
-    this.ratioYScale = d3
-      .scaleLinear()
-      .domain([-this.ratioYScaleRange, this.ratioYScaleRange])
-      .range([this.panelHeight, 0]);
+    this.ratioYScale = d3.scaleLinear().range([this.panelHeight, 0]);
+    this.#updateRatioRange();
 
     this.bafYScale = d3
       .scaleLinear()
       .domain([0, 1])
       .range([this.panelHeight, 0]);
-    this.ratioYAxis = (g) => g.call(d3.axisLeft(this.ratioYScale).ticks(5));
+
+    // Copy number is not a stable anchor across baseline changes: baseline
+    // is the user's tumor-ploidy hypothesis, baked directly into
+    // #toAbsoluteCopyNumber's psi, so data (and therefore these tick
+    // positions) genuinely move when baseline or TC change. Axis labels are
+    // always the plain, standard whole-number copy number at whatever row
+    // that ends up being - no relabeling needed. An instance method (not a
+    // local const) since #updateLrGridLines() also needs it, to keep the
+    // copy-number-view gridlines at the exact same positions as the axis
+    // ticks they're meant to align with.
+    this.cnTicks = () => {
+      const [domainMin, domainMax] = this.ratioYScale.domain();
+      return integerLabelsInRange(Math.max(0, domainMin), domainMax, 5);
+    };
+
+    this.ratioYAxis = (g) => {
+      const axis = d3.axisLeft(this.ratioYScale);
+      if (this.viewMode === "copyNumber") {
+        axis.tickValues(this.cnTicks()).tickFormat(d3.format("d"));
+      } else {
+        axis.ticks(5);
+      }
+      g.call(axis);
+    };
     this.bafYAxis = (g) => g.call(d3.axisLeft(this.bafYScale).ticks(5));
+    this.bafYAxisRight = (g) => g.call(d3.axisRight(this.bafYScale).ticks(5));
+
+    this.cnYScale = d3.scaleLog().base(2).range([this.panelHeight, 0]);
+    this.cnYAxis = (g) => {
+      if (this.viewMode === "copyNumber") {
+        // Mirrors ratioYAxis's own ticks.
+        g.call(d3.axisRight(this.ratioYScale).tickValues(this.cnTicks()).tickFormat(d3.format("d")));
+      } else {
+        g.call(d3.axisRight(this.cnYScale).ticks(5));
+      }
+    };
 
     this.svg = d3.select("#genome-view");
     if (this.widePlotWidth) {
@@ -181,6 +219,7 @@ class GenomePlot extends EventTarget {
       );
 
     this.drawAxes();
+    this.#updateCnAxis();
     this.drawGridLines();
     this.setLabels();
     this.#setupCanvas();
@@ -203,6 +242,74 @@ class GenomePlot extends EventTarget {
 
   setSimulatePurity(active) {
     this.simulatePurity = active;
+    this.#updateRatioRange();
+    this.#updateCnAxis();
+    this.update();
+  }
+
+  /**
+   * When simulating purity, widen the ratio row's visible range down to the
+   * copy-number floor (instead of the fixed -2..2 log2-ratio window) so
+   * near-zero-copy segments/points are always drawn in place rather than
+   * relying on the out-of-range indicator. In Copy-number view, use a plain
+   * linear [0, CN_VIEW_Y_MAX] range instead. Both shift/scale with
+   * baselineOffset (see #toAbsoluteCopyNumber - psi = 2*2^baselineOffset is
+   * now the "no observed deviation" reference point instead of always 2),
+   * or this window would stay centered on the old, no-longer-relevant
+   * baseline=0 reference and flag most segments as out of range as soon as
+   * a non-zero baseline is set.
+   */
+  #updateRatioRange() {
+    if (this.viewMode === "copyNumber") {
+      const psi = 2 * 2 ** this.baselineOffset;
+      this.ratioYMin = 0;
+      this.ratioYMax = CN_VIEW_Y_MAX * (psi / 2);
+    } else {
+      const shift = this.baselineOffset;
+      this.ratioYMin = (this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange) + shift;
+      this.ratioYMax = this.ratioYScaleRange + shift;
+    }
+    // Y-axis zoom: narrow/widen around this range's own center. Re-clamped
+    // fresh here (not just when setYZoom is called) since a stored zoom
+    // factor from one view mode's more permissive ceiling could otherwise
+    // carry over unclamped after switching to the other view mode.
+    const effectiveYZoomFactor = Math.min(
+      this.yZoomFactor,
+      maxYZoomFactorFor(this.viewMode === "copyNumber")
+    );
+    [this.ratioYMin, this.ratioYMax] = zoomYDomain(
+      this.ratioYMin,
+      this.ratioYMax,
+      effectiveYZoomFactor,
+      this.viewMode === "copyNumber"
+    );
+
+    this.ratioYScale.domain([this.ratioYMin, this.ratioYMax]);
+    // Called once before `drawAxes()` sets up the DOM (during construction,
+    // where `drawAxes()`'s own initial render picks up this domain) and
+    // again later from setSimulatePurity/setViewMode, where the axis DOM
+    // already exists and needs to be refreshed explicitly. Not transitioned:
+    // setSimulatePurity(true) triggers this and setViewMode("copyNumber")
+    // back-to-back, and a second transition scheduled before the first has
+    // started can interrupt it before its tick join ever applies, leaving
+    // stale ticks on screen.
+    if (this.svg) {
+      this.svg.select(".ratio-y-axis").call(this.ratioYAxis);
+    }
+  }
+
+  setRoundSegmentsToInteger(active) {
+    this.roundSegmentsToInteger = active;
+    this.update();
+  }
+
+  setViewMode(mode) {
+    this.viewMode = mode;
+    this.#updateRatioRange();
+    this.#updateCnAxis();
+    this.svg
+      .select("#primary-y-label")
+      .text(mode === "copyNumber" ? "Copy number" : "log2 ratio");
     this.update();
   }
 
@@ -213,16 +320,40 @@ class GenomePlot extends EventTarget {
     }
   }
 
-  transformLog2Ratio(x) {
-    if (x === undefined || x === null || isNaN(x)) return 0;
-    let tx = x;
-    if (this.simulatePurity) {
-      const minCopyNumber = 1e-3;
-      const adjCopies = (2 * 2 ** x - 2 * (1 - this.tc)) / this.tc;
-      tx = Math.log2(Math.max(adjCopies, minCopyNumber) / 2);
+  // Standard tumor-purity/ploidy absolute-copy-number correction - see
+  // 01-chromosome-plot.js's identical #toAbsoluteCopyNumber for the full
+  // rationale. baselineOffset is baked directly into psi, so adjusting it
+  // DOES move plotted data whenever TC<100%, matching the table's/
+  // anchor-tracking's model.
+  #toAbsoluteCopyNumber(x, isSegment) {
+    const tc = this.simulatePurity ? this.tc : 1;
+    const psi = 2 * 2 ** this.baselineOffset;
+    let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
+    if (isSegment && this.roundSegmentsToInteger) {
+      adjCopies = Math.round(adjCopies);
     }
-    const res = tx - this.baselineOffset;
-    return isFinite(res) ? res : (tx < 0 ? -10 : 10);
+    return Math.max(adjCopies, MIN_COPY_NUMBER);
+  }
+
+  get #slidingWindowMinValue() {
+    return this.viewMode === "copyNumber" ? MIN_COPY_NUMBER : MIN_LOG2_RATIO;
+  }
+
+  transformLog2Ratio(x, isSegment = false) {
+    if (x === undefined || x === null || isNaN(x)) return 0;
+    const tx = Math.log2(this.#toAbsoluteCopyNumber(x, isSegment) / 2);
+    return isFinite(tx) ? tx : (tx < 0 ? -10 : 10);
+  }
+
+  transformCopyNumber(x, isSegment = false) {
+    if (x === undefined || x === null || isNaN(x)) return 2;
+    return this.#toAbsoluteCopyNumber(x, isSegment);
+  }
+
+  transformValue(x, isSegment = false) {
+    return this.viewMode === "copyNumber"
+      ? this.transformCopyNumber(x, isSegment)
+      : this.transformLog2Ratio(x, isSegment);
   }
 
   transformBAF(x) {
@@ -267,8 +398,17 @@ class GenomePlot extends EventTarget {
     this.svg
       .append("g")
       .attr("transform", `translate(${this.margin.left}, ${this.margin.top})`)
-      .attr("class", "y-axis")
+      .attr("class", "y-axis ratio-y-axis")
       .call(this.ratioYAxis);
+
+    this.svg
+      .append("g")
+      .attr(
+        "transform",
+        `translate(${this.width - this.margin.right}, ${this.margin.top})`
+      )
+      .attr("class", "y-axis cn-y-axis")
+      .call(this.cnYAxis);
 
     this.svg
       .append("g")
@@ -279,36 +419,57 @@ class GenomePlot extends EventTarget {
       )
       .attr("class", "y-axis")
       .call(this.bafYAxis);
+
+    this.svg
+      .append("g")
+      .attr(
+        "transform",
+        `translate(${this.width - this.margin.right}, ${this.margin.top + this.panelHeight + this.margin.between
+        })`
+      )
+      .attr("class", "y-axis")
+      .call(this.bafYAxisRight);
+
+    // Single shared marker at the ratio-y-axis (unlike the per-panel
+    // gridlines - genome view has only one shared y-axis for all
+    // chromosome panels, so the baseline marker only needs to be drawn once,
+    // at the same position/transform as that axis, not once per panel).
+    this.#baselineRefGroup = this.svg
+      .append("g")
+      .attr("transform", `translate(${this.margin.left}, ${this.margin.top})`)
+      .attr("class", "baseline-ref-line");
+  }
+
+  #updateCnAxis() {
+    // cnFromRatio converts the (already psi-adjusted, via #toAbsoluteCopyNumber)
+    // ratioYMin/ratioYMax into absolute copy number terms, so this domain
+    // correctly reflects the current baseline/TC hypothesis too.
+    this.cnYScale.domain(
+      this.viewMode === "copyNumber"
+        ? [this.ratioYMin, this.ratioYMax]
+        : [cnFromRatio(this.ratioYMin), cnFromRatio(this.ratioYMax)]
+    );
+    // Not transitioned — see #updateRatioRange for why (this is invoked
+    // back-to-back with it from setSimulatePurity/setViewMode).
+    this.svg.select(".cn-y-axis").call(this.cnYAxis);
   }
 
   drawGridLines() {
-    const lrGrid = this.lrPanels
-      .append("g")
+    // Inserted right before .regions (rather than .append()'d, which would
+    // render on top / z-order-last) so gridlines sit behind segments/points
+    // but still above the panel's bg-rect background — otherwise the bolder
+    // integer-CN gridlines visually obscure segments that land exactly on
+    // an integer copy number.
+    this.lrPanels
+      .insert("g", ".regions")
       .attr("class", "grid")
       .attr("data-index", (d, i) => i);
 
     const bafGrid = this.bafPanels
       .append("g")
       .attr("class", "grid")
-      .attr("data-index", (d, i) => i);
-
-    lrGrid
-      .selectAll(".gridline")
-      .data(this.ratioYScale.ticks())
-      .join("line")
-      .attr(
-        "x1",
-        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[0]
-      )
-      .attr(
-        "x2",
-        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[1]
-      )
-      .attr("y1", (d) => this.ratioYScale(d))
-      .attr("y2", (d) => this.ratioYScale(d))
-      .attr("class", (d) => {
-        return d === 0 ? "gridline baseline" : "gridline";
-      });
+      .attr("data-index", (d, i) => i)
+      .lower();
 
     bafGrid
       .selectAll(".gridline")
@@ -325,6 +486,112 @@ class GenomePlot extends EventTarget {
       .attr("y1", (d) => this.bafYScale(d))
       .attr("y2", (d) => this.bafYScale(d))
       .attr("class", "gridline");
+
+    this.#updateLrGridLines();
+  }
+
+  /**
+   * Redraw the ratio-row gridlines. Normally these mark log2-ratio ticks;
+   * in "round segments to integer" mode they instead mark whole-number
+   * copy-number positions (mirroring ChromosomePlot's integer gridlines),
+   * since log2-spaced lines are not meaningful once segments are snapped
+   * to integer CN.
+   */
+  #updateLrGridLines() {
+    const integerMode = this.viewMode === "log2" && this.simulatePurity && this.roundSegmentsToInteger;
+    let values, yScale;
+
+    if (integerMode) {
+      const [cnMin, cnMax] = this.cnYScale.domain();
+      const startN = Math.max(0, Math.ceil(cnMin));
+      const endN = Math.floor(cnMax);
+      values = [];
+      for (let n = startN; n <= endN; n++) {
+        values.push(n);
+      }
+      yScale = this.cnYScale;
+    } else if (this.viewMode === "copyNumber") {
+      // Reuse the axis's own tick positions (see cnTicks) rather than
+      // independently recomputing them, so gridlines always line up with
+      // what the axis itself labels as "1", "2", "3"...
+      values = this.cnTicks();
+      yScale = this.ratioYScale;
+    } else {
+      values = this.ratioYScale.ticks();
+      yScale = this.ratioYScale;
+    }
+
+    this.lrPanels
+      .select(".grid")
+      .selectAll(".gridline")
+      .data(values)
+      .join("line")
+      .attr(
+        "x1",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[0]
+      )
+      .attr(
+        "x2",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[1]
+      )
+      .attr("y1", (d) => yScale(d))
+      .attr("y2", (d) => yScale(d))
+      .attr("class", (d) => {
+        if (integerMode) return "integer-cn-gridline";
+        return "gridline";
+      });
+
+    // Small triangle markers at wherever a hypothetically flat (raw log2 =
+    // 0) segment currently plots - i.e. exactly psi = 2 * 2^baselineOffset
+    // absolute copies (see #toAbsoluteCopyNumber). Since data moves with
+    // baseline/TC, this marker moves too. Drawn once at each edge
+    // (left/right) of the shared ratio-y-axis, not once per panel, since
+    // genome view has only one shared y-axis for all chromosome panels.
+    const refCn =
+      this.viewMode === "copyNumber"
+        ? 2 * 2 ** this.baselineOffset
+        : this.baselineOffset;
+    const [dMin, dMax] = this.ratioYScale.domain();
+
+    this.#baselineRefGroup.selectAll("path").remove();
+    if (refCn >= dMin && refCn <= dMax) {
+      const py = this.ratioYScale(refCn);
+      const plotWidth = this.width - this.margin.left - this.margin.right;
+      this.#baselineRefGroup
+        .append("path")
+        .attr("class", "baseline-marker")
+        .attr("d", `M 0,${py} L -6,${py - 3.5} L -6,${py + 3.5} Z`);
+      this.#baselineRefGroup
+        .append("path")
+        .attr("class", "baseline-marker")
+        .attr("d", `M ${plotWidth},${py} L ${plotWidth + 6},${py - 3.5} L ${plotWidth + 6},${py + 3.5} Z`);
+    }
+
+    // Thick reference line at the FIXED true absolute copy number = 2
+    // (diploid) position - the standard, un-hypothesized diploid reference,
+    // always at the same row regardless of the current baseline/ploidy
+    // hypothesis or TC (unlike the moving triangle markers above). Styled
+    // thicker than the regular gridlines so it stands out as a deliberate
+    // reference.
+    const diploidY = this.viewMode === "copyNumber" ? 2 : 0;
+    const showDiploidRef = diploidY >= dMin && diploidY <= dMax;
+
+    this.lrPanels
+      .select(".grid")
+      .selectAll(".diploid-ref-line")
+      .data(showDiploidRef ? [diploidY] : [])
+      .join("line")
+      .attr("class", "gridline diploid-reference diploid-ref-line")
+      .attr(
+        "x1",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[0]
+      )
+      .attr(
+        "x2",
+        (_, i, g) => this.xScales[g[i].parentNode.dataset.index].range()[1]
+      )
+      .attr("y1", (d) => this.ratioYScale(d))
+      .attr("y2", (d) => this.ratioYScale(d));
   }
 
   setLabels() {
@@ -349,8 +616,20 @@ class GenomePlot extends EventTarget {
         "transform",
         `translate(0,${this.margin.top + this.panelHeight / 2}) rotate(-90)`
       )
+      .attr("id", "primary-y-label")
       .attr("class", "y-label")
-      .text("log2 ratio")
+      .text(this.viewMode === "copyNumber" ? "Copy number" : "log2 ratio")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
+
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(${this.width},${this.margin.top + this.panelHeight / 2}) rotate(90)`
+      )
+      .attr("class", "y-label cn-y-label")
+      .text("Copy number")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "text-before-edge");
 
@@ -360,6 +639,18 @@ class GenomePlot extends EventTarget {
         "transform",
         `translate(0,${this.margin.top + this.margin.between + (3 * this.panelHeight) / 2
         }) rotate(-90)`
+      )
+      .attr("class", "y-label")
+      .text("BAF")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "text-before-edge");
+
+    this.svg
+      .append("text")
+      .attr(
+        "transform",
+        `translate(${this.width},${this.margin.top + this.margin.between + (3 * this.panelHeight) / 2
+        }) rotate(90)`
       )
       .attr("class", "y-label")
       .text("BAF")
@@ -387,19 +678,22 @@ class GenomePlot extends EventTarget {
       const xScale = this.xScales[i];
       let panelRatios = chromData.callers[this.#activeCaller].ratios.map((d) => {
         let td = { ...d };
-        td.log2 = self.transformLog2Ratio(td.log2);
+        td.log2 = self.transformValue(td.log2);
         return td;
       });
 
       if (ratioPointsPerChromosome > MAX_POINTS_GENOME) {
+        // Offset is 0: td.log2 above is already the fully-transformed
+        // display value, so the floor-clamp threshold needs no adjustment.
         panelRatios = slidingPixelWindow(
           panelRatios,
           xScale,
           "start",
           "log2",
-          this.baselineOffset,
+          0,
           3,
-          true
+          true,
+          this.#slidingWindowMinValue
         );
       }
 
@@ -432,7 +726,7 @@ class GenomePlot extends EventTarget {
         }
       ).map((d) => {
         let td = { ...d };
-        td.log2 = self.transformLog2Ratio(td.log2);
+        td.log2 = self.transformValue(td.log2);
         return td;
       });
 
@@ -442,9 +736,10 @@ class GenomePlot extends EventTarget {
           self.xScales[i],
           "start",
           "log2",
-          self.baselineOffset,
+          0,
           3,
-          true
+          true,
+          self.#slidingWindowMinValue
         );
       }
       const svgData = panelRatios.filter(
@@ -456,7 +751,10 @@ class GenomePlot extends EventTarget {
         .data(svgData, (d) => `${i}-${d.start}-${d.end}`)
         .join(
           (enter) => {
-            let g = enter.append("g").attr("class", "data-point").attr("opacity", 0);
+            // opacity 1 directly, not faded in — see the note in
+            // plotSegments() for why an enter-transition on fresh
+            // construction can get stuck invisible.
+            let g = enter.append("g").attr("class", "data-point").attr("opacity", 1);
 
             g.append("rect")
               .attr("class", "variance-rect")
@@ -495,7 +793,7 @@ class GenomePlot extends EventTarget {
               .attr("fill", "red")
               .attr("opacity", (d) => (d.hasOutliers ? 1 : 0));
 
-            return g.transition().duration(self.animationDuration).attr("opacity", 1);
+            return g;
           },
           (update) => {
             update
@@ -544,12 +842,13 @@ class GenomePlot extends EventTarget {
 
   /**
    * Draw red edge-line + arrow for every segment whose log2 ratio falls
-   * outside the static [-2, +2] y-axis range in the genome overview plot.
+   * outside the current static y-axis range ([ratioYMin, ratioYMax], widened
+   * to the copy-number floor when simulating purity) in the genome overview plot.
    */
   plotOutOfRangeIndicators() {
     const self = this;
-    const staticYMin = -this.ratioYScaleRange;
-    const staticYMax =  this.ratioYScaleRange;
+    const staticYMin = this.ratioYMin;
+    const staticYMax = this.ratioYMax;
     const arrowSize = 4;
     const lineThickness = 2;
 
@@ -584,7 +883,7 @@ class GenomePlot extends EventTarget {
         })
         .map((d) => {
           let td = { ...d };
-          td.log2 = self.transformLog2Ratio(td.log2);
+          td.log2 = self.transformValue(td.log2, true);
           return td;
         })
         .filter((d) => d.log2 < staticYMin || d.log2 > staticYMax);
@@ -658,7 +957,7 @@ class GenomePlot extends EventTarget {
         .filter((d) => d.end - d.start > self.totalLength / self.width)
         .map((d) => {
           let td = { ...d };
-          td.log2 = self.transformLog2Ratio(td.log2);
+          td.log2 = self.transformValue(td.log2, true);
           td.caller = panelData.callers[self.activeCaller].name;
           return td;
         });
@@ -676,15 +975,25 @@ class GenomePlot extends EventTarget {
               .attr("y1", (d) => self.ratioYScale(d.log2))
               .attr("y2", (d) => self.ratioYScale(d.log2))
               .attr("stroke-width", 2)
-              .attr("opacity", 0)
-              .transition()
-              .duration(self.animationDuration)
+              // No fade-in transition here (unlike the update/exit cases
+              // below): a transition scheduled during a fresh page's initial
+              // synchronous construction can get stuck barely past opacity 0
+              // indefinitely (confirmed via d3.active() still reporting the
+              // transition as running long after its duration should have
+              // elapsed) — segments would stay invisible until some later,
+              // unrelated update() call re-triggers plotSegments(). Setting
+              // opacity directly avoids depending on that first frame at all.
               .attr("opacity", 1);
           },
           (update) => {
+            // Applied directly, not via .transition(): see
+            // 01-chromosome-plot.js's identical #plotSegments fix - two
+            // update() calls fired back-to-back (e.g. "Simulate purity"
+            // auto-switching view mode, immediately followed by "Round
+            // segments to integer") can leave an element's position stuck
+            // at the first (unrounded/pre-toggle) value instead of the
+            // latest one.
             return update
-              .transition()
-              .duration(self.animationDuration)
               .attr("y1", (d) => self.ratioYScale(d.log2))
               .attr("y2", (d) => self.ratioYScale(d.log2));
           },
@@ -802,7 +1111,10 @@ class GenomePlot extends EventTarget {
         .data(svgData, (d) => `${i}-${d.start}-${d.end}:${d.mean < 0.5 ? "-" : "+"}`)
         .join(
           (enter) => {
-            let g = enter.append("g").attr("class", "data-point").attr("opacity", 0);
+            // opacity 1 directly, not faded in — see the note in
+            // plotSegments() for why an enter-transition on fresh
+            // construction can get stuck invisible.
+            let g = enter.append("g").attr("class", "data-point").attr("opacity", 1);
 
             g.append("rect")
               .attr("class", "variance-rect")
@@ -830,7 +1142,7 @@ class GenomePlot extends EventTarget {
               .attr("stroke-width", 2)
               .attr("opacity", 0.8);
 
-            return g.transition().duration(self.animationDuration).attr("opacity", 1);
+            return g;
           },
           (update) => {
             update
@@ -900,7 +1212,25 @@ class GenomePlot extends EventTarget {
 
   setBaselineOffset(dy) {
     this.baselineOffset = dy;
+    // Data now depends on baselineOffset too (see #toAbsoluteCopyNumber), so
+    // the ratio axis needs an explicit re-render here, same as #updateCnAxis.
+    this.svg.select(".ratio-y-axis").call(this.ratioYAxis);
+    this.#updateCnAxis();
     this.update();
+  }
+
+  setYZoom(factor) {
+    this.yZoomFactor = Math.min(
+      maxYZoomFactorFor(this.viewMode === "copyNumber"),
+      Math.max(MIN_Y_ZOOM_FACTOR, factor)
+    );
+    this.#updateRatioRange();
+    this.#updateCnAxis();
+    this.update();
+  }
+
+  resetYZoom() {
+    this.setYZoom(1);
   }
 
   #setupCanvas() {
@@ -929,6 +1259,7 @@ class GenomePlot extends EventTarget {
 
   update() {
     this.#clearCanvas();
+    this.#updateLrGridLines();
     this.plotRatios();
     this.plotSegments();
     this.plotOutOfRangeIndicators();

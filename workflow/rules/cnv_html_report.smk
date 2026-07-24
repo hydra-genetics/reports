@@ -21,6 +21,7 @@ rule cnv_html_report:
             workflow.source_path("../templates/cnv_html_report/style.css"),
         ],
         tc_file=get_tc_file,
+        ploidy_file=get_ploidy_file,
         extra_table_files=[t["path"] for t in config.get("cnv_html_report", {}).get("extra_tables", [])],
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
@@ -28,9 +29,14 @@ rule cnv_html_report:
         include_table=config.get("cnv_html_report", {}).get("show_table", True),
         extra_tables=config.get("cnv_html_report", {}).get("extra_tables", []),
         tc=get_tc,
+        ploidy=get_ploidy,
         tc_method=lambda wildcards: wildcards.tc_method,
         include_cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
         wide_plot_width=config.get("cnv_html_report", {}).get("wide_plot_width", False),
+        default_simulate_purity=config.get("cnv_html_report", {}).get("default_simulate_purity", False),
+        default_absolute_copy_number=config.get("cnv_html_report", {}).get("default_absolute_copy_number", False),
+        default_gene_focus=config.get("cnv_html_report", {}).get("default_gene_focus", False),
+        default_show_all_datapoints=config.get("cnv_html_report", {}).get("default_show_all_datapoints", False),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",
     benchmark:
@@ -92,11 +98,11 @@ rule merge_cnv_json:
         fai=config.get("reference", {}).get("fai", ""),
         annotation_bed=config.get("merge_cnv_json", {}).get("annotations", []),
         germline_vcf=get_germline_vcf,
-        filtered_cnv_vcfs=get_filtered_cnv_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,
         cytobands=lambda wildcards: config.get("merge_cnv_json", {}).get("cytobands", []),
         ref_genes=lambda wildcards: config.get("merge_cnv_json", {}).get("ref_genes", []),
         cancer_genes=get_cancer_genes,
+        table_filter_config=lambda wildcards: config.get("merge_cnv_json", {}).get("table_filter_config", ""),
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:

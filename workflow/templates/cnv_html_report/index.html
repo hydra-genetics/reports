@@ -35,9 +35,9 @@
             In the chromosome view, you can zoom in on specific regions by clicking and dragging along the x-axis. You can also use the mouse scroll wheel to zoom in and out at the current mouse position. Click anywhere on the plot area (without dragging) to reset the zoom to the full chromosome.
         </p>
         
-        <h3>Normalized Spacing</h3>
+        <h3>Gene Focus</h3>
         <p>
-            The "Normalized Spacing" option displays data points with equal spacing along the x-axis, regardless of their genomic position. This allows for visualizing the sequential order of probes rather than their physical distance, which can be useful when probes are unevenly distributed.
+            The "Gene Focus" option displays data points with equal spacing along the x-axis, regardless of their genomic position. This allows for visualizing the sequential order of probes rather than their physical distance, which can be useful when probes are unevenly distributed.
         </p>
 
         <h3 id="help-tumor-purity-adjustment">Tumor purity adjustment</h3>
@@ -54,6 +54,53 @@
           under the threshold, this will be indicated with a red triangle at
           the bottom of the plot. This might be an indication that the copy
           number is lower than the real copy number.
+        </p>
+        <p>
+          When simulating purity, the "Absolute copy number" option snaps
+          each segment's recomputed copy number to the nearest whole number,
+          which can make it easier to check the tumor cell content estimate
+          against the expected integer copy states. Individual data points
+          are left unrounded.
+        </p>
+        <p>
+          Once a baseline has been set manually, the report remembers which
+          raw log&#8322; value that baseline treats as exactly 2 copies.
+          Adjusting the tumor cell content slider afterwards, or toggling
+          "Simulate purity", keeps that same reference point pinned at 2
+          copies by automatically re-adjusting the baseline offset — since
+          the two are mathematically linked once purity is simulated, this
+          avoids the baseline silently becoming inconsistent with a
+          newly-adjusted tumor cell content.
+        </p>
+        <p>
+          The "Log2 ratio" / "Copy number" switch changes how the ratio plots
+          are displayed. "Copy number" shows a linear, absolute copy-number
+          scale (assuming 100% purity if "Simulate purity" is not checked)
+          instead of log2 ratio.
+        </p>
+        <p>
+          The baseline offset is a tumor-ploidy hypothesis, not a display
+          relabeling: adjusting it changes psi (the assumed baseline/neutral
+          copy number of the tumor clone) in the same standard tumor-purity/
+          ploidy correction formula the results table's "Adjusted CN" column
+          uses. This means segments and points DO move when the baseline
+          offset changes, in either view, whenever TC is below 100%
+          ("Simulate purity" enabled with a real TC value) — plots and table
+          always agree, since they share the same formula. Axis labels are
+          always the plain, standard values. Small triangle markers on the
+          left and right edges of the plot mark wherever a hypothetically
+          flat segment currently plots (i.e. the current baseline
+          hypothesis), moving with baseline and TC. A thicker, full-width
+          reference line instead always marks the FIXED position of true
+          diploid (2 copies), independent of the baseline/TC hypothesis — a
+          stable reference to judge the data against.
+        </p>
+        <p>
+          The "Y-axis zoom" buttons narrow or widen the visible range of the
+          ratio panel (log2 ratio or copy number, depending on the active
+          view) around its current center — useful for inspecting subtle
+          shifts more closely, or for seeing a wider range at once. "Reset"
+          restores the default range. This doesn't affect the BAF panel.
         </p>
 
         {% if metadata.show_table %}
@@ -92,12 +139,13 @@
       <h1>CNV report</h1>
       <p class="metadata-line">
         Sample: {{ metadata.sample }} | Date: <time>{{ metadata.date }}</time> | Tumor cell content: {{ metadata.tc if
-        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }})
+        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }}){% if metadata.ploidy is not none %} | Ploidy:
+        {{ metadata.ploidy }}{% endif %}
       </p>
       <!-- x-release-please-start-version -->
       <p class="fix-right">
         <small>
-          <a href="https://github.com/hydra-genetics/reports/tree/v1.1.0">hydra-genetics/reports v1.1.0</a>
+          <a href="https://github.com/hydra-genetics/reports/tree/v1.3.0">hydra-genetics/reports v1.3.0</a>
         </small>
         <br />
         <a href="#" onclick="showHelp();" class="no-print help-link"><i class="bi bi-question-circle-fill"></i> Help</a>
@@ -137,20 +185,34 @@
               </div>
 
               <div class="control-group">
-                <input type="checkbox" id="chromosome-equal-distance" />
-                <label for="chromosome-equal-distance">Normalized Spacing</label>
+                <input type="checkbox" id="chromosome-equal-distance"
+                  {% if metadata.default_gene_focus %}checked{% endif %} />
+                <label for="chromosome-equal-distance">Gene Focus</label>
               </div>
 
               <div class="control-group">
-                <input type="checkbox" id="chromosome-show-all-datapoints" />
+                <input type="checkbox" id="chromosome-show-all-datapoints"
+                  {% if metadata.default_show_all_datapoints %}checked{% endif %} />
                 <label for="chromosome-show-all-datapoints">Show all data points</label>
                 <i class="binned-data-warning bi-exclamation-triangle-fill hidden"
                   title="Data has been downsampled for performance. 'Show all points' only shows the downsampled data."></i>
               </div>
 
               <div class="control-group">
-                <input type="checkbox" id="simulate-purity" />
+                <label><input type="radio" name="view-mode" value="log2" checked /> Log2 ratio</label>
+                <label><input type="radio" name="view-mode" value="copyNumber" /> Copy number</label>
+              </div>
+
+              <div class="control-group">
+                <input type="checkbox" id="simulate-purity"
+                  {% if metadata.default_simulate_purity %}checked{% endif %} />
                 <label for="simulate-purity">Simulate purity</label>
+              </div>
+
+              <div class="control-group">
+                <input type="checkbox" id="round-segments-integer" disabled
+                  {% if metadata.default_absolute_copy_number %}checked{% endif %} />
+                <label for="round-segments-integer">Absolute copy number</label>
               </div>
 
               <div class="control-group">
@@ -195,6 +257,13 @@
             </div>
           </div>
           <div id="chromosome-view-container" class="relative-container">
+            <div class="no-print y-zoom-controls">
+              <button id="reset-y-zoom" title="Reset Y-axis zoom" disabled>Reset</button>
+              <div class="y-zoom-in-out">
+                <button id="y-zoom-in" title="Zoom in (Y-axis)">+</button>
+                <button id="y-zoom-out" title="Zoom out (Y-axis)">−</button>
+              </div>
+            </div>
             <svg id="chromosome-view"></svg>
           </div>
           <dialog id="chromosome-view-dialog">
