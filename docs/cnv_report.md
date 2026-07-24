@@ -93,10 +93,12 @@ merge_cnv_json:
 amplification:
   all_of:
     - {field: adjusted_cn, operator: ">=", value: 6.0}
-    - {field: Twist_AF, operator: "<=", value: 0.15}
+    - {field: Twist_AF, operator: "<=", value: 0.15, default: 0}
 ```
 
 A gene-annotation-existence check isn't needed in this config — every call reaching the table already required a gene match to be included at all.
+
+By default, a leaf whose field has no data for a given call evaluates to "unknown" (see the `loh` example above) — the safe choice when missing data should leave the criterion undetermined rather than silently assuming a value. Sometimes, though, missing data has an obvious safe substitute: a call with no co-located small variant simply has no elevated-AF signal to worry about, so `Twist_AF` being absent should read the same as `Twist_AF: 0`, not "unknown". A leaf can opt into this with `default`, which substitutes for the field's value when it's missing, as in the `amplification` example above. Without `default: 0` there, a call with no matching small variant would leave that leaf — and therefore the whole `amplification` group — unresolved even when `adjusted_cn` alone clearly qualifies it, so the call would fall through to whatever group (if any) matches next, or "Copy neutral" if none does. Only set `default` when a missing value genuinely has an obvious neutral substitute — the `loh` group's `baf` leaves deliberately don't set one, since there's no safe stand-in for "we didn't measure BAF" when checking for an actual allelic imbalance.
 
 ### Additional tables
 

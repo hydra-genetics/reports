@@ -341,6 +341,48 @@ chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454
         assert classify_cnv(cnv, config) is None
         assert not passes_table_filter(cnv, config)
 
+    def test_evaluate_filter_condition_default_substitutes_for_missing_field(self):
+        # A leaf may set `default` to opt out of the "missing field is
+        # unknown" behavior above, substituting a value instead - only
+        # appropriate when a missing value has an obvious neutral stand-in
+        # (e.g. no co-located small variant means no elevated-AF signal to
+        # worry about, so a missing Twist_AF should read the same as 0).
+        cnv = CNV(
+            caller="Jumble", chromosome="chr1", genes=["gene1"], start=100, length=1000,
+            type="AMP", cn=8.0, baf=None, extra={},
+        )
+        twist_af_leaf = {"field": "Twist_AF", "operator": "<=", "value": 0.15, "default": 0}
+
+        # Missing entirely (never extracted for this pipeline, or no
+        # co-located variant): default kicks in, leaf resolves definitively.
+        assert evaluate_filter_condition(cnv, twist_af_leaf) is True
+
+        # Without `default`, the exact same missing field is unknown, not
+        # False - this is the pre-existing behavior `default` opts out of.
+        assert evaluate_filter_condition(
+            cnv, {"field": "Twist_AF", "operator": "<=", "value": 0.15}
+        ) is None
+
+        # A group combining a real value with a missing-but-defaulted field
+        # still resolves to a definite match, instead of getting stuck
+        # unresolved the way it would without `default` (see the docstring's
+        # "amplification" example in docs/cnv_report.md).
+        amplification = {
+            "all_of": [
+                {"field": "adjusted_cn", "operator": ">=", "value": 6.0},
+                twist_af_leaf,
+            ]
+        }
+        assert classify_cnv(cnv, {"amplification": amplification}) == "amplification"
+
+        # `default` is only a fallback for missing data - a present value
+        # still fails the check normally.
+        cnv_with_high_af = CNV(
+            caller="Jumble", chromosome="chr1", genes=["gene1"], start=100, length=1000,
+            type="AMP", cn=8.0, baf=None, extra={"Twist_AF": 0.9},
+        )
+        assert not evaluate_filter_condition(cnv_with_high_af, twist_af_leaf)
+
     def test_passes_table_filter_group_selection_and_opt_in(self):
         amp_cnv = CNV(
             caller="cnvkit", chromosome="chr1", genes=["gene1"], start=100, length=1000,

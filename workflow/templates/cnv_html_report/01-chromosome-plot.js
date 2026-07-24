@@ -1214,10 +1214,9 @@ class ChromosomePlot extends EventTarget {
 
   /**
    * Draw red edge-line + arrow + CN label for every visible segment whose
-   * log2 ratio falls outside the static y-axis range (normally [-2, +2],
-   * widened down to the copy-number floor when simulating purity so
-   * near-zero-copy segments are shown in place instead).
-   * Only active when fitToData is OFF (static range mode).
+   * log2 ratio falls outside the currently visible y-axis range (the static
+   * range from #staticYRange, after Y-zoom and padding are applied - see
+   * #updateAxes). Only active when fitToData is OFF (static range mode).
    */
   #plotOutOfRangeIndicators() {
     if (this.#fitToData) {
@@ -1225,7 +1224,10 @@ class ChromosomePlot extends EventTarget {
       return;
     }
 
-    const [staticYMin, staticYMax] = this.#staticYRange();
+    // Compare against the actual rendered domain (post-zoom, post-padding),
+    // not the raw static range - otherwise a segment inside the visible
+    // (zoomed and/or padded) view could still get flagged as out of range.
+    const [staticYMin, staticYMax] = this.ratioYScale.domain();
     const [xMin, xMax] = this.xScale.domain();
     const plotWidth = this.width - this.margin.left - this.margin.right;
     const arrowSize = 6;
@@ -2145,9 +2147,19 @@ class ChromosomePlot extends EventTarget {
     });
   }
 
+  // The default ("static", non-fit-to-data) view window. Since data moves
+  // with baselineOffset (see #toAbsoluteCopyNumber - psi = 2*2^baselineOffset
+  // is now the "no observed deviation" reference point instead of always 2),
+  // this window has to shift/scale with it too, or it would stay centered on
+  // the old, no-longer-relevant baseline=0 reference and flag most segments
+  // as out of range as soon as a non-zero baseline is set.
   #staticYRange() {
-    if (this.viewMode === "copyNumber") return [0, CN_VIEW_Y_MAX];
-    return this.simulatePurity ? [MIN_LOG2_RATIO, 2] : [-2, 2];
+    if (this.viewMode === "copyNumber") {
+      const psi = 2 * 2 ** this.baselineOffset;
+      return [0, CN_VIEW_Y_MAX * (psi / 2)];
+    }
+    const shift = this.baselineOffset;
+    return this.simulatePurity ? [MIN_LOG2_RATIO + shift, 2 + shift] : [-2 + shift, 2 + shift];
   }
 
   #updateAxes() {

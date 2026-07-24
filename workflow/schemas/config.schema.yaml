@@ -283,7 +283,14 @@ properties:
           "unknown" rather than false, and `not`/`any_of`/`all_of` propagate
           that three-valued logic — so `not` of an unknown condition stays
           unknown instead of becoming true, and a group only matches on a
-          definite true result. Leaf `field` may be `adjusted_cn` (the call's copy number —
+          definite true result. A leaf may set `default` to a value used in
+          place of missing data instead of evaluating to "unknown" — only
+          appropriate when a missing value has an obvious neutral substitute
+          (e.g. a caller with no co-located small variant has no elevated-AF
+          signal to worry about, so `{field: Twist_AF, operator: "<=",
+          value: 0.15, default: 0}` treats a missing Twist_AF the same as
+          Twist_AF=0, letting the rest of the group's criteria still resolve
+          instead of leaving the whole group unresolved). Leaf `field` may be `adjusted_cn` (the call's copy number —
           recomputed live in the browser as the ploidy/purity/rounding
           controls are adjusted), `baf`, `length`, `caller`, or any field
           name listed in `extra_info_fields` below. `operator` is one of

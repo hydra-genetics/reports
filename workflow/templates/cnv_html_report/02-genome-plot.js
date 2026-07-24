@@ -252,15 +252,22 @@ class GenomePlot extends EventTarget {
    * copy-number floor (instead of the fixed -2..2 log2-ratio window) so
    * near-zero-copy segments/points are always drawn in place rather than
    * relying on the out-of-range indicator. In Copy-number view, use a plain
-   * linear [0, CN_VIEW_Y_MAX] range instead.
+   * linear [0, CN_VIEW_Y_MAX] range instead. Both shift/scale with
+   * baselineOffset (see #toAbsoluteCopyNumber - psi = 2*2^baselineOffset is
+   * now the "no observed deviation" reference point instead of always 2),
+   * or this window would stay centered on the old, no-longer-relevant
+   * baseline=0 reference and flag most segments as out of range as soon as
+   * a non-zero baseline is set.
    */
   #updateRatioRange() {
     if (this.viewMode === "copyNumber") {
+      const psi = 2 * 2 ** this.baselineOffset;
       this.ratioYMin = 0;
-      this.ratioYMax = CN_VIEW_Y_MAX;
+      this.ratioYMax = CN_VIEW_Y_MAX * (psi / 2);
     } else {
-      this.ratioYMin = this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange;
-      this.ratioYMax = this.ratioYScaleRange;
+      const shift = this.baselineOffset;
+      this.ratioYMin = (this.simulatePurity ? MIN_LOG2_RATIO : -this.ratioYScaleRange) + shift;
+      this.ratioYMax = this.ratioYScaleRange + shift;
     }
     // Y-axis zoom: narrow/widen around this range's own center. Re-clamped
     // fresh here (not just when setYZoom is called) since a stored zoom
