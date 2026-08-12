@@ -20,7 +20,6 @@
 }
 
 .full-width-plots .controls-grid {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   max-width: 1000px;
 }
 
@@ -66,15 +65,39 @@ header .fix-right {
 }
 
 header .metadata-line {
-  margin: 0.5em 0 0 0;
+  margin: 0.2em 0 0 0;
   font-size: 0.95rem;
+}
+
+h1, h2 {
+  margin: 0.3em 0 0.2em 0;
+}
+
+.plot-section p.no-print {
+  margin: 0.2em 0 0.5em 0;
 }
 
 .controls-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 0.5rem 1.5rem;
   margin: 0.5rem 0;
+}
+
+/* Below this, even 3 columns of minmax(300px, 1fr) can't all fit anyway, so
+   let columns reflow (auto-fill) instead of forcing the fixed template and
+   overflowing on narrow viewports or print. Applies to both the base and
+   .full-width-plots variants of .controls-grid - they share this breakpoint. */
+@media screen and (min-width: 750px) {
+  .controls-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(390px, 1.6fr) minmax(0, 1fr);
+  }
+}
+
+@media print {
+  .controls-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
 }
 
 .control-column {
@@ -96,6 +119,11 @@ header .metadata-line {
 
 .control-group label {
   margin-right: 0.5rem;
+}
+
+#gene-search {
+  width: 16ch;
+  box-sizing: content-box;
 }
 
 #dataset-picker {
@@ -220,6 +248,7 @@ dialog.info p i {
 }
 
 #current-baseline-offset,
+#ploidy-adjust,
 #current-tc {
   width: 3rem;
   margin-right: 0.5rem;

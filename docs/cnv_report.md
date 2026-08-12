@@ -28,7 +28,7 @@ There are a couple of things that can be customised using the config file.
 
 The CNV results table contains CNVs that have been called by the pipeline. In order for the table to be included in the final report, `show_table` under [`cnv_html_report`](/softwares/#configuration) has to be `true`. If this is the case, then `unfiltered_cnv_vcfs` has to be defined under [`merge_cnv_json`](/softwares/#configuration_2).
 
-Alongside the static `CN` column (the caller's corrected copy number at report-build time), the table includes an **Adjusted CN** column. This is recomputed live in the browser from each call's own raw segment log₂ ratio, using the same calculation the plots use, so it updates immediately as the baseline-offset, TC, and "Absolute copy number" controls are changed, without needing a report rebuild. Unlike the plots' Log2 ratio view, this column always applies purity correction — by default using the sample's estimated TC, not an assumed 100% purity — so it reflects a real adjusted copy number even before "Simulate purity" is checked; checking it and moving the TC slider lets you explore a different purity assumption. If a call has no matching segment for its position, this column shows "NA".
+Alongside the static `CN` column (the caller's corrected copy number at report-build time), the table includes an **Adjusted CN** column. This is recomputed live in the browser from each call's own raw segment log₂ ratio, using the same calculation the plots use, so it updates immediately as the baseline-offset, TC, and "Absolute copy number" controls are changed, without needing a report rebuild. Unlike the plots' Log2 ratio view, this column always applies purity correction — by default using the sample's estimated TC, not an assumed 100% purity — so it reflects a real adjusted copy number even before "Simulate purity" is checked; checking it and changing the TC value lets you explore a different purity assumption. If a call has no matching segment for its position, this column shows "NA".
 
 The **Type** column updates the same way when `table_filter_config` is set: it shows the name of the first group (see below) whose criteria the call's live Adjusted CN currently satisfies, title-cased (e.g. `amplification` → "Amplification"), or "Copy neutral" if no group matches. This replaces the caller's own static classification (whose vocabulary isn't standardized across callers — cnvkit reports `DUP`/`DEL`/`COPY_NORMAL`, GATK reports `<COPY_GAIN>`/`<COPY_LOSS>`/`<COPY_NORMAL>`) with one consistent, live vocabulary. Without `table_filter_config`, the column falls back to the caller's static classification, unchanged.
 
@@ -163,7 +163,7 @@ The report will then include a toggle to apply these colors to the gene annotati
 
 ### Manual tumor content adjustment
 
-The report includes a slider that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The slider is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, adjusting the slider recalculates and redraws the expected copy number lines in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios.
+The report includes a "Tumor cell content" number input that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The field is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, entering a new value recalculates and redraws the expected copy number lines in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios. A **Reset** button restores the sample's originally-estimated TC.
 
 Enabling **"Simulate purity"** also switches both plots to the [Copy number view](#log2-ratio-vs-copy-number-view) by default (it can be switched back to log₂ ratio manually), and makes the **"Absolute copy number"** checkbox available. Enabling it snaps each segment line's recomputed copy number to the nearest whole number, which can make it easier to check the TC estimate against expected integer copy states. This does not affect the individual scatter points, only the segment lines. Unlike the view-mode toggle, "Absolute copy number" is only ever available while "Simulate purity" is checked.
 
@@ -205,9 +205,9 @@ chromosome and genome-wide plots. This is independent of "Zoom to data extent" a
 
 ### Baseline and tumor content
 
-The report includes a baseline offset slider, driven by the mechanism described above.
+The report includes a "Baseline offset" number input, driven by the mechanism described above, alongside a "Ploidy" number input showing the same underlying value in the other unit (`psi = 2 × 2^baselineOffset`; a baseline offset of 0 is ploidy 2, i.e. diploid). The two fields are linked — editing either one updates the other and re-renders both plots and the table, and a single **Reset** button (shown next to them) restores both to baseline offset 0 / ploidy 2.
 
-Once a baseline offset is active (entered manually), the report remembers which raw log₂ value it currently treats as exactly 2 copies. Because the mapping between a raw (TC-diluted) log₂ value and its absolute copy number depends on TC once "Simulate purity" is in effect, adjusting the TC slider afterwards — or toggling "Simulate purity" itself, which switches the TC actually applied between 1 and the real value — automatically re-solves the baseline offset so that same reference point stays pinned at exactly 2 copies, rather than silently drifting out of sync with the newly-adjusted TC.
+Once a baseline offset is active (entered manually, in either field), the report remembers which raw log₂ value it currently treats as exactly 2 copies. Because the mapping between a raw (TC-diluted) log₂ value and its absolute copy number depends on TC once "Simulate purity" is in effect, adjusting the TC value afterwards — or toggling "Simulate purity" itself, which switches the TC actually applied between 1 and the real value — automatically re-solves the baseline offset so that same reference point stays pinned at exactly 2 copies, rather than silently drifting out of sync with the newly-adjusted TC.
 
 ### Gene Focus
 
@@ -252,7 +252,8 @@ The report includes the following interactive features:
 | Linear chromosome view | Alternative linear view for each chromosome with per-caller toggle |
 | Gene search | Search box to quickly navigate the plot to a specific gene |
 | Log2 ratio / Copy number toggle | Switches the Y-axis between log₂ ratio and a linear, absolute copy-number scale; see [Log2 ratio vs. Copy number view](#log2-ratio-vs-copy-number-view) |
-| Manual TC adjustment | Slider to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
+| Manual TC adjustment | Number input to override estimated tumor content and update copy number lines in real time; requires **Simulate purity** to be enabled first |
+| Baseline offset / Ploidy | Linked number inputs to set the assumed baseline/neutral copy number (in either unit); see [Baseline and tumor content](#baseline-and-tumor-content) |
 | Absolute copy number | Snaps segment lines to whole-number copy number; requires **Simulate purity** to be enabled first |
 | Gene Focus | Displays data points with equal spacing along the x-axis instead of by genomic position |
 | Gene color toggle | Toggle to apply per-gene role colors to annotated genes in the plot |
