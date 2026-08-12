@@ -263,11 +263,22 @@ function updateCancerGeneLegend(data) {
   });
 }
 
-const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
 const currentBaselineOffset = d3.select("#current-baseline-offset");
 const baselineOffsetReset = d3.select("#reset-baseline-offset");
+const ploidyAdjust = d3.select("#ploidy-adjust");
 
-// Converts the anchor's raw log2 value into the baseline-offset slider value
+// Ploidy here means psi, the assumed neutral/baseline copy number in the
+// pure-tumor frame (see the baselineOffsetFromAnchor/anchorLog2FromBaselineOffset
+// comments below) - psi = 2 * 2^baselineOffset, so the two controls are just
+// two different units for the same underlying parameter and must be kept in sync.
+function psiFromBaselineOffset(dy) {
+  return 2 * 2 ** dy;
+}
+function baselineOffsetFromPsi(psi) {
+  return Math.log2(psi / 2);
+}
+
+// Converts the anchor's raw log2 value into the baseline-offset value
 // (psi = 2 * 2^baselineOffset is the assumed neutral copy number in the pure
 // -tumor frame - see #toAbsoluteCopyNumber). The anchor's raw log2 is the
 // *observed*, TC-diluted value, so recovering the pure-tumor-frame psi that
@@ -308,25 +319,42 @@ function anchorLog2FromBaselineOffset(baselineOffset, tc) {
 // baselineOffset=0, which is itself TC-independent (see derivation).
 let lastAnchorLog2 = 0;
 
+// The last value #current-tc was successfully validated to (see effectiveTc
+// above). Starts at originalTc to match the field's own initial value.
+let lastValidTc = originalTc;
+
 // simulatePurity/currentTc are declared further below, but this is only
 // ever called from within event handlers, which all run after the entire
 // script (including those declarations) has finished executing.
+//
+// Reads lastValidTc (set alongside currentTc's own change handler) rather
+// than parsing currentTc's live DOM value directly: the TC field can be
+// left in an invalid/unparseable state (e.g. cleared) without that having
+// been committed anywhere, and this is called from the baseline-offset and
+// ploidy handlers too - a stale invalid TC must not turn into a NaN that
+// poisons lastAnchorLog2 (and, from there, every future baseline-offset
+// recomputation) for edits that never touched the TC field at all.
 function effectiveTc() {
-  return simulatePurity.node().checked ? parseFloat(currentTc.node().value) : 1;
+  return simulatePurity.node().checked ? lastValidTc : 1;
 }
 
-// Applies a baseline offset value to the slider/display/views only - does
-// not touch lastAnchorLog2. Callers decide separately whether this offset
+// Applies a baseline offset value to the baseline/ploidy displays and views
+// only - does not touch lastAnchorLog2. Callers decide separately whether this offset
 // should update the tracked anchor (a manual/estimated change should) or not
 // (reapplyBaselineFromAnchor recomputes an offset *from* the existing
 // anchor, so it must leave it untouched).
 function setBaselineOffsetUI(dy) {
   const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  baselineOffsetSlider.node().value = dy;
   currentBaselineOffset.node().value = strdy;
   currentBaselineOffset.node().classList.remove("invalid");
   currentBaselineOffset.node().title = "";
   baselineOffsetReset.property("disabled", dy === 0);
+
+  const psi = psiFromBaselineOffset(dy);
+  ploidyAdjust.node().value = psi.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  ploidyAdjust.node().classList.remove("invalid");
+  ploidyAdjust.node().title = "";
+
   chromosomePlot.setBaselineOffset(dy);
   genomePlot.setBaselineOffset(dy);
   resultsTable.setBaselineOffset(dy);
@@ -337,8 +365,8 @@ function setBaselineOffsetUI(dy) {
 // copies as TC changes. No-op if no anchor has ever been established.
 function reapplyBaselineFromAnchor() {
   if (lastAnchorLog2 === null) return;
-  const minDy = parseFloat(baselineOffsetSlider.node().min);
-  const maxDy = parseFloat(baselineOffsetSlider.node().max);
+  const minDy = parseFloat(currentBaselineOffset.node().min);
+  const maxDy = parseFloat(currentBaselineOffset.node().max);
   const dy = Math.min(
     maxDy,
     Math.max(minDy, baselineOffsetFromAnchor(lastAnchorLog2, effectiveTc()))
@@ -346,29 +374,31 @@ function reapplyBaselineFromAnchor() {
   setBaselineOffsetUI(dy);
 }
 
-baselineOffsetSlider.on("change", () => {
-  currentBaselineOffset.node().dispatchEvent(new Event("change"));
-});
+// Parses a number input's value against its own min/max (falling back to
+// fallbackMin/fallbackMax when unset), marking it invalid and returning null
+// if the value is missing, non-numeric, or out of range. Shared by every
+// number input below so a NaN (e.g. the field left empty) is rejected the
+// same way an out-of-range value is, instead of silently slipping through.
+function parseValidatedNumberInput(input, fallbackMin, fallbackMax, label) {
+  const min = input.min ? parseFloat(input.min) : fallbackMin;
+  const max = input.max ? parseFloat(input.max) : fallbackMax;
+  const value = parseFloat(input.value);
 
-baselineOffsetSlider.on("input", (e) => {
-  const dy = parseFloat(e.target.value);
-  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  currentBaselineOffset.node().value = strdy;
-});
+  if (Number.isNaN(value) || value < min || value > max) {
+    input.classList.add("invalid");
+    input.title = `Value outside the valid range [${min}, ${max}]`;
+    console.error(`${label} outside the valid range [${min}, ${max}]`);
+    return null;
+  }
+
+  input.classList.remove("invalid");
+  input.title = "";
+  return value;
+}
 
 currentBaselineOffset.on("change", (e) => {
-  const minDy = e.target.min ? parseFloat(e.target.min) : -2.0;
-  const maxDy = e.target.max ? parseFloat(e.target.max) : 2.0;
-  const dy = parseFloat(e.target.value);
-
-  if (dy < minDy || dy > maxDy) {
-    e.target.classList.add("invalid");
-    e.target.title = `Value outside the valid range [${minDy}, ${maxDy}]`;
-    console.error(
-      `baseline offset outside the valid range [${minDy}, ${maxDy}]`
-    );
-    return;
-  }
+  const dy = parseValidatedNumberInput(e.target, -2.0, 2.0, "baseline offset");
+  if (dy === null) return;
 
   setBaselineOffsetUI(dy);
   // A manual edit defines a fresh anchor at whichever raw log2 this offset
@@ -376,15 +406,23 @@ currentBaselineOffset.on("change", (e) => {
   lastAnchorLog2 = anchorLog2FromBaselineOffset(dy, effectiveTc());
 });
 
+ploidyAdjust.on("change", (e) => {
+  const psi = parseValidatedNumberInput(e.target, psiFromBaselineOffset(-2), psiFromBaselineOffset(2), "ploidy");
+  if (psi === null) return;
+
+  // Same underlying parameter as the baseline offset - route through the
+  // same UI-update and anchor-tracking logic so both controls stay linked.
+  const dy = baselineOffsetFromPsi(psi);
+  setBaselineOffsetUI(dy);
+  lastAnchorLog2 = anchorLog2FromBaselineOffset(dy, effectiveTc());
+});
+
 baselineOffsetReset.on("click", () => {
-  baselineOffsetSlider.node().value = 0;
-  baselineOffsetReset.property("disabled", true);
   currentBaselineOffset.node().value = "0.00";
-  baselineOffsetSlider.node().dispatchEvent(new Event("change"));
+  currentBaselineOffset.node().dispatchEvent(new Event("change"));
 });
 
 const simulatePurity = d3.select("#simulate-purity");
-const tcAdjustSlider = d3.select("#tc-adjuster");
 const currentTc = d3.select("#current-tc");
 const tcAdjustReset = d3.select("#reset-tc");
 
@@ -411,14 +449,12 @@ function applyViewMode(mode) {
 
 simulatePurity.on("change", (e) => {
   const checked = e.target.checked;
-  tcAdjustSlider.property("disabled", !checked);
   currentTc.property("disabled", !checked);
   if (!checked) {
     // resultsTable always applies TC (unlike the plots, which assume 100%
     // purity while "Simulate purity" is off) — reset the (now-disabled)
     // TC input back to the default so the table doesn't keep using a
     // stale, no-longer-adjustable TC the user tried earlier.
-    tcAdjustSlider.node().value = originalTc;
     currentTc.node().value = originalTc;
     tcAdjustReset.property("disabled", true);
   }
@@ -443,32 +479,10 @@ viewModeInputs.on("change", (e) => {
   applyViewMode(e.target.value);
 });
 
-tcAdjustSlider.on("change", () => {
-  currentTc.node().dispatchEvent(new Event("change"));
-});
-
-tcAdjustSlider.on("input", (e) => {
-  const dv = parseFloat(e.target.value);
-  const strdv = dv.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  currentTc.node().value = strdv;
-});
-
 currentTc.on("change", (e) => {
-  const minTc = e.target.min ? parseFloat(e.target.min) : 0;
-  const maxTc = e.target.max ? parseFloat(e.target.max) : 1;
-  const tc = parseFloat(e.target.value);
-
-  if (tc < minTc || tc > maxTc) {
-    e.target.classList.add("invalid");
-    e.target.title = `Value outside the valid range [${minTc}, ${maxTc}]`;
-    console.error(
-      `tumor cell content outside the valid range [${minTc}, ${maxTc}]`
-    );
-    return;
-  }
-
-  e.target.classList.remove("invalid");
-  e.target.title = "";
+  const tc = parseValidatedNumberInput(e.target, 0, 1, "tumor cell content");
+  if (tc === null) return;
+  lastValidTc = tc;
 
   tcAdjustReset.property("disabled", true);
   if (tc != originalTc) {
@@ -476,7 +490,6 @@ currentTc.on("change", (e) => {
   }
 
   const strtc = tc.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  tcAdjustSlider.node().value = tc;
   currentTc.node().value = strtc;
   chromosomePlot.setTc(tc);
   genomePlot.setTc(tc);
@@ -490,10 +503,8 @@ currentTc.on("change", (e) => {
 });
 
 tcAdjustReset.on("click", () => {
-  tcAdjustSlider.node().value = originalTc;
-  tcAdjustReset.property("disabled", true);
   currentTc.node().value = originalTc;
-  tcAdjustSlider.node().dispatchEvent(new Event("change"));
+  currentTc.node().dispatchEvent(new Event("change"));
 });
 
 const Y_ZOOM_STEP = 0.8; // zoom-in shrink factor; zoom-out is 1/Y_ZOOM_STEP
