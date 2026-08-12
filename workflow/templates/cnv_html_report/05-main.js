@@ -319,11 +319,23 @@ function anchorLog2FromBaselineOffset(baselineOffset, tc) {
 // baselineOffset=0, which is itself TC-independent (see derivation).
 let lastAnchorLog2 = 0;
 
+// The last value #current-tc was successfully validated to (see effectiveTc
+// above). Starts at originalTc to match the field's own initial value.
+let lastValidTc = originalTc;
+
 // simulatePurity/currentTc are declared further below, but this is only
 // ever called from within event handlers, which all run after the entire
 // script (including those declarations) has finished executing.
+//
+// Reads lastValidTc (set alongside currentTc's own change handler) rather
+// than parsing currentTc's live DOM value directly: the TC field can be
+// left in an invalid/unparseable state (e.g. cleared) without that having
+// been committed anywhere, and this is called from the baseline-offset and
+// ploidy handlers too - a stale invalid TC must not turn into a NaN that
+// poisons lastAnchorLog2 (and, from there, every future baseline-offset
+// recomputation) for edits that never touched the TC field at all.
 function effectiveTc() {
-  return simulatePurity.node().checked ? parseFloat(currentTc.node().value) : 1;
+  return simulatePurity.node().checked ? lastValidTc : 1;
 }
 
 // Applies a baseline offset value to the baseline/ploidy displays and views
@@ -470,6 +482,7 @@ viewModeInputs.on("change", (e) => {
 currentTc.on("change", (e) => {
   const tc = parseValidatedNumberInput(e.target, 0, 1, "tumor cell content");
   if (tc === null) return;
+  lastValidTc = tc;
 
   tcAdjustReset.property("disabled", true);
   if (tc != originalTc) {
