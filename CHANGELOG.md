@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/hydra-genetics/reports/compare/v2.0.0...v2.1.0) (2026-08-12)
+
+
+### Features
+
+* added ploidy option and restructured GUI options ([#172](https://github.com/hydra-genetics/reports/issues/172)) ([9bc6f94](https://github.com/hydra-genetics/reports/commit/9bc6f94e701940a976fe1eab10dfe75a55ba5ebe))
+
 ## [2.0.0](https://github.com/hydra-genetics/reports/compare/v1.3.0...v2.0.0) (2026-07-24)
 
 
