@@ -263,11 +263,22 @@ function updateCancerGeneLegend(data) {
   });
 }
 
-const baselineOffsetSlider = d3.select("#chromosome-baseline-offset");
 const currentBaselineOffset = d3.select("#current-baseline-offset");
 const baselineOffsetReset = d3.select("#reset-baseline-offset");
+const ploidyAdjust = d3.select("#ploidy-adjust");
 
-// Converts the anchor's raw log2 value into the baseline-offset slider value
+// Ploidy here means psi, the assumed neutral/baseline copy number in the
+// pure-tumor frame (see the baselineOffsetFromAnchor/anchorLog2FromBaselineOffset
+// comments below) - psi = 2 * 2^baselineOffset, so the two controls are just
+// two different units for the same underlying parameter and must be kept in sync.
+function psiFromBaselineOffset(dy) {
+  return 2 * 2 ** dy;
+}
+function baselineOffsetFromPsi(psi) {
+  return Math.log2(psi / 2);
+}
+
+// Converts the anchor's raw log2 value into the baseline-offset value
 // (psi = 2 * 2^baselineOffset is the assumed neutral copy number in the pure
 // -tumor frame - see #toAbsoluteCopyNumber). The anchor's raw log2 is the
 // *observed*, TC-diluted value, so recovering the pure-tumor-frame psi that
@@ -315,18 +326,23 @@ function effectiveTc() {
   return simulatePurity.node().checked ? parseFloat(currentTc.node().value) : 1;
 }
 
-// Applies a baseline offset value to the slider/display/views only - does
-// not touch lastAnchorLog2. Callers decide separately whether this offset
+// Applies a baseline offset value to the baseline/ploidy displays and views
+// only - does not touch lastAnchorLog2. Callers decide separately whether this offset
 // should update the tracked anchor (a manual/estimated change should) or not
 // (reapplyBaselineFromAnchor recomputes an offset *from* the existing
 // anchor, so it must leave it untouched).
 function setBaselineOffsetUI(dy) {
   const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  baselineOffsetSlider.node().value = dy;
   currentBaselineOffset.node().value = strdy;
   currentBaselineOffset.node().classList.remove("invalid");
   currentBaselineOffset.node().title = "";
   baselineOffsetReset.property("disabled", dy === 0);
+
+  const psi = psiFromBaselineOffset(dy);
+  ploidyAdjust.node().value = psi.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  ploidyAdjust.node().classList.remove("invalid");
+  ploidyAdjust.node().title = "";
+
   chromosomePlot.setBaselineOffset(dy);
   genomePlot.setBaselineOffset(dy);
   resultsTable.setBaselineOffset(dy);
@@ -337,24 +353,14 @@ function setBaselineOffsetUI(dy) {
 // copies as TC changes. No-op if no anchor has ever been established.
 function reapplyBaselineFromAnchor() {
   if (lastAnchorLog2 === null) return;
-  const minDy = parseFloat(baselineOffsetSlider.node().min);
-  const maxDy = parseFloat(baselineOffsetSlider.node().max);
+  const minDy = parseFloat(currentBaselineOffset.node().min);
+  const maxDy = parseFloat(currentBaselineOffset.node().max);
   const dy = Math.min(
     maxDy,
     Math.max(minDy, baselineOffsetFromAnchor(lastAnchorLog2, effectiveTc()))
   );
   setBaselineOffsetUI(dy);
 }
-
-baselineOffsetSlider.on("change", () => {
-  currentBaselineOffset.node().dispatchEvent(new Event("change"));
-});
-
-baselineOffsetSlider.on("input", (e) => {
-  const dy = parseFloat(e.target.value);
-  const strdy = dy.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  currentBaselineOffset.node().value = strdy;
-});
 
 currentBaselineOffset.on("change", (e) => {
   const minDy = e.target.min ? parseFloat(e.target.min) : -2.0;
@@ -376,15 +382,31 @@ currentBaselineOffset.on("change", (e) => {
   lastAnchorLog2 = anchorLog2FromBaselineOffset(dy, effectiveTc());
 });
 
+ploidyAdjust.on("change", (e) => {
+  const minPsi = e.target.min ? parseFloat(e.target.min) : psiFromBaselineOffset(-2);
+  const maxPsi = e.target.max ? parseFloat(e.target.max) : psiFromBaselineOffset(2);
+  const psi = parseFloat(e.target.value);
+
+  if (Number.isNaN(psi) || psi < minPsi || psi > maxPsi) {
+    e.target.classList.add("invalid");
+    e.target.title = `Value outside the valid range [${minPsi}, ${maxPsi}]`;
+    console.error(`ploidy outside the valid range [${minPsi}, ${maxPsi}]`);
+    return;
+  }
+
+  // Same underlying parameter as the baseline offset - route through the
+  // same UI-update and anchor-tracking logic so both controls stay linked.
+  const dy = baselineOffsetFromPsi(psi);
+  setBaselineOffsetUI(dy);
+  lastAnchorLog2 = anchorLog2FromBaselineOffset(dy, effectiveTc());
+});
+
 baselineOffsetReset.on("click", () => {
-  baselineOffsetSlider.node().value = 0;
-  baselineOffsetReset.property("disabled", true);
   currentBaselineOffset.node().value = "0.00";
-  baselineOffsetSlider.node().dispatchEvent(new Event("change"));
+  currentBaselineOffset.node().dispatchEvent(new Event("change"));
 });
 
 const simulatePurity = d3.select("#simulate-purity");
-const tcAdjustSlider = d3.select("#tc-adjuster");
 const currentTc = d3.select("#current-tc");
 const tcAdjustReset = d3.select("#reset-tc");
 
@@ -411,14 +433,12 @@ function applyViewMode(mode) {
 
 simulatePurity.on("change", (e) => {
   const checked = e.target.checked;
-  tcAdjustSlider.property("disabled", !checked);
   currentTc.property("disabled", !checked);
   if (!checked) {
     // resultsTable always applies TC (unlike the plots, which assume 100%
     // purity while "Simulate purity" is off) — reset the (now-disabled)
     // TC input back to the default so the table doesn't keep using a
     // stale, no-longer-adjustable TC the user tried earlier.
-    tcAdjustSlider.node().value = originalTc;
     currentTc.node().value = originalTc;
     tcAdjustReset.property("disabled", true);
   }
@@ -441,16 +461,6 @@ roundSegmentsToInteger.on("change", (e) => {
 
 viewModeInputs.on("change", (e) => {
   applyViewMode(e.target.value);
-});
-
-tcAdjustSlider.on("change", () => {
-  currentTc.node().dispatchEvent(new Event("change"));
-});
-
-tcAdjustSlider.on("input", (e) => {
-  const dv = parseFloat(e.target.value);
-  const strdv = dv.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  currentTc.node().value = strdv;
 });
 
 currentTc.on("change", (e) => {
@@ -476,7 +486,6 @@ currentTc.on("change", (e) => {
   }
 
   const strtc = tc.toLocaleString("en-US", { minimumFractionDigits: 2 });
-  tcAdjustSlider.node().value = tc;
   currentTc.node().value = strtc;
   chromosomePlot.setTc(tc);
   genomePlot.setTc(tc);
@@ -490,10 +499,8 @@ currentTc.on("change", (e) => {
 });
 
 tcAdjustReset.on("click", () => {
-  tcAdjustSlider.node().value = originalTc;
-  tcAdjustReset.property("disabled", true);
   currentTc.node().value = originalTc;
-  tcAdjustSlider.node().dispatchEvent(new Event("change"));
+  currentTc.node().dispatchEvent(new Event("change"));
 });
 
 const Y_ZOOM_STEP = 0.8; // zoom-in shrink factor; zoom-out is 1/Y_ZOOM_STEP
