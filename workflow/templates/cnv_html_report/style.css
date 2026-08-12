@@ -20,8 +20,23 @@
 }
 
 .full-width-plots .controls-grid {
-  grid-template-columns: minmax(0, 1fr) minmax(390px, 1.6fr) minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   max-width: 1000px;
+}
+
+/* Below this, even 3 columns of minmax(300px, 1fr) can't all fit anyway, so
+   let columns reflow (auto-fill) instead of forcing the fixed template and
+   overflowing on narrow viewports or print. */
+@media screen and (min-width: 750px) {
+  .full-width-plots .controls-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(390px, 1.6fr) minmax(0, 1fr);
+  }
+}
+
+@media print {
+  .full-width-plots .controls-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
 }
 
 .plot-canvas {
@@ -233,6 +248,7 @@ dialog.info p i {
 }
 
 #current-baseline-offset,
+#ploidy-adjust,
 #current-tc {
   width: 3rem;
   margin-right: 0.5rem;

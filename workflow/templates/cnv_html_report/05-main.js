@@ -362,19 +362,31 @@ function reapplyBaselineFromAnchor() {
   setBaselineOffsetUI(dy);
 }
 
-currentBaselineOffset.on("change", (e) => {
-  const minDy = e.target.min ? parseFloat(e.target.min) : -2.0;
-  const maxDy = e.target.max ? parseFloat(e.target.max) : 2.0;
-  const dy = parseFloat(e.target.value);
+// Parses a number input's value against its own min/max (falling back to
+// fallbackMin/fallbackMax when unset), marking it invalid and returning null
+// if the value is missing, non-numeric, or out of range. Shared by every
+// number input below so a NaN (e.g. the field left empty) is rejected the
+// same way an out-of-range value is, instead of silently slipping through.
+function parseValidatedNumberInput(input, fallbackMin, fallbackMax, label) {
+  const min = input.min ? parseFloat(input.min) : fallbackMin;
+  const max = input.max ? parseFloat(input.max) : fallbackMax;
+  const value = parseFloat(input.value);
 
-  if (dy < minDy || dy > maxDy) {
-    e.target.classList.add("invalid");
-    e.target.title = `Value outside the valid range [${minDy}, ${maxDy}]`;
-    console.error(
-      `baseline offset outside the valid range [${minDy}, ${maxDy}]`
-    );
-    return;
+  if (Number.isNaN(value) || value < min || value > max) {
+    input.classList.add("invalid");
+    input.title = `Value outside the valid range [${min}, ${max}]`;
+    console.error(`${label} outside the valid range [${min}, ${max}]`);
+    return null;
   }
+
+  input.classList.remove("invalid");
+  input.title = "";
+  return value;
+}
+
+currentBaselineOffset.on("change", (e) => {
+  const dy = parseValidatedNumberInput(e.target, -2.0, 2.0, "baseline offset");
+  if (dy === null) return;
 
   setBaselineOffsetUI(dy);
   // A manual edit defines a fresh anchor at whichever raw log2 this offset
@@ -383,16 +395,8 @@ currentBaselineOffset.on("change", (e) => {
 });
 
 ploidyAdjust.on("change", (e) => {
-  const minPsi = e.target.min ? parseFloat(e.target.min) : psiFromBaselineOffset(-2);
-  const maxPsi = e.target.max ? parseFloat(e.target.max) : psiFromBaselineOffset(2);
-  const psi = parseFloat(e.target.value);
-
-  if (Number.isNaN(psi) || psi < minPsi || psi > maxPsi) {
-    e.target.classList.add("invalid");
-    e.target.title = `Value outside the valid range [${minPsi}, ${maxPsi}]`;
-    console.error(`ploidy outside the valid range [${minPsi}, ${maxPsi}]`);
-    return;
-  }
+  const psi = parseValidatedNumberInput(e.target, psiFromBaselineOffset(-2), psiFromBaselineOffset(2), "ploidy");
+  if (psi === null) return;
 
   // Same underlying parameter as the baseline offset - route through the
   // same UI-update and anchor-tracking logic so both controls stay linked.
@@ -464,21 +468,8 @@ viewModeInputs.on("change", (e) => {
 });
 
 currentTc.on("change", (e) => {
-  const minTc = e.target.min ? parseFloat(e.target.min) : 0;
-  const maxTc = e.target.max ? parseFloat(e.target.max) : 1;
-  const tc = parseFloat(e.target.value);
-
-  if (tc < minTc || tc > maxTc) {
-    e.target.classList.add("invalid");
-    e.target.title = `Value outside the valid range [${minTc}, ${maxTc}]`;
-    console.error(
-      `tumor cell content outside the valid range [${minTc}, ${maxTc}]`
-    );
-    return;
-  }
-
-  e.target.classList.remove("invalid");
-  e.target.title = "";
+  const tc = parseValidatedNumberInput(e.target, 0, 1, "tumor cell content");
+  if (tc === null) return;
 
   tcAdjustReset.property("disabled", true);
   if (tc != originalTc) {
