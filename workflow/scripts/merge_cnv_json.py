@@ -5,6 +5,7 @@ import json
 import math
 from pathlib import Path
 import pysam
+import re
 import sys
 from typing import Dict, List, Union
 import statistics
@@ -68,6 +69,30 @@ def parse_fai(filename, skip=None):
             if skip is not None and chrom in skip:
                 continue
             yield chrom, int(length)
+
+
+def expand_contig_patterns(fasta_index_file, patterns):
+    """Match regex contig patterns (e.g. '.*_random') against the real contig
+    names in the .fai file, returning the concrete names that matched.
+
+    parse_fai()'s own `skip` only does exact-string matching, so patterns need
+    expanding into literal names first before being used to filter anything.
+    Patterns are matched against the raw (un-normalized) .fai contig names -
+    some patterns (e.g. gene-name-prefixed contigs with no "chr") only match
+    the file's literal spelling, not parse_fai()'s "chr"-prefixed form - but
+    each match is normalized before being returned, so the result is still
+    safe to compare against parse_fai()'s normalized chrom names downstream.
+    """
+    if not patterns:
+        return []
+    with open(fasta_index_file) as f:
+        raw_contigs = [line.split("\t")[0] for line in f]
+    matched = set()
+    for pattern in patterns:
+        for contig in raw_contigs:
+            if re.match(pattern, contig):
+                matched.add(normalize_chrom(contig))
+    return sorted(matched)
 
 
 def annotation_parser():
@@ -730,6 +755,12 @@ def main():
     skip_chromosomes = snakemake.params["skip_chromosomes"]
     if skip_chromosomes:
         skip_chromosomes = [normalize_chrom(c) for c in skip_chromosomes]
+    else:
+        skip_chromosomes = []
+
+    skip_contig_patterns = snakemake.params.get("skip_contigs", [])
+    if skip_contig_patterns:
+        skip_chromosomes = sorted(set(skip_chromosomes) | set(expand_contig_patterns(fasta_index_file, skip_contig_patterns)))
 
     show_cytobands = snakemake.params["cytobands"]
 
