@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/hydra-genetics/reports/compare/v2.1.0...v2.2.0) (2026-08-18)
+
+
+### Features
+
+* Added Ploidy option for baseline shifts and restructured GUI options ([#176](https://github.com/hydra-genetics/reports/issues/176)) ([858e6e0](https://github.com/hydra-genetics/reports/commit/858e6e07349d9ea138231d67b5c6c13028c819bc))
+
 ## [2.1.0](https://github.com/hydra-genetics/reports/compare/v2.0.0...v2.1.0) (2026-08-12)
 
 
