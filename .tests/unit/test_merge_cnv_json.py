@@ -20,6 +20,7 @@ from merge_cnv_json import (  # noqa
     evaluate_filter_condition,
     passes_table_filter,
     classify_cnv,
+    expand_contig_patterns,
 )
 
 
@@ -803,3 +804,60 @@ chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454
         assert sorted_cnvs[2] == cnvs[1]
         assert sorted_cnvs[3] == cnvs[0]
         assert sorted_cnvs[4] == cnvs[4]
+
+
+class TestExpandContigPatterns(unittest.TestCase):
+    def setUp(self):
+        contigs = [
+            ("chr1", 248956422),
+            ("chr2", 242193529),
+            ("chrM", 16569),
+            ("chrEBV", 171823),
+            ("chr1_KI270706v1_random", 175055),
+            ("chrUn_KI270302v1", 2274),
+            ("MAP2K3_chr17_22578583_22605165", 26583),
+            ("KCNJ18_chr17_22629421_22688415", 58995),
+            ("KMT2C_chr7_152241005_152435863", 194859),
+        ]
+        fd, self.fai_path = tempfile.mkstemp()
+        with os.fdopen(fd, "w") as f:
+            for chrom, length in contigs:
+                f.write(f"{chrom}\t{length}\t0\t0\t0\n")
+
+    def tearDown(self):
+        os.remove(self.fai_path)
+
+    def test_no_patterns_returns_empty(self):
+        assert expand_contig_patterns(self.fai_path, []) == []
+
+    def test_literal_and_regex_patterns(self):
+        patterns = [
+            "chrM",
+            ".*_random",
+            "chrUn_.*",
+            "chrEBV",
+            "MAP2K3_chr17_22578583_22605165",
+            "KCNJ18_chr17_22629421_22688415",
+            "KMT2C_.*",
+        ]
+
+        matched = expand_contig_patterns(self.fai_path, patterns)
+
+        # Matches are normalized (chr-prefixed) so they compare equal to
+        # parse_fai()'s own normalized chrom names later on.
+        assert matched == sorted([
+            "chrM",
+            "chr1_KI270706v1_random",
+            "chrUn_KI270302v1",
+            "chrEBV",
+            "chrMAP2K3_chr17_22578583_22605165",
+            "chrKCNJ18_chr17_22629421_22688415",
+            "chrKMT2C_chr7_152241005_152435863",
+        ])
+        # Real chromosomes are never matched by any of the patterns above.
+        assert "chr1" not in matched
+        assert "chr2" not in matched
+
+    def test_pattern_matching_nothing_is_ignored(self):
+        matched = expand_contig_patterns(self.fai_path, ["chrDoesNotExist"])
+        assert matched == []
