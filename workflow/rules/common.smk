@@ -5,13 +5,15 @@ __license__ = "GPL-3"
 
 import csv
 import itertools
+import linecache
 import numpy as np
 import pathlib
 import pandas as pd
 import re
+import sys
 from typing import List, Union
 import yaml
-from snakemake.io import Wildcards
+from snakemake.iocontainers import Wildcards
 from snakemake.utils import validate
 from snakemake.utils import min_version
 from datetime import datetime
@@ -20,12 +22,12 @@ from hydra_genetics.utils.samples import *
 from hydra_genetics.utils.units import *
 from hydra_genetics.utils.software_versions import get_pipeline_version
 
-min_version("7.8.3")
+min_version("9.0.0")
 
 ### Set and validate config file
 
 if not workflow.overwrite_configfiles:
-    "At least one config file must be passed using --configfile/--configfiles, by command line or a profile!"
+    sys.exit("At least one config file must be passed using --configfile/--configfiles, by command line or a profile!")
 
 
 validate(config, schema="../schemas/config.schema.yaml")
@@ -62,7 +64,7 @@ pipeline_version = get_pipeline_version(workflow, pipeline_name=pipeline_name)
 
 ### Set wildcard constraints
 wildcard_constraints:
-    sample="|".join(samples.index),
+    sample="|".join(re.escape(s) for s in samples.index),
     type="N|T|R",
 
 
@@ -85,6 +87,16 @@ def compile_output_file_list(wildcards):
             output_files.append(outdir / Path(op))
 
     return output_files
+
+
+class _IdentityLineMap(dict):
+    """Line mapping for generated code, whose compiled and source line numbers are the same."""
+
+    def __contains__(self, lineno):
+        return True
+
+    def __missing__(self, lineno):
+        return lineno
 
 
 def generate_copy_rules(output_spec):
@@ -113,7 +125,7 @@ def generate_copy_rules(output_spec):
                 f'@workflow.output("{output_file}")',
                 f'@workflow.log("logs/{rule_name}_{output_file.name}.log")',
                 f'@workflow.container("{copy_container}")',
-                f'@workflow.resources(time="{time}", threads={threads}, mem_mb="{mem_mb}", '
+                f'@workflow.resources(time="{time}", threads={threads}, mem_mb={mem_mb}, '
                 f'mem_per_cpu={mem_per_cpu}, partition="{partition}")',
                 f'@workflow.shellcmd("{copy_container}")',
                 "@workflow.run\n",
@@ -129,14 +141,38 @@ def generate_copy_rules(output_spec):
 
         rulestrings.append(rule_code)
 
-    exec(compile("\n".join(rulestrings), "copy_result_files", "exec"), workflow.globals)
+    source = "\n".join(rulestrings)
+    source_name = "copy_result_files"
+
+    # Snakemake 9 derives rule.run_func_src for the "code" rerun trigger by looking the compiled
+    # filename up in workflow.linemaps and reading the lines back through linecache. Neither knows
+    # about source we compile ourselves, so register it in both. The generated source is its own
+    # original, so compiled and source line numbers coincide.
+    linecache.cache[source_name] = (len(source), None, source.splitlines(True), source_name)
+    workflow.linemaps[source_name] = _IdentityLineMap()
+
+    exec(compile(source, source_name, "exec"), workflow.globals)
 
 
 with open(config["general_report"]) as f:
     if f.name.endswith(".yaml"):
         general_report = yaml.safe_load(f)
 
-if len(workflow.modules) == 0:
+
+def is_imported_as_module():
+    """Whether this workflow is being parsed as a module of a consuming workflow.
+
+    Snakemake 7 registered modules in ``workflow.modules``, which stayed empty when the
+    workflow ran directly. In Snakemake 9 that attribute is empty in both cases, so the
+    check has moved to the workflow modifier: the top-level workflow is parsed with the
+    base modifier, which has no parent, while a module is parsed with a child modifier
+    whose ``parent_modifier`` is the importing workflow's.
+    """
+    modifier = getattr(workflow, "modifier", None)
+    return getattr(modifier, "parent_modifier", None) is not None
+
+
+if not is_imported_as_module():
     # Only generate copy-rules if the workflow is executed directly.
     generate_copy_rules(output_spec)
 
