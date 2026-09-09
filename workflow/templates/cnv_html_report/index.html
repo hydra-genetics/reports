@@ -140,7 +140,7 @@
       <p class="metadata-line">
         Sample: {{ metadata.sample }} | Date: <time>{{ metadata.date }}</time> | Tumor cell content: {{ metadata.tc if
         metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }}){% if metadata.ploidy is not none %} | Ploidy:
-        {{ metadata.ploidy }}{% endif %}
+        {{ "%.1f"|format(metadata.ploidy) }}{% endif %}
       </p>
       <!-- x-release-please-start-version -->
       <p class="fix-right">
