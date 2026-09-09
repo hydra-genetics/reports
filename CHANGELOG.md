@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.1](https://github.com/hydra-genetics/reports/compare/v2.2.0...v2.2.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* Ploidy rounding to one decimal ([#180](https://github.com/hydra-genetics/reports/issues/180)) ([379f099](https://github.com/hydra-genetics/reports/commit/379f099ba45e5111afa20d61c8a64342ff7ae261))
+* Ploidy rounding to one decimal ([#180](https://github.com/hydra-genetics/reports/issues/180)) ([bf7b22d](https://github.com/hydra-genetics/reports/commit/bf7b22d3001b88d28b0de59ab6547518f6ff8c73))
+
 ## [2.2.0](https://github.com/hydra-genetics/reports/compare/v2.1.0...v2.2.0) (2026-08-18)
 
 
