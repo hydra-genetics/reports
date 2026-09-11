@@ -65,6 +65,11 @@ pipeline_version = get_pipeline_version(workflow, pipeline_name=pipeline_name)
 ### Set wildcard constraints
 wildcard_constraints:
     sample="|".join(re.escape(s) for s in samples.index),
+    # A `merged` tc_method would make cnv_json's `{sample}_{type}.{caller}.{tc_method}.json`
+    # output also match merge_cnv_json's `{sample}_{type}.{tc_method}.merged.json`, making the
+    # two rules ambiguous. Note that `$` alone is not enough here: the constraint is embedded in
+    # a larger pattern, so it would anchor to the end of the whole path, not the wildcard.
+    tc_method=r"(?!merged(?:\.|$))[^.]+",
     type="N|T|R",
 
 
