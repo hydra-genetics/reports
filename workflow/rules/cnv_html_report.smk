@@ -102,7 +102,7 @@ rule merge_cnv_json:
         cytobands=lambda wildcards: config.get("merge_cnv_json", {}).get("cytobands", []),
         ref_genes=lambda wildcards: config.get("merge_cnv_json", {}).get("ref_genes", []),
         cancer_genes=get_cancer_genes,
-        table_filter_config=lambda wildcards: config.get("merge_cnv_json", {}).get("table_filter_config", ""),
+        table_filter_config=lambda wildcards: config.get("merge_cnv_json", {}).get("table_filter_config", []),
     output:
         json=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json"),
     params:
