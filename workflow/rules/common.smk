@@ -17,6 +17,7 @@ from snakemake.iocontainers import Wildcards
 from snakemake.utils import validate
 from snakemake.utils import min_version
 from datetime import datetime
+from hydra_genetics.utils.config import config_accessor
 from hydra_genetics.utils.resources import load_resources
 from hydra_genetics.utils.samples import *
 from hydra_genetics.utils.units import *
@@ -65,12 +66,11 @@ pipeline_version = get_pipeline_version(workflow, pipeline_name=pipeline_name)
 ### Set wildcard constraints
 wildcard_constraints:
     sample="|".join(re.escape(s) for s in samples.index),
-    # A `merged` tc_method would make cnv_json's `{sample}_{type}.{caller}.{tc_method}.json`
-    # output also match merge_cnv_json's `{sample}_{type}.{tc_method}.merged.json`, making the
-    # two rules ambiguous. Note that `$` alone is not enough here: the constraint is embedded in
-    # a larger pattern, so it would anchor to the end of the whole path, not the wildcard.
     tc_method=r"(?!merged(?:\.|$))[^.]+",
     type="N|T|R",
+
+
+get_config_value = config_accessor(config, module="reports")
 
 
 def compile_output_file_list(wildcards):
@@ -191,6 +191,7 @@ def get_cnv_callers(tc_method):
 
 def get_json_for_merge_cnv_json(wildcards):
     callers = get_cnv_callers(wildcards.tc_method)
+    print(callers)
     return ["reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json".format(caller=c, **wildcards) for c in callers]
 
 
@@ -220,30 +221,56 @@ def get_cnv_segments(wildcards):
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
+def get_optional_file(section: str, key: str) -> Union[str, List[Union[str, Path]]]:
+    """
+    Fetch the path(s) of an optional input file from the config.
+
+    A key that is missing, set to null or set to an empty string all mean "no
+    file". Snakemake only understands that as an empty list: an empty string is
+    rejected with "Empty file path encountered" and null with "Input and output
+    files have to be specified as strings or lists of strings", so normalise all
+    three to []. Empty entries in a list of paths are dropped for the same reason.
+    """
+    value = config.get(section, {}).get(key, [])
+
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        return value if value.strip() else []
+
+    return [v for v in value if v is not None and str(v).strip()]
+
+
 def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return config.get("merge_cnv_json", {}).get("germline_vcf", [])
+    return get_optional_file("merge_cnv_json", "germline_vcf")
 
 
 def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
 
-    return config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs", [])
+    return get_optional_file("merge_cnv_json", "unfiltered_cnv_vcfs")
+
+
+def get_annotation_bed(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return get_optional_file("merge_cnv_json", "annotations")
 
 
 def get_cytobands(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return config.get("merge_cnv_json", {}).get("cytobands", [])
+    return get_optional_file("merge_cnv_json", "cytobands")
 
 
 def get_ref_genes(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return config.get("merge_cnv_json", {}).get("ref_genes", [])
+    return get_optional_file("merge_cnv_json", "ref_genes")
 
 
 def get_cancer_genes(wildcards: Wildcards) -> List[Union[str, Path]]:
-    res = config.get("merge_cnv_json", {}).get("cancer_genes", [])
-    if isinstance(res, str) and not res:
-        return []
-    return res
+    return get_optional_file("merge_cnv_json", "cancer_genes")
+
+
+def get_table_filter_config(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return get_optional_file("merge_cnv_json", "table_filter_config")
 
 
 if not config.get("merge_cnv_json", {}).get("cancer_genes"):
