@@ -232,7 +232,8 @@ dialog.info p i {
 }
 
 .plot-container fieldset {
-  width: 20em;
+  max-width: 20em;
+  width: 100%;
   order: -1;
 }
 
