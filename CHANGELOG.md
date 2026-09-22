@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.2](https://github.com/hydra-genetics/reports/compare/v2.2.1...v2.2.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* column overlap on small screens ([#183](https://github.com/hydra-genetics/reports/issues/183)) ([bdfbf30](https://github.com/hydra-genetics/reports/commit/bdfbf30b6dbef8f04bb735ae018d9427b65e59ea))
+* column overlap on small screens ([#183](https://github.com/hydra-genetics/reports/issues/183)) ([#184](https://github.com/hydra-genetics/reports/issues/184)) ([1d51abd](https://github.com/hydra-genetics/reports/commit/1d51abdea9a55b062e7ec1eb25fe39721c73639e))
+
 ## [2.2.1](https://github.com/hydra-genetics/reports/compare/v2.2.0...v2.2.1) (2026-09-09)
 
 
