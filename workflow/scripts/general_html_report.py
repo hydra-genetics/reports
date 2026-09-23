@@ -110,7 +110,7 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                             if k not in cols:
                                 continue
 
-                            if type(cols[k]) == str:
+                            if type(cols[k]) is str:
                                 color = "255,255,255"
                                 multiqc_res[s]["header"][k]["colour"] = color
                                 multiqc_res[s]["data"][sample][k] = cols[k]

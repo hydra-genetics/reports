@@ -1,19 +1,24 @@
-$schema: "http://json-schema.org/draft-07/schema#"
+$schema: "https://json-schema.org/draft/2020-12/schema"
 description: snakemake configuration file
 type: object
 properties:
   samples:
     type: string
+    minLength: 1
   units:
     type: string
+    minLength: 1
   output:
     type: string
+    minLength: 1
     description: output yaml/json file defining expected output from pipeline
   resources:
     type: string
+    minLength: 1
     description: Path to resources.yaml file
   default_container:
     type: string
+    minLength: 1
     description: name or path to a default docker/singularity container
 
   reference:
@@ -21,12 +26,18 @@ properties:
     properties:
       fai:
         type: string
+        minLength: 1
         format: uri-reference
+      fasta:
+        type: string
+        minLength: 1
+        description: path to the reference fasta, recorded as provenance in the report metadata
     required:
       - fai
 
   general_report:
     type: string
+    minLength: 1
     format: uri-reference
     description: path to yaml config for the general report
 
@@ -52,6 +63,7 @@ properties:
         description: set number of times benchmark should be repeated
       container:
         type: string
+        minLength: 1
         description: name or path to docker/singularity container
       extra:
         type: string
@@ -68,6 +80,7 @@ properties:
         description: set number of times benchmark should be repeated
       container:
         type: string
+        minLength: 1
         description: name or path to docker/singularity container
       cytobands:
         type: boolean
@@ -93,16 +106,19 @@ properties:
           properties:
             name:
               type: string
+              minLength: 1
               description: >
                 The name of the table.
             path:
               type: string
+              minLength: 1
               format: uri-reference
               description: >
                 Path to a TSV file representing the table to be added. Column
                 names are required and assumed to be present.
             description:
               type: string
+              minLength: 1
               description: >
                 A description of the table.
           required:
@@ -157,6 +173,7 @@ properties:
         description: set number of times benchmark should be repeated
       container:
         type: string
+        minLength: 1
         description: name or path to docker/singularity container
 
 
@@ -169,21 +186,23 @@ properties:
         description: set number of times benchmark should be repeated
       container:
         type: string
+        minLength: 1
         description: name or path to docker/singularity container
 
       cancer_genes:
-        type: string
+        type: [string, "null"]
         format: uri-reference
         description: >
           CSV file containing gene coloring information.
           The CSV must have at least three columns with headers: "Gene" (gene name), "Role" (e.g., OG_consensus, TSG_consensus), and "Simple_Color" (hex color code).
           If a gene in this file is also present in `ref_genes` (but not in `annotations`), its coordinates will be automatically fetched and it will be highlighted in the chromosome plot.
       annotations:
-        type: array
+        type: [array, "null"]
         description: >
           List of BED files with custom annotations.
         items:
           type: string
+          minLength: 1
           format: uri-reference
           description: >
             BED file with annotations that should be added to the chromosome
@@ -232,7 +251,7 @@ properties:
                 description: Color for Giemsa stain result `stalk`.
                 pattern: '^#[\da-fA-F]{6}$'
       cytobands:
-        type: string
+        type: [string, "null"]
         format: uri-reference
         description: >
           Tab-separated file containing cytoband information. The file should
@@ -241,20 +260,21 @@ properties:
           results should match with the config under
           `cnv_html_report.cytoband_config`
       germline_vcf:
-        type: string
+        type: [string, "null"]
         format: uri-reference
         description: >
           Path to a germline VCF file that will be used to display BAFs in the
           plots of the report. The path supports the wildcards `sample` and
           `type` wildcards.
       unfiltered_cnv_vcfs:
-        type: array
+        type: [array, "null"]
         description: >
           VCF files containing CNV calls that should be displayed in the
           results table. Will only have an effect if `show_table` is true,
           and if `show_table` is true, this attribute is required.
         items:
           type: string
+          minLength: 1
           format: uri-reference
           description: >
             Path to a CNV VCF file that will be presented in the results table
@@ -264,7 +284,7 @@ properties:
             called the variant in question. The path supports `sample`,
             `type` and `tc_method` wildcards.
       table_filter_config:
-        type: string
+        type: [string, "null"]
         format: uri-reference
         description: >
           Optional path to a YAML file defining structured criteria for the
@@ -306,6 +326,7 @@ properties:
           built-in ones.
         items:
           type: string
+          minLength: 1
 
   compile_xlsx_report:
     type: object
@@ -316,9 +337,11 @@ properties:
         description: set number of times benchmark should be repeated
       container:
         type: string
+        minLength: 1
         description: name or path to docker/singularity container
       filters:
         type: string
+        minLength: 1
         format: uri-reference
         description: >
           Path to a yaml file describing which fields to extract from the

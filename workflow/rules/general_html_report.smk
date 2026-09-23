@@ -16,7 +16,7 @@ rule general_json_report:
         pipeline_name=pipeline_name,
         tc=get_tc_general_report,
         units=units,
-        reference_genome=config.get("reference", {}).get("fasta", ""),
+        reference_genome=lambda wildcards: get_config_value("reference", "fasta"),
     log:
         "reports/general_json_report/{sample}_{type}.general_report.log",
     benchmark:

@@ -5,27 +5,30 @@ __license__ = "GPL-3"
 
 import csv
 import itertools
+import linecache
 import numpy as np
 import pathlib
 import pandas as pd
 import re
+import sys
 from typing import List, Union
 import yaml
-from snakemake.io import Wildcards
+from snakemake.iocontainers import Wildcards
 from snakemake.utils import validate
 from snakemake.utils import min_version
 from datetime import datetime
+from hydra_genetics.utils.config import config_accessor
 from hydra_genetics.utils.resources import load_resources
 from hydra_genetics.utils.samples import *
 from hydra_genetics.utils.units import *
 from hydra_genetics.utils.software_versions import get_pipeline_version
 
-min_version("7.8.3")
+min_version("9.0.0")
 
 ### Set and validate config file
 
 if not workflow.overwrite_configfiles:
-    "At least one config file must be passed using --configfile/--configfiles, by command line or a profile!"
+    sys.exit("At least one config file must be passed using --configfile/--configfiles, by command line or a profile!")
 
 
 validate(config, schema="../schemas/config.schema.yaml")
@@ -62,8 +65,12 @@ pipeline_version = get_pipeline_version(workflow, pipeline_name=pipeline_name)
 
 ### Set wildcard constraints
 wildcard_constraints:
-    sample="|".join(samples.index),
+    sample="|".join(re.escape(s) for s in samples.index),
+    tc_method=r"(?!merged(?:\.|$))[^.]+",
     type="N|T|R",
+
+
+get_config_value = config_accessor(config, module="reports")
 
 
 def compile_output_file_list(wildcards):
@@ -85,6 +92,16 @@ def compile_output_file_list(wildcards):
             output_files.append(outdir / Path(op))
 
     return output_files
+
+
+class _IdentityLineMap(dict):
+    """Line mapping for generated code, whose compiled and source line numbers are the same."""
+
+    def __contains__(self, lineno):
+        return True
+
+    def __missing__(self, lineno):
+        return lineno
 
 
 def generate_copy_rules(output_spec):
@@ -113,7 +130,7 @@ def generate_copy_rules(output_spec):
                 f'@workflow.output("{output_file}")',
                 f'@workflow.log("logs/{rule_name}_{output_file.name}.log")',
                 f'@workflow.container("{copy_container}")',
-                f'@workflow.resources(time="{time}", threads={threads}, mem_mb="{mem_mb}", '
+                f'@workflow.resources(time="{time}", threads={threads}, mem_mb={mem_mb}, '
                 f'mem_per_cpu={mem_per_cpu}, partition="{partition}")',
                 f'@workflow.shellcmd("{copy_container}")',
                 "@workflow.run\n",
@@ -129,14 +146,38 @@ def generate_copy_rules(output_spec):
 
         rulestrings.append(rule_code)
 
-    exec(compile("\n".join(rulestrings), "copy_result_files", "exec"), workflow.globals)
+    source = "\n".join(rulestrings)
+    source_name = "copy_result_files"
+
+    # Snakemake 9 derives rule.run_func_src for the "code" rerun trigger by looking the compiled
+    # filename up in workflow.linemaps and reading the lines back through linecache. Neither knows
+    # about source we compile ourselves, so register it in both. The generated source is its own
+    # original, so compiled and source line numbers coincide.
+    linecache.cache[source_name] = (len(source), None, source.splitlines(True), source_name)
+    workflow.linemaps[source_name] = _IdentityLineMap()
+
+    exec(compile(source, source_name, "exec"), workflow.globals)
 
 
 with open(config["general_report"]) as f:
     if f.name.endswith(".yaml"):
         general_report = yaml.safe_load(f)
 
-if len(workflow.modules) == 0:
+
+def is_imported_as_module():
+    """Whether this workflow is being parsed as a module of a consuming workflow.
+
+    Snakemake 7 registered modules in ``workflow.modules``, which stayed empty when the
+    workflow ran directly. In Snakemake 9 that attribute is empty in both cases, so the
+    check has moved to the workflow modifier: the top-level workflow is parsed with the
+    base modifier, which has no parent, while a module is parsed with a child modifier
+    whose ``parent_modifier`` is the importing workflow's.
+    """
+    modifier = getattr(workflow, "modifier", None)
+    return getattr(modifier, "parent_modifier", None) is not None
+
+
+if not is_imported_as_module():
     # Only generate copy-rules if the workflow is executed directly.
     generate_copy_rules(output_spec)
 
@@ -150,6 +191,7 @@ def get_cnv_callers(tc_method):
 
 def get_json_for_merge_cnv_json(wildcards):
     callers = get_cnv_callers(wildcards.tc_method)
+    print(callers)
     return ["reports/cnv_html_report/{sample}_{type}.{caller}.{tc_method}.json".format(caller=c, **wildcards) for c in callers]
 
 
@@ -179,30 +221,56 @@ def get_cnv_segments(wildcards):
     raise NotImplementedError(f"not implemented for caller {wildcards.caller}")
 
 
+def get_optional_file(section: str, key: str) -> Union[str, List[Union[str, Path]]]:
+    """
+    Fetch the path(s) of an optional input file from the config.
+
+    A key that is missing, set to null or set to an empty string all mean "no
+    file". Snakemake only understands that as an empty list: an empty string is
+    rejected with "Empty file path encountered" and null with "Input and output
+    files have to be specified as strings or lists of strings", so normalise all
+    three to []. Empty entries in a list of paths are dropped for the same reason.
+    """
+    value = config.get(section, {}).get(key, [])
+
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        return value if value.strip() else []
+
+    return [v for v in value if v is not None and str(v).strip()]
+
+
 def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return config.get("merge_cnv_json", {}).get("germline_vcf", [])
+    return get_optional_file("merge_cnv_json", "germline_vcf")
 
 
 def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
 
-    return config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs", [])
+    return get_optional_file("merge_cnv_json", "unfiltered_cnv_vcfs")
+
+
+def get_annotation_bed(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return get_optional_file("merge_cnv_json", "annotations")
 
 
 def get_cytobands(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return config.get("merge_cnv_json", {}).get("cytobands", [])
+    return get_optional_file("merge_cnv_json", "cytobands")
 
 
 def get_ref_genes(wildcards: Wildcards) -> List[Union[str, Path]]:
-    return config.get("merge_cnv_json", {}).get("ref_genes", [])
+    return get_optional_file("merge_cnv_json", "ref_genes")
 
 
 def get_cancer_genes(wildcards: Wildcards) -> List[Union[str, Path]]:
-    res = config.get("merge_cnv_json", {}).get("cancer_genes", [])
-    if isinstance(res, str) and not res:
-        return []
-    return res
+    return get_optional_file("merge_cnv_json", "cancer_genes")
+
+
+def get_table_filter_config(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return get_optional_file("merge_cnv_json", "table_filter_config")
 
 
 if not config.get("merge_cnv_json", {}).get("cancer_genes"):
