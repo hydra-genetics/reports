@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.3](https://github.com/hydra-genetics/reports/compare/v2.2.2...v2.2.3) (2026-09-25)
+
+
+### Bug Fixes
+
+* use header names instead of positional column index ([#186](https://github.com/hydra-genetics/reports/issues/186)) ([f22a6c7](https://github.com/hydra-genetics/reports/commit/f22a6c717f79d214449c8232bb0549fa64cf41c5))
+
 ## [2.2.2](https://github.com/hydra-genetics/reports/compare/v2.2.1...v2.2.2) (2026-09-22)
 
 
