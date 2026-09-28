@@ -1,4 +1,4 @@
-from jinja2 import Template
+ from jinja2 import Template
 import json
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
@@ -142,7 +142,7 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                                 else:
                                     color = "55,126,184"
                                 multiqc_res[s]["header"][k]["colour"] = color
-                                format_ = multiqc_res[s]["header"][k]["format"]
+                                format_ = multiqc_res[s]["header"][k].get("format", None)
                                 multiqc_res[s]["data"][sample][
                                     k] = format_.format(value)
 
