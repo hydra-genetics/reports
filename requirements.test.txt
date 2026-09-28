@@ -1,7 +1,5 @@
-fonttools
-brotli
-networkx==2.7
 pre-commit>=3.3
-pycodestyle==2.8.0
-pytest==6.2.5
-snakefmt==0.6.0
+pycodestyle>=2.11.0
+pysam
+pytest>=8.0.0
+snakefmt==0.10.3
