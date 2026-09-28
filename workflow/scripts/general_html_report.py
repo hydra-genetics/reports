@@ -143,8 +143,9 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                                     color = "55,126,184"
                                 multiqc_res[s]["header"][k]["colour"] = color
                                 format_ = multiqc_res[s]["header"][k].get("format", None)
-                                multiqc_res[s]["data"][sample][
-                                    k] = format_.format(value)
+                                if format_ is not None:
+                                    multiqc_res[s]["data"][sample][
+                                        k] = format_.format(value)
 
     multiqc_tables = []
     for table in multiqc_res["table"]["data"]:
