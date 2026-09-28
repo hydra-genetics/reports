@@ -1,4 +1,4 @@
- from jinja2 import Template
+from jinja2 import Template
 import json
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
