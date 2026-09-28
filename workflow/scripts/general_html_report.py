@@ -124,7 +124,8 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
 
                                 max_ = multiqc_res[s]["header"][k].get("max", None)
                                 min_ = multiqc_res[s]["header"][k].get("min", None)
-                                min_ = float(min_)
+                                if min_ is not None:
+                                    min_ = float(min_)
 
                                 if max_ is not None:
                                     max_ = float(max_)
