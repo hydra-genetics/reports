@@ -487,11 +487,26 @@ class ChromosomePlot extends EventTarget {
 
   set activeCaller(caller) {
     if (this.#activeCaller !== caller) {
+      // In Gene Focus mode the zoom range is in the old caller's data-point
+      // indices, which point elsewhere in the new caller's data. Remember a
+      // zoomed-in view as a genomic region so the same region can be shown.
+      let region = null;
+      if (this.equalDistance) {
+        const [i0, i1] = this.zoomRange;
+        if (i0 > 0 || i1 < this.length) {
+          // i1 is an exclusive end; use the last data point actually in view
+          // so switching back and forth doesn't widen the view each time.
+          region = [this.#positionAtIndex(i0), this.#positionAtIndex(i1 - 1)];
+        }
+      }
       this.#activeCaller = caller;
       this.#ratios.attr("data-caller", caller);
-      // Reset zoom in equalDistance mode because index ranges change across callers
       if (this.equalDistance) {
-        this.resetZoom();
+        if (region) {
+          this.zoomTo(this.getRatioIndex(region[0]), this.getRatioIndex(region[1]) + 1);
+        } else {
+          this.resetZoom();
+        }
       }
       this.update();
     }
