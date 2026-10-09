@@ -148,6 +148,10 @@ class XCursor {
       : { top: 2, right: 5, bottom: 5, left: 5 };
     this.labelHeight = getTextDimensions("0,", this.fontSize)[1];
     this.xScale = config?.xScale ? config.xScale : null;
+    // Turns the x-scale value under the cursor into the label text. The
+    // owning plot overrides this in Gene Focus mode, where the scale is in
+    // data-point indices rather than base pairs.
+    this.format = config?.format ? config.format : (v) => Math.floor(v).toLocaleString();
     this.hidden = true;
 
     if (this.xScale === null) {
@@ -198,7 +202,7 @@ class XCursor {
   }
 
   set(x) {
-    let verticalLabel = Math.floor(this.xScale.invert(x)).toLocaleString();
+    let verticalLabel = this.format(this.xScale.invert(x));
     let verticalLabelWidth = getTextDimensions(verticalLabel, this.fontSize)[0];
 
     this.cursor.attr("opacity", 1).attr("transform", `translate(${x}, 0)`);
@@ -336,7 +340,16 @@ class ChromosomePlot extends EventTarget {
       return integerLabelsInRange(Math.max(0, domainMin), domainMax, 5);
     };
 
-    this.xAxis = (g) => g.call(d3.axisBottom(this.xScale).ticks(5));
+    this.xAxis = (g) => {
+      const axis = d3.axisBottom(this.xScale).ticks(5);
+      if (this.equalDistance) {
+        // The scale is in data-point indices here, which mean nothing to a
+        // reader (and small ones look like chromosome numbers), so label
+        // each tick with the genomic position of the data point under it.
+        axis.tickFormat((i) => this.#formatMb(this.#positionAtIndex(i)));
+      }
+      g.call(axis);
+    };
     this.ratioYAxis = (g) => {
       const axis = d3.axisLeft(this.ratioYScale);
       if (this.viewMode === "copyNumber") {
@@ -652,6 +665,27 @@ class ChromosomePlot extends EventTarget {
 
   get equalDistance() {
     return this.#equalDistance;
+  }
+
+  // Inverse of getRatioIndex: the genomic start position of the data point
+  // at a Gene Focus x-scale index.
+  #positionAtIndex(i) {
+    const ratios = this.#data.callers[this.#activeCaller].ratios;
+    if (!ratios || ratios.length === 0) {
+      return 0;
+    }
+    const idx = Math.min(ratios.length - 1, Math.max(0, Math.floor(i)));
+    return ratios[idx].start;
+  }
+
+  // Position in Mb for the Gene Focus x-axis ticks and cursor label. Two
+  // decimals normally; more only when zoomed in so far that two would make
+  // neighbouring ticks (about a tenth of the visible span apart) identical.
+  #formatMb(bp) {
+    const [i0, i1] = this.xScale.domain();
+    const spanMb = Math.abs(this.#positionAtIndex(i1) - this.#positionAtIndex(i0)) / 1e6;
+    const decimals = spanMb > 0 ? Math.max(2, Math.ceil(-Math.log10(spanMb / 10))) : 2;
+    return (bp / 1e6).toFixed(Math.min(decimals, 6));
   }
 
   getRatioIndex(pos) {
@@ -1880,7 +1914,10 @@ class ChromosomePlot extends EventTarget {
       .attr("transform", `translate(${this.width / 2},${this.height})`)
       .attr("class", "x-label")
       .text(this.data.label)
-      .attr("text-anchor", "middle");
+      .attr("text-anchor", "middle")
+      // Sit the bottom of the text, not its baseline, on the SVG's bottom
+      // edge so descenders (p, y, g) aren't clipped.
+      .attr("dominant-baseline", "text-after-edge");
 
     this.svg
       .append("text")
@@ -2161,6 +2198,10 @@ class ChromosomePlot extends EventTarget {
       element: mouseTrap,
       height: this.plotHeight * 2 + this.margin.between,
       xScale: this.xScale,
+      format: (v) =>
+        this.equalDistance
+          ? `${this.#formatMb(this.#positionAtIndex(v))} Mb`
+          : Math.floor(v).toLocaleString(),
     });
 
     const ratioCursor = new YCursor({
@@ -2368,7 +2409,13 @@ class ChromosomePlot extends EventTarget {
         .attr("x2", this.xScale.range()[1]);
     }
 
-    this.svg.select(".x-label").text(this.#data.label);
+    this.svg
+      .select(".x-label")
+      .text(
+        this.equalDistance
+          ? `${this.#data.label} – position (Mb), data points evenly spaced`
+          : this.#data.label
+      );
   }
 
   getZoomRange() {
