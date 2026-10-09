@@ -211,7 +211,7 @@ Once a baseline offset is active (entered manually, in either field), the report
 
 ### Gene Focus
 
-The "Gene Focus" checkbox (chromosome view) displays data points with equal spacing along the x-axis, regardless of their genomic position. This allows for visualizing the sequential order of probes rather than their physical distance, which can be useful when probes are unevenly distributed — e.g. to inspect a densely-probed gene region without it being compressed by the surrounding sparser intergenic distance.
+The "Gene Focus" checkbox (chromosome view) displays data points with equal spacing along the x-axis, regardless of their genomic position. This allows for visualizing the sequential order of probes rather than their physical distance, which can be useful when probes are unevenly distributed — e.g. to inspect a densely-probed gene region without it being compressed by the surrounding sparser intergenic distance. Because the spacing no longer reflects genomic distance, the x-axis ticks show the genomic position (in Mb) of the data point at each tick, so the gaps between tick values vary; the cursor label shows the position in Mb.
 
 ### Default-checked controls
 
