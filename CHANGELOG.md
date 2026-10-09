@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.5](https://github.com/hydra-genetics/reports/compare/v2.2.4...v2.2.5) (2026-10-09)
+
+
+### Bug Fixes
+
+* Fix report version ([09baddb](https://github.com/hydra-genetics/reports/commit/09baddbd04ce06dc7251dd3a0cca9998fcb631de))
+* show the correct module version in the CNV report footer ([7c1609a](https://github.com/hydra-genetics/reports/commit/7c1609aa36d224f7917f245885c75ba9357874dd))
+
 ## [2.2.4](https://github.com/hydra-genetics/reports/compare/v2.2.3...v2.2.4) (2026-10-09)
 
 
