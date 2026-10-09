@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.4](https://github.com/hydra-genetics/reports/compare/v2.2.3...v2.2.4) (2026-10-09)
+
+
+### Bug Fixes
+
+* In Gene focus mode use chrom pos on X-axis and hovering and keep zoom when changing callers ([#189](https://github.com/hydra-genetics/reports/issues/189)) ([9cbb1d9](https://github.com/hydra-genetics/reports/commit/9cbb1d91eac6d4e18bc970d712ccb8373d8d019c))
+* In Gene focus mode use chrom pos on X-axis and hovering and keep… ([96eeaba](https://github.com/hydra-genetics/reports/commit/96eeabac3a2cc8f1125981af10f9a91f66585bef))
+
 ## [2.2.3](https://github.com/hydra-genetics/reports/compare/v2.2.2...v2.2.3) (2026-09-25)
 
 
