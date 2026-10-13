@@ -74,7 +74,7 @@ def test_cnv_header_without_purity_ploidy(tmp_path):
 
 def test_general_header_shows_all_estimates():
     assert general_header([0.45, "0.39", 4.4389, 0.4635, 2.512]) == {
-        "Tc pathology": "0.45", "Tc purecn": "0.39", "Tc ichorCNA": "0.4635",
+        "Tc pathology": "0.45", "Tc purecn": "0.39", "Tc ichorCNA": "0.46",
         "Ploidy purecn": "4.44", "Ploidy ichorCNA": "2.51",
     }
 
@@ -90,7 +90,7 @@ def test_general_header_accepts_two_values():
 def test_general_header_keeps_zero_values():
     header = general_header([0.0, "NA", "NA", 0.0, 2.15])
     assert header["Tc pathology"] == "0.0"
-    assert header["Tc ichorCNA"] == "0.0"
+    assert header["Tc ichorCNA"] == "0.00"
     assert header["Ploidy ichorCNA"] == "2.15"
 
 
