@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.3.0](https://github.com/hydra-genetics/reports/compare/v2.2.5...v2.3.0) (2026-10-13)
+
+
+### Features
+
+* show pathology, PureCN and ichorCNA purity and ploidy in report headers (and handle no TC) ([#195](https://github.com/hydra-genetics/reports/issues/195)) ([248db23](https://github.com/hydra-genetics/reports/commit/248db235d08674081d3d2dfcacc83ad9752f2297))
+* show pathology, PureCN and ichorCNA purity and ploidy in report… ([86ec6b7](https://github.com/hydra-genetics/reports/commit/86ec6b731998f651cb2b16a810aae6e370a6dd37))
+
 ## [2.2.5](https://github.com/hydra-genetics/reports/compare/v2.2.4...v2.2.5) (2026-10-09)
 
 
