@@ -163,6 +163,13 @@ The report will then include a toggle to apply these colors to the gene annotati
 
 ### Manual tumor content adjustment
 
+The report header shows the tumor cell content used for the plots and its method, and below it the available
+purity and ploidy estimates: tumor cell content from pathology (`tumor_content` in `samples.tsv`), PureCN and
+ichorCNA, and ploidy from PureCN and ichorCNA. Estimates that are not available are left out, and the line is not
+shown when none of them is available. The ichorCNA values are read from the
+file given by `ichorcna_file` in the config (default: ichorCNA's `params.txt` from the cnv_sv module); when
+`ichorcna_file` is set, that file is also an input to the report rules.
+
 The report includes a "Tumor cell content" number input that allows the user to manually override the estimated tumor cell content (TC) directly in the browser. The field is **disabled by default** and only becomes active after enabling the **"Simulate purity"** checkbox in the chromosome view controls. Once enabled, entering a new value recalculates and redraws the expected copy number lines in real time without requiring a re-run of the pipeline. This is useful when the purity estimate is uncertain or when exploring alternative TC scenarios. A **Reset** button restores the sample's originally-estimated TC.
 
 Enabling **"Simulate purity"** also switches both plots to the [Copy number view](#log2-ratio-vs-copy-number-view) by default (it can be switched back to log₂ ratio manually), and makes the **"Absolute copy number"** checkbox available. Enabling it snaps each segment line's recomputed copy number to the nearest whole number, which can make it easier to check the TC estimate against expected integer copy states. This does not affect the individual scatter points, only the segment lines. Unlike the view-mode toggle, "Absolute copy number" is only ever available while "Simulate purity" is checked.
@@ -274,6 +281,7 @@ use rule cnv_html_report from reports as reports_cnv_html_report with:
         js_files=["path/to/custom/js/script-1.js", "path/to/custom/js/script-2.js"],
         tc_file=reports.get_tc_file,
         ploidy_file=reports.get_ploidy_file,
+        ichorcna_file=reports.get_ichorcna_file,
 ```
 
 The only template file that is strictly required is the html file `html_template`. Both `css_files` and `js_files` can be left out if you so wish, but the functionality will be severly limited without any javascript.

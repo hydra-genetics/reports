@@ -8,6 +8,7 @@ rule general_json_report:
     input:
         files=[f'{filedef["input"]}' for filedef in general_report["files"]],
         output_files=config.get("general_report", {}),
+        ichorcna_file=get_ichorcna_file,
     output:
         json="reports/general_json_report/{sample}_{type}.general.json",
     params:

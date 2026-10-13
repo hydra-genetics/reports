@@ -139,9 +139,13 @@
       <h1>CNV report</h1>
       <p class="metadata-line">
         Sample: {{ metadata.sample }} | Date: <time>{{ metadata.date }}</time> | Tumor cell content: {{ metadata.tc if
-        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }}){% if metadata.ploidy is not none %} | Ploidy:
-        {{ "%.1f"|format(metadata.ploidy) }}{% endif %}
+        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }})
       </p>
+      {% if metadata.purity_ploidy %}
+      <p class="metadata-line">
+        {% for label, value in metadata.purity_ploidy %}{{ label }}: {{ value }}{% if not loop.last %} | {% endif %}{% endfor %}
+      </p>
+      {% endif %}
       <!-- x-release-please-start-version -->
       <p class="fix-right">
         <small>
