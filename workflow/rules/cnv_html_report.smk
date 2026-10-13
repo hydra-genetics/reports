@@ -22,6 +22,7 @@ rule cnv_html_report:
         ],
         tc_file=get_tc_file,
         ploidy_file=get_ploidy_file,
+        ichorcna_file=get_ichorcna_file,
         extra_table_files=[t["path"] for t in config.get("cnv_html_report", {}).get("extra_tables", [])],
     output:
         html=temp("reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html"),
@@ -30,6 +31,7 @@ rule cnv_html_report:
         extra_tables=config.get("cnv_html_report", {}).get("extra_tables", []),
         tc=get_tc,
         ploidy=get_ploidy,
+        purity_ploidy=get_purity_ploidy,
         tc_method=lambda wildcards: wildcards.tc_method,
         include_cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
         wide_plot_width=config.get("cnv_html_report", {}).get("wide_plot_width", False),

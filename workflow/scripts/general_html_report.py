@@ -247,7 +247,8 @@ def generate_report(template_filename: str, config: dict,
     for header in navigation_bar:
         nav_bar_html += f'\t\t\t\t<button class="tablinks" onclick="openNav(event, \'{header}\')">{header}</button>\n'
 
-    if (config["tc_pathology"] == "NA") and (config["tc_purecn"] == "NA"):
+    purity_ploidy_keys = ["tc_pathology", "tc_purecn", "ploidy_purecn", "tc_ichorcna", "ploidy_ichorcna"]
+    if all(config.get(k, "NA") == "NA" for k in purity_ploidy_keys):
         return template.render(
             dict(
                 metadata=dict(analysis_date=config["analysis_date"],
@@ -268,8 +269,7 @@ def generate_report(template_filename: str, config: dict,
                 metadata=dict(analysis_date=config["analysis_date"],
                               report_date=time.strftime(
                                   "%Y-%m-%d %H:%M", time.localtime()),
-                              tc_pathology=config["tc_pathology"],
-                              tc_purecn=config["tc_purecn"],
+                              **{k: config.get(k, "NA") for k in purity_ploidy_keys},
                               sample=config["sample"],
                               units=config["units"]),
                 pipeline=config["pipeline"],
