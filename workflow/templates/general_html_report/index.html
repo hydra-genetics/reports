@@ -40,7 +40,7 @@
             {% endif %}
             </tr>
             <tr>
-            {% if metadata.tc_pathology %}
+            {% if metadata.tc_pathology is defined and metadata.tc_pathology is not none %}
             <td><b>Tc pathology</b></td>
             <td> {{ metadata.tc_pathology }} </td>
             {% endif %}
@@ -49,6 +49,24 @@
             {% if metadata.tc_purecn %}
             <td><b>Tc purecn</b></td>
             <td>{{ metadata.tc_purecn }} </td>
+            {% endif %}
+            </tr>
+            <tr>
+            {% if metadata.tc_ichorcna is defined and metadata.tc_ichorcna is not none and metadata.tc_ichorcna != "NA" %}
+            <td><b>Tc ichorCNA</b></td>
+            <td>{{ metadata.tc_ichorcna }} </td>
+            {% endif %}
+            </tr>
+            <tr>
+            {% if metadata.ploidy_purecn is defined and metadata.ploidy_purecn is not none and metadata.ploidy_purecn != "NA" %}
+            <td><b>Ploidy purecn</b></td>
+            <td>{{ metadata.ploidy_purecn if metadata.ploidy_purecn is string else "%.2f"|format(metadata.ploidy_purecn) }} </td>
+            {% endif %}
+            </tr>
+            <tr>
+            {% if metadata.ploidy_ichorcna is defined and metadata.ploidy_ichorcna is not none and metadata.ploidy_ichorcna != "NA" %}
+            <td><b>Ploidy ichorCNA</b></td>
+            <td>{{ metadata.ploidy_ichorcna if metadata.ploidy_ichorcna is string else "%.2f"|format(metadata.ploidy_ichorcna) }} </td>
             {% endif %}
             </tr>
         </thead>

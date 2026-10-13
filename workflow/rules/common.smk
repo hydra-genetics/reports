@@ -218,15 +218,15 @@ def get_tc(wildcards):
             with open(tc_file) as f:
                 tc = f.read().strip()
         if tc == "" or float(tc) < 0.35:
-            return get_sample(samples, wildcards)["tumor_content"]
+            return get_sample(samples, wildcards).get("tumor_content")
         else:
             return tc
     elif tc_method == "pathology":
-        return get_sample(samples, wildcards)["tumor_content"]
+        return get_sample(samples, wildcards).get("tumor_content")
     else:
         tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
         if not os.path.exists(tc_file):
-            return -1
+            return None
         else:
             with open(tc_file) as f:
                 tc = f.read().strip()
@@ -236,17 +236,56 @@ def get_tc(wildcards):
                     return tc
 
 
-def get_tc_general_report(wildcards):
-    if get_sample(samples, wildcards)["tumor_content"]:
-        tc_pathology = get_sample(samples, wildcards)["tumor_content"]
-    else:
-        tc_pathology = "NA"
-    tc_purecn = "NA"
+def ichorcna_file_path(wildcards):
+    return config.get("ichorcna_file", "cnv_sv/ichorcna_offtarget_run/{sample}_{type}/{sample}_{type}.params.txt").format(
+        sample=wildcards.sample, type=wildcards.type
+    )
+
+
+def get_ichorcna_file(wildcards):
+    # Only a configured file becomes an input; the default is a temp file that may not be produced by every pipeline.
+    if "ichorcna_file" in config:
+        return ichorcna_file_path(wildcards)
+    return []
+
+
+def get_ichorcna(wildcards):
+    ichorcna_file = ichorcna_file_path(wildcards)
+    if not os.path.exists(ichorcna_file):
+        return None, None
+    with open(ichorcna_file) as f:
+        # Only the first table is read: ichorCNA's params.txt continues with lines that have other column counts.
+        lines = [f.readline(), f.readline()]
+    try:
+        row = next(csv.DictReader(lines, delimiter="\t"))
+        return float(row["Tumor Fraction"]), float(row["Ploidy"])
+    except (StopIteration, ValueError, KeyError, TypeError):
+        return None, None
+
+
+def get_purity_ploidy(wildcards):
+    tc_pathology = get_sample(samples, wildcards).get("tumor_content")
+    if tc_pathology == "":
+        tc_pathology = None
+    tc_purecn = None
     tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
     if os.path.exists(tc_file):
         with open(tc_file) as f:
             tc_purecn = f.read().strip()
-    return [tc_pathology, tc_purecn]
+    tc_ichorcna, ploidy_ichorcna = get_ichorcna(wildcards)
+    return {
+        "tc_pathology": tc_pathology,
+        "tc_purecn": tc_purecn,
+        "tc_ichorcna": tc_ichorcna,
+        "ploidy_purecn": get_ploidy(wildcards),
+        "ploidy_ichorcna": ploidy_ichorcna,
+    }
+
+
+def get_tc_general_report(wildcards):
+    values = get_purity_ploidy(wildcards)
+    keys = ["tc_pathology", "tc_purecn", "ploidy_purecn", "tc_ichorcna", "ploidy_ichorcna"]
+    return ["NA" if values[k] is None else values[k] for k in keys]
 
 
 def get_tc_file(wildcards):

@@ -30,6 +30,14 @@ properties:
     format: uri-reference
     description: path to yaml config for the general report
 
+  ichorcna_file:
+    type: string
+    description: >
+      Path template, with `{sample}` and `{type}`, to a tab-separated ichorCNA file whose first two lines are the
+      `Sample`, `Tumor Fraction` and `Ploidy` table, e.g. ichorCNA's params.txt. Its tumor fraction and ploidy are
+      shown in the general report and CNV report headers. Default:
+      `cnv_sv/ichorcna_offtarget_run/{sample}_{type}/{sample}_{type}.params.txt`
+
   general_html_report:
     type: object
     description: parameters for general_html_report
