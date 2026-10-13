@@ -226,7 +226,7 @@ def get_tc(wildcards):
     else:
         tc_file = f"cnv_sv/purecn_purity_file/{wildcards.sample}_{wildcards.type}.purity.txt"
         if not os.path.exists(tc_file):
-            return -1
+            return None
         else:
             with open(tc_file) as f:
                 tc = f.read().strip()

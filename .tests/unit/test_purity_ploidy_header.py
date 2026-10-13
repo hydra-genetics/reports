@@ -20,7 +20,7 @@ UNITS = pd.DataFrame({"sample": ["S1"], "type": ["T"]})
 PIPELINE = {"pipeline": {"version": "1.0.0"}}
 
 
-def cnv_header(tmp_path, purity_ploidy):
+def cnv_header(tmp_path, purity_ploidy, tc=0.39, tc_method="purecn"):
     json_file = tmp_path / "cnv.json"
     json_file.write_text("{}")
 
@@ -29,7 +29,7 @@ def cnv_header(tmp_path, purity_ploidy):
         type = "T"
 
     out = cnv_html_report.create_report(
-        TEMPLATE_DIR / "cnv_html_report/index.html", json_file, [], [], True, [], 0.39, 4.44, "purecn", Wildcards(),
+        TEMPLATE_DIR / "cnv_html_report/index.html", json_file, [], [], True, [], tc, 4.44, tc_method, Wildcards(),
         False, False, False, False, False, purity_ploidy,
     )
     lines = re.findall(r'<p class="metadata-line">(.*?)</p>', out, re.S)
@@ -96,3 +96,8 @@ def test_general_header_keeps_zero_values():
 
 def test_general_header_hidden_when_all_missing():
     assert general_header(["NA"] * 5) == {}
+
+
+def test_cnv_header_without_tumor_content(tmp_path):
+    lines = cnv_header(tmp_path, None, tc=None, tc_method="purecn")
+    assert lines[0].endswith("Tumor cell content: N/A (purecn)")
