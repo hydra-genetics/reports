@@ -116,14 +116,14 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                                 multiqc_res[s]["data"][sample][k] = cols[k]
 
                             else:
-                                modify = multiqc_res[s]["header"][k]["modify"]
+                                modify = multiqc_res[s]["header"][k].get("modify", None)
                                 if modify is not None:
                                     value = cols[k] * modify
                                 else:
                                     value = cols[k]
 
-                                max_ = multiqc_res[s]["header"][k]["max"]
-                                min_ = multiqc_res[s]["header"][k]["min"]
+                                max_ = multiqc_res[s]["header"][k].get("max", None)
+                                min_ = multiqc_res[s]["header"][k].get("min", None)
                                 min_ = float(min_)
 
                                 if max_ is not None:
@@ -142,7 +142,7 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                                 else:
                                     color = "55,126,184"
                                 multiqc_res[s]["header"][k]["colour"] = color
-                                format_ = multiqc_res[s]["header"][k]["format"]
+                                format_ = multiqc_res[s]["header"][k].get("format", None)
                                 multiqc_res[s]["data"][sample][
                                     k] = format_.format(value)
 
