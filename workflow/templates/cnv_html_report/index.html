@@ -85,8 +85,13 @@
           ploidy correction formula the results table's "Adjusted CN" column
           uses. This means segments and points DO move when the baseline
           offset changes, in either view, whenever TC is below 100%
-          ("Simulate purity" enabled with a real TC value) — plots and table
-          always agree, since they share the same formula. Axis labels are
+          ("Simulate purity" enabled with a real TC value). The results table
+          always applies a tumor cell content: the report's own value, or the
+          adjusted value while "Simulate purity" is enabled. After a baseline
+          change, its "Adjusted CN" keeps the chosen reference at exactly 2
+          copies under that tumor cell content, even while the plots assume
+          100% purity. With "Simulate purity" enabled, plots and table agree.
+          Axis labels are
           always the plain, standard values. Small triangle markers on the
           left and right edges of the plot mark wherever a hypothetically
           flat segment currently plots (i.e. the current baseline
