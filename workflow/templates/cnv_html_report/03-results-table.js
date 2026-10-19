@@ -1,3 +1,7 @@
+// Same range as the "Ploidy" input in index.html
+const MIN_PSI = 0.5;
+const MAX_PSI = 8;
+
 class ResultsTable extends EventTarget {
   #table;
   #isFiltered;
@@ -7,7 +11,7 @@ class ResultsTable extends EventTarget {
   #activeCaller;
   #tooltip;
   #tc;
-  #baselineOffset;
+  #anchorLog2;
   #roundSegmentsToInteger;
   #filterConfig;
 
@@ -44,7 +48,7 @@ class ResultsTable extends EventTarget {
     this.#data = config?.data;
     this.#activeCaller = config?.caller ?? 0;
     this.#tc = config?.tc ? config.tc : 1;
-    this.#baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
+    this.#anchorLog2 = config?.anchorLog2 ?? 0;
     this.#roundSegmentsToInteger = config?.roundSegmentsToInteger ? config.roundSegmentsToInteger : false;
     this.#filterConfig = this.#data[0]?.table_filter_config;
 
@@ -68,9 +72,22 @@ class ResultsTable extends EventTarget {
     this.update();
   }
 
-  setBaselineOffset(dy) {
-    this.#baselineOffset = dy;
+  // The raw log2 value that should be exactly 2 copies. The table derives
+  // its own psi from it at the table's TC (the report's TC, or the entered
+  // TC while "Simulate purity" is on), so a baseline change is corrected by
+  // that TC even when the plots assume 100% purity.
+  setBaselineAnchor(anchorLog2) {
+    this.#anchorLog2 = anchorLog2;
     this.update();
+  }
+
+  // Inverse of #toAbsoluteCopyNumber for adjCopies = 2 at the anchor, kept
+  // within the ploidy input's range so an anchor that can't be 2 copies at a
+  // low TC doesn't give a non-positive psi.
+  #psi() {
+    const tc = this.#tc;
+    const psi = (2 ** (1 - this.#anchorLog2) - 2 * (1 - tc)) / tc;
+    return Math.min(MAX_PSI, Math.max(MIN_PSI, psi));
   }
 
   setRoundSegmentsToInteger(checked) {
@@ -87,7 +104,7 @@ class ResultsTable extends EventTarget {
   // artificial 100%-purity assumption.
   #toAbsoluteCopyNumber(x) {
     const tc = this.#tc;
-    const psi = 2 * 2 ** this.#baselineOffset;
+    const psi = this.#psi();
     let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (this.#roundSegmentsToInteger) {
       adjCopies = Math.round(adjCopies);
