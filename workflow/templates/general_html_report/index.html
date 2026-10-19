@@ -54,7 +54,7 @@
             <tr>
             {% if metadata.tc_ichorcna is defined and metadata.tc_ichorcna is not none and metadata.tc_ichorcna != "NA" %}
             <td><b>Tc ichorCNA</b></td>
-            <td>{{ metadata.tc_ichorcna }} </td>
+            <td>{{ metadata.tc_ichorcna if metadata.tc_ichorcna is string else "%.2f"|format(metadata.tc_ichorcna) }} </td>
             {% endif %}
             </tr>
             <tr>
