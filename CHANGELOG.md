@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.3.1](https://github.com/hydra-genetics/reports/compare/v2.3.0...v2.3.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* apply the report's tumor cell content to Adjusted CN after a baseline change ([#198](https://github.com/hydra-genetics/reports/issues/198)) ([aba487c](https://github.com/hydra-genetics/reports/commit/aba487cd8e74f43e587c57a055e3928361dec9e8))
+* show ichorCNA tumor content with two decimals in the general report ([#199](https://github.com/hydra-genetics/reports/issues/199)) ([d88840b](https://github.com/hydra-genetics/reports/commit/d88840bcce3e256f48b1513c65d085bc72484962))
+
 ## [2.3.0](https://github.com/hydra-genetics/reports/compare/v2.2.5...v2.3.0) (2026-10-13)
 
 
