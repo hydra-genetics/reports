@@ -423,7 +423,25 @@ class ResultsTable extends EventTarget {
         caller: cnv.caller,
         extra: cnv.extra,
       };
+      // The raw group key (e.g. "amplification"), not #liveType's possibly
+      // label-substituted display string, since that's the vocabulary
+      // gene_allowed_types is configured in (merge_cnv_json.py's
+      // CNV.gene_allowed_types / config_table_filter.yaml's own keys).
+      const liveGroup = this.#firstMatchingGroup(ownFields, false);
       cnv.type = this.#liveType(ownFields, cnv.type);
+
+      // Only show a gene on this row if whichever source(s) it was annotated
+      // from either didn't restrict it, or did and the row's live type is
+      // one of those sources' allowed types - e.g. an amplification-list
+      // gene (EGFR) shouldn't show up labelled as a deletion just because a
+      // deletion happens to overlap its coordinates (see
+      // merge_cnv_json.py's CNV.gene_allowed_types for the full rationale).
+      if (cnv.gene_allowed_types) {
+        cnv.genes = cnv.genes.filter((g) => {
+          const allowed = cnv.gene_allowed_types[g];
+          return !allowed || allowed.includes(liveGroup);
+        });
+      }
 
       const ownPasses = this.#passesTableFilter(ownFields);
       // Cross-caller rescue: if an overlapping call from another caller
