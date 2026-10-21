@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0](https://github.com/hydra-genetics/reports/compare/v2.3.1...v2.4.0) (2026-10-21)
+
+
+### Features
+
+* filter displayed genes by the VCF they were annotated from ([#202](https://github.com/hydra-genetics/reports/issues/202)) ([82e3f42](https://github.com/hydra-genetics/reports/commit/82e3f424c843fcf4ef8dbe9ba991db741cc867a2))
+
 ## [2.3.1](https://github.com/hydra-genetics/reports/compare/v2.3.0...v2.3.1) (2026-10-19)
 
 
