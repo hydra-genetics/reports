@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.1](https://github.com/hydra-genetics/reports/compare/v2.4.0...v2.4.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* filter the entire row and not just the gene name ([#206](https://github.com/hydra-genetics/reports/issues/206)) ([c15b216](https://github.com/hydra-genetics/reports/commit/c15b216c235d58d1d9319c4ff091fad9f7f5ea73))
+* filter the entire row and not just the gene name ([#206](https://github.com/hydra-genetics/reports/issues/206)) ([ec78808](https://github.com/hydra-genetics/reports/commit/ec788088081320ee3dfc0e439a42aff2d98315f5))
+
 ## [2.4.0](https://github.com/hydra-genetics/reports/compare/v2.3.1...v2.4.0) (2026-10-21)
 
 
