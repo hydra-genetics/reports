@@ -460,6 +460,14 @@ class ResultsTable extends EventTarget {
       cnv.passesLiveFilter = ownPasses || rescuedByOther;
     }
 
+    // Every row reaching this table started with at least one gene
+    // (merge_cnv_json.py's get_cnvs skips any call with no Genes annotation
+    // at all), so a row whose genes end up empty after the live type-match
+    // filtering above has had its only reason for being shown filtered out -
+    // it shouldn't linger in the table with a blank Genes cell, it should
+    // disappear entirely, same as if it had never had a gene to begin with.
+    tableData = tableData.filter((cnv) => cnv.genes.length > 0);
+
     if (this.#isFiltered && this.#filterConfig) {
       tableData = tableData.filter((cnv) => cnv.passesLiveFilter);
     }
