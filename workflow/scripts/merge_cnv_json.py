@@ -30,6 +30,15 @@ class CNV:
     # pipeline-specific field name like twist_solid's "Twist_AF".
     extra: dict = field(default_factory=dict)
     passed_filter: bool = False
+    # Maps a gene name (as it appears in `genes`) to the list of
+    # table_filter_config group names it's allowed to be shown on, if the VCF
+    # it was annotated from configured one (merge_cnv_json.
+    # unfiltered_cnv_vcfs_allowed_types) - absent/empty means unrestricted.
+    # A gene can end up with no entry here even though `genes` came from a
+    # source with configured allowed_types, if the same gene was also merged
+    # in from an unrestricted source - that's deliberately permissive, since
+    # any source vouching for the gene unconditionally is enough.
+    gene_allowed_types: dict = field(default_factory=dict)
 
     def end(self):
         return self.start + self.length - 1
@@ -344,7 +353,7 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
     return variants
 
 
-def get_cnvs(vcf_filename, skip=None, extra_info_fields=None) -> Dict[str, Dict[str, List[CNV]]]:
+def get_cnvs(vcf_filename, skip=None, extra_info_fields=None, allowed_types=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
     extra_info_fields = extra_info_fields or []
@@ -391,16 +400,18 @@ def get_cnvs(vcf_filename, skip=None, extra_info_fields=None) -> Dict[str, Dict[
             continue
         if isinstance(genes, str):
             genes = [genes]
+        genes = sorted(genes)
         cnv = CNV(
             caller,
             chrom,
-            sorted(genes),
+            genes,
             variant.pos,
             variant.info.get("SVLEN"),
             variant.info.get("SVTYPE"),
             variant.info.get("CORR_CN"),
             safe_baf(variant.info.get("BAF")),
             extra={f: safe_value(variant.info.get(f)) for f in extra_info_fields},
+            gene_allowed_types={g: list(allowed_types) for g in genes} if allowed_types else {},
         )
         cnvs[chrom][caller].append(cnv)
     return cnvs
@@ -577,7 +588,25 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
                         # If it already exists, make sure that it represents
                         # all genes and that the filtering status is updated
                         added_cnv = cnvs.pop(cnvs.index(c))
-                        added_cnv.genes = list(set(added_cnv.genes + c.genes))
+                        merged_genes = set(added_cnv.genes) | set(c.genes)
+                        merged_allowed_types = {}
+                        for gene in merged_genes:
+                            # A source whose gene list includes this gene but has no
+                            # entry for it in gene_allowed_types is vouching for it
+                            # unconditionally - if either source does that, the gene
+                            # is unrestricted overall, regardless of what the other
+                            # source's restriction said (see CNV.gene_allowed_types).
+                            added_restriction = added_cnv.gene_allowed_types.get(gene) if gene in added_cnv.genes else None
+                            c_restriction = c.gene_allowed_types.get(gene) if gene in c.genes else None
+                            unrestricted = (
+                                (gene in added_cnv.genes and added_restriction is None)
+                                or (gene in c.genes and c_restriction is None)
+                            )
+                            if unrestricted:
+                                continue
+                            merged_allowed_types[gene] = sorted(set(added_restriction or []) | set(c_restriction or []))
+                        added_cnv.genes = sorted(merged_genes)
+                        added_cnv.gene_allowed_types = merged_allowed_types
                         added_cnv.passed_filter = added_cnv.passed_filter or c.passed_filter
                         cnvs.append(added_cnv)
     return sort_cnvs(cnvs)
@@ -746,6 +775,15 @@ def main():
     cancer_genes_file = snakemake.input.get("cancer_genes", "")
     table_filter_config_file = snakemake.input.get("table_filter_config", "")
     extra_info_fields = snakemake.config.get("merge_cnv_json", {}).get("extra_info_fields", [])
+    # Per-cnv_vcfs-entry list of table_filter_config group names a gene
+    # annotated from that VCF is allowed to be shown on (see
+    # CNV.gene_allowed_types) - optional, and independent per VCF since each
+    # entry in cnv_vcfs is typically annotated against a different,
+    # purpose-specific gene list (e.g. one for amplification genes, one for
+    # deletion/LOH genes). Missing/short list, or an empty sub-list, means
+    # unrestricted, preserving today's behavior for pipelines that don't
+    # configure this at all.
+    allowed_gene_types = snakemake.params.get("allowed_gene_types", [])
 
     if len(germline_vcf) == 0:
         germline_vcf = None
@@ -811,7 +849,15 @@ def main():
         with open(table_filter_config_file) as f:
             table_filter_config = yaml.safe_load(f) or {}
 
-    unfiltered_cnv_vcfs = [get_cnvs(uf_vcf, skip_chromosomes, extra_info_fields) for uf_vcf in cnv_vcf_files]
+    unfiltered_cnv_vcfs = [
+        get_cnvs(
+            uf_vcf,
+            skip_chromosomes,
+            extra_info_fields,
+            allowed_gene_types[i] if i < len(allowed_gene_types) else None,
+        )
+        for i, uf_vcf in enumerate(cnv_vcf_files)
+    ]
     filtered_cnv_vcfs = [
         {
             chrom: {

@@ -255,6 +255,44 @@ chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454
         finally:
             os.remove(vcf_path)
 
+    def test_get_cnvs_allowed_types(self):
+        # A VCF annotated against a single, purpose-specific gene list (e.g.
+        # an amplification-only gene bed) should tag every gene it reports
+        # with the configured allowed_types, so a later consumer can tell
+        # this gene was only ever vouched for in that context - without this,
+        # a gene like EGFR shows up on any overlapping call regardless of
+        # that call's actual classified type (see merge_cnv_calls below).
+        vcf_content = """##fileformat=VCFv4.2
+##contig=<ID=chr7>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="x">
+##INFO=<ID=END,Number=1,Type=Integer,Description="x">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="x">
+##INFO=<ID=CALLER,Number=1,Type=String,Description="x">
+##INFO=<ID=CORR_CN,Number=1,Type=Float,Description="x">
+##INFO=<ID=BAF,Number=1,Type=Float,Description="x">
+##INFO=<ID=Genes,Number=.,Type=String,Description="x">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
+chr7\t55086950\t.\tN\t<DEL>\t.\t.\tGenes=EGFR;SVTYPE=DEL;END=55273330;SVLEN=186380;CALLER=cnvkit;CORR_CN=0.8;BAF=0.0
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".vcf", delete=False) as f:
+            f.write(vcf_content)
+            vcf_path = f.name
+
+        try:
+            restricted = get_cnvs(vcf_path, allowed_types=["amplification"])
+            unrestricted = get_cnvs(vcf_path)
+
+            r_cnv = restricted["chr7"]["cnvkit"][0]
+            u_cnv = unrestricted["chr7"]["cnvkit"][0]
+
+            assert r_cnv.genes == ["EGFR"]
+            assert r_cnv.gene_allowed_types == {"EGFR": ["amplification"]}
+            # Unconfigured (today's default, other pipelines' current behavior)
+            # stays unrestricted - no entry at all for the gene.
+            assert u_cnv.gene_allowed_types == {}
+        finally:
+            os.remove(vcf_path)
+
     def test_evaluate_filter_condition_leaf_operators(self):
         cnv = CNV(
             caller="cnvkit",
@@ -783,6 +821,54 @@ chr8\t43475717\t.\tN\t<DUP>\t.\t.\tGenes=GENEY;SVTYPE=DUP;END=43930141;SVLEN=454
         assert sum(x.passed_filter for x in cnvkit_cnvs) == 4 + 1  # 3 amp + 1 del + 1 overlap with gatk
         assert sum(x.passed_filter for x in gatk_cnvs) == 1 + 1  # 1 amp + 1 for overlap with cnvkit
         assert sum(x.passed_filter for x in jumble_cnvs) == 1  # 1 amp
+
+    def test_merge_cnv_calls_gene_allowed_types(self):
+        # Regression test for the EGFR-shown-as-a-deletion bug: an
+        # amplification-gene-list VCF and a LOH-gene-list VCF both describe
+        # the exact same physical call (same caller/coords/cn, just
+        # independently annotated), so merge_cnv_calls treats them as one
+        # record and unions their genes - this checks that the per-gene
+        # allowed_types provenance survives that union correctly rather than
+        # being lost or incorrectly applied to the wrong gene.
+        same_call_kwargs = dict(caller="cnvkit", chromosome="chr7", start=55086950, length=186380, type="DEL", cn=0.8, baf=None)
+
+        amp_source = CNV(genes=["EGFR"], gene_allowed_types={"EGFR": ["amplification"]}, **same_call_kwargs)
+        loh_source = CNV(genes=["TP53"], gene_allowed_types={"TP53": ["deletion", "loh"]}, **same_call_kwargs)
+
+        # Simulate the real pipeline shape: both VCFs' CNVs for this call
+        # passed through merge_cnv_calls together, as main() does via zip().
+        merged = merge_cnv_calls(
+            [{"chr7": {"cnvkit": [amp_source]}}, {"chr7": {"cnvkit": [loh_source]}}],
+            [{"chr7": {"cnvkit": []}}, {"chr7": {"cnvkit": []}}],
+        )
+
+        assert len(merged) == 1
+        result = merged[0]
+        assert result.genes == ["EGFR", "TP53"]
+        assert result.gene_allowed_types == {
+            "EGFR": ["amplification"],
+            "TP53": ["deletion", "loh"],
+        }
+
+    def test_merge_cnv_calls_gene_allowed_types_unrestricted_wins(self):
+        # If the same gene is merged in from both a restricted source and an
+        # unrestricted one, the gene must come out unrestricted overall - an
+        # unrestricted source is vouching for the gene unconditionally, and
+        # that shouldn't be clawed back just because a second, narrower
+        # source also happens to mention the same gene.
+        same_call_kwargs = dict(caller="cnvkit", chromosome="chr7", start=55086950, length=186380, type="DEL", cn=0.8, baf=None)
+
+        restricted = CNV(genes=["EGFR"], gene_allowed_types={"EGFR": ["amplification"]}, **same_call_kwargs)
+        unrestricted = CNV(genes=["EGFR"], gene_allowed_types={}, **same_call_kwargs)
+
+        merged = merge_cnv_calls(
+            [{"chr7": {"cnvkit": [restricted]}}, {"chr7": {"cnvkit": [unrestricted]}}],
+            [{"chr7": {"cnvkit": []}}, {"chr7": {"cnvkit": []}}],
+        )
+
+        assert len(merged) == 1
+        assert merged[0].genes == ["EGFR"]
+        assert merged[0].gene_allowed_types == {}
 
     def test_cnv_sorting(self):
         """

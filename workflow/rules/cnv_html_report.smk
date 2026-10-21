@@ -111,6 +111,7 @@ rule merge_cnv_json:
         skip_chromosomes=config.get("reference", {}).get("skip_chrs", []),
         skip_contigs=config.get("reference", {}).get("skip_contigs", []),
         cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
+        allowed_gene_types=config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs_allowed_types", []),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
     benchmark:
