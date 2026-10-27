@@ -379,6 +379,8 @@ class ResultsTable extends EventTarget {
       )
       .flat();
 
+    const filtering = this.#isFiltered && this.#filterConfig;
+
     // Find the corresponding copy numbers from the other caller(s), recompute
     // this row's live Adjusted CN, and decide whether it (or an overlapping
     // call from another caller) currently passes the live table filter.
@@ -430,24 +432,11 @@ class ResultsTable extends EventTarget {
       const liveGroup = this.#firstMatchingGroup(ownFields, false);
       cnv.type = this.#liveType(ownFields, cnv.type);
 
-      // Only show a gene on this row if whichever source(s) it was annotated
-      // from either didn't restrict it, or did and the row's live type is
-      // one of those sources' allowed types - e.g. an amplification-list
-      // gene (EGFR) shouldn't show up labelled as a deletion just because a
-      // deletion happens to overlap its coordinates (see
-      // merge_cnv_json.py's CNV.gene_allowed_types for the full rationale).
-      if (cnv.gene_allowed_types) {
-        cnv.genes = cnv.genes.filter((g) => {
-          const allowed = cnv.gene_allowed_types[g];
-          return !allowed || allowed.includes(liveGroup);
-        });
-      }
-
       const ownPasses = this.#passesTableFilter(ownFields);
-      // Cross-caller rescue: if an overlapping call from another caller
-      // currently passes under its own live-recomputed CN, this row should
-      // show as passing too (mirrors merge_cnv_json.py's filter_chr_cnvs).
-      const rescuedByOther = overlappingOtherCnvs.some((other) => {
+      // Overlapping calls from the other callers, evaluated under their own
+      // live-recomputed CN, for the cross-caller rescue below (mirrors
+      // merge_cnv_json.py's filter_chr_cnvs).
+      const others = overlappingOtherCnvs.map((other) => {
         const otherFields = {
           adjustedCn: this.#liveCn(other.di, other.segments),
           baf: other.di.baf,
@@ -455,21 +444,33 @@ class ResultsTable extends EventTarget {
           caller: other.di.caller,
           extra: other.di.extra,
         };
-        return this.#passesTableFilter(otherFields);
+        return {
+          genes: other.di.genes,
+          passes: this.#passesTableFilter(otherFields),
+          group: this.#firstMatchingGroup(otherFields, false),
+        };
       });
-      cnv.passesLiveFilter = ownPasses || rescuedByOther;
+      cnv.passesLiveFilter = ownPasses || others.some((other) => other.passes);
+
+      // While filtering, a gene restricted to certain types (see
+      // merge_cnv_json.py's CNV.gene_allowed_types) is only shown if this
+      // row's live type, or that of a passing overlapping call from another
+      // caller with the same gene, is one of its allowed types.
+      if (filtering && cnv.gene_allowed_types) {
+        cnv.genes = cnv.genes.filter((g) => {
+          const allowed = cnv.gene_allowed_types[g];
+          return (
+            !allowed ||
+            allowed.includes(liveGroup) ||
+            others.some((other) => other.passes && other.genes.includes(g) && allowed.includes(other.group))
+          );
+        });
+      }
     }
 
-    // Every row reaching this table started with at least one gene
-    // (merge_cnv_json.py's get_cnvs skips any call with no Genes annotation
-    // at all), so a row whose genes end up empty after the live type-match
-    // filtering above has had its only reason for being shown filtered out -
-    // it shouldn't linger in the table with a blank Genes cell, it should
-    // disappear entirely, same as if it had never had a gene to begin with.
-    tableData = tableData.filter((cnv) => cnv.genes.length > 0);
-
-    if (this.#isFiltered && this.#filterConfig) {
-      tableData = tableData.filter((cnv) => cnv.passesLiveFilter);
+    if (filtering) {
+      // A row whose genes were all removed above has no reason left to be shown.
+      tableData = tableData.filter((cnv) => cnv.passesLiveFilter && cnv.genes.length > 0);
     }
 
     const hasData = tableData.length > 0;
