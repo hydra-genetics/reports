@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.2](https://github.com/hydra-genetics/reports/compare/v2.4.1...v2.4.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* show all genes when the CNV table filter is off and keep genes rescued by another caller ([#209](https://github.com/hydra-genetics/reports/issues/209)) ([8a1bb56](https://github.com/hydra-genetics/reports/commit/8a1bb56ac6cce9d94c387d836ead889b5d932b31))
+
 ## [2.4.1](https://github.com/hydra-genetics/reports/compare/v2.4.0...v2.4.1) (2026-10-21)
 
 
