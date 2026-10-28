@@ -335,7 +335,7 @@ class ResultsTable extends EventTarget {
               .append("thead")
               .append("tr")
               .selectAll("th")
-              .data(["caller", "type", "cn"])
+              .data(["caller", "type", "adjustedCn"])
               .join("th")
               .text(this.columnLabel)
           )
@@ -403,7 +403,6 @@ class ResultsTable extends EventTarget {
             .map((c) => ({ caller: d.name, type: c.type, cn: c.cn, di: c, segments: d.segments }))
         )
         .flat();
-      cnv.others = overlappingOtherCnvs.map(({ caller, type, cn }) => ({ caller, type, cn }));
 
       // Live-recomputed copy number, matching the plots: find this call's
       // own raw segment (same caller, overlapping position) and reapply
@@ -435,7 +434,7 @@ class ResultsTable extends EventTarget {
       const ownPasses = this.#passesTableFilter(ownFields);
       // Overlapping calls from the other callers, evaluated under their own
       // live-recomputed CN, for the cross-caller rescue below (mirrors
-      // merge_cnv_json.py's filter_chr_cnvs).
+      // merge_cnv_json.py's filter_chr_cnvs) and the copy number tooltip.
       const others = overlappingOtherCnvs.map((other) => {
         const otherFields = {
           adjustedCn: this.#liveCn(other.di, other.segments),
@@ -448,8 +447,14 @@ class ResultsTable extends EventTarget {
           genes: other.di.genes,
           passes: this.#passesTableFilter(otherFields),
           group: this.#firstMatchingGroup(otherFields, false),
+          tooltip: {
+            caller: other.caller,
+            type: this.#liveType(otherFields, other.type),
+            adjustedCn: otherFields.adjustedCn,
+          },
         };
       });
+      cnv.others = others.map((other) => other.tooltip);
       cnv.passesLiveFilter = ownPasses || others.some((other) => other.passes);
 
       // While filtering, a gene restricted to certain types (see
