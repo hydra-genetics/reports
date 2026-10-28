@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.3](https://github.com/hydra-genetics/reports/compare/v2.4.2...v2.4.3) (2026-10-28)
+
+
+### Bug Fixes
+
+* show the live CNV type and adjusted CN in the table hover ([64bfe0e](https://github.com/hydra-genetics/reports/commit/64bfe0e4eec3c201503e6d6b494db71b70c49da9))
+* show the live CNV type and adjusted CN in the table hover ([6f1ef4e](https://github.com/hydra-genetics/reports/commit/6f1ef4e41cadd17d3996f6d14ad3630bb195d697))
+
 ## [2.4.2](https://github.com/hydra-genetics/reports/compare/v2.4.1...v2.4.2) (2026-10-27)
 
 
