@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.4](https://github.com/hydra-genetics/reports/compare/v2.4.3...v2.4.4) (2026-11-09)
+
+
+### Bug Fixes
+
+* mark html report templates as ancient to avoid reruns from template mtimes ([#215](https://github.com/hydra-genetics/reports/issues/215)) ([7a483b7](https://github.com/hydra-genetics/reports/commit/7a483b7746c21f6756fb9f22fee2c0644c10f634))
+
 ## [2.4.3](https://github.com/hydra-genetics/reports/compare/v2.4.2...v2.4.3) (2026-10-28)
 
 
