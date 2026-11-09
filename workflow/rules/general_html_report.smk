@@ -42,14 +42,14 @@ rule general_json_report:
 
 rule general_html_report:
     input:
-        config_schema=workflow.source_path("../schemas/general_html_report_json.schema.yaml"),
-        html_template=workflow.source_path("../templates/general_html_report/index.html"),
+        config_schema=ancient(workflow.source_path("../schemas/general_html_report_json.schema.yaml")),
+        html_template=ancient(workflow.source_path("../templates/general_html_report/index.html")),
         json="reports/general_json_report/{sample}_{type}.general.json",
         css_files=[
-            workflow.source_path("../templates/general_html_report/style.css"),
-            workflow.source_path("../templates/assets/css/datatables.min.css"),
+            ancient(workflow.source_path("../templates/general_html_report/style.css")),
+            ancient(workflow.source_path("../templates/assets/css/datatables.min.css")),
         ],
-        js_files=[workflow.source_path("../templates/assets/js/datatables.min.js")],
+        js_files=[ancient(workflow.source_path("../templates/assets/js/datatables.min.js"))],
         additional_json={},
     output:
         html="reports/general_html_report/{sample}_{type}.general_report.html",
