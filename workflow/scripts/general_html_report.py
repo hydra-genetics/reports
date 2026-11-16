@@ -110,21 +110,22 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                             if k not in cols:
                                 continue
 
-                            if type(cols[k]) == str:
+                            if type(cols[k]) is str:
                                 color = "255,255,255"
                                 multiqc_res[s]["header"][k]["colour"] = color
                                 multiqc_res[s]["data"][sample][k] = cols[k]
 
                             else:
-                                modify = multiqc_res[s]["header"][k]["modify"]
+                                modify = multiqc_res[s]["header"][k].get("modify", None)
                                 if modify is not None:
                                     value = cols[k] * modify
                                 else:
                                     value = cols[k]
 
-                                max_ = multiqc_res[s]["header"][k]["max"]
-                                min_ = multiqc_res[s]["header"][k]["min"]
-                                min_ = float(min_)
+                                max_ = multiqc_res[s]["header"][k].get("max", None)
+                                min_ = multiqc_res[s]["header"][k].get("min", None)
+                                if min_ is not None:
+                                    min_ = float(min_)
 
                                 if max_ is not None:
                                     max_ = float(max_)
@@ -142,9 +143,10 @@ def parse_multiqc(d: dict, multiqc_config: list, sample_name: str):
                                 else:
                                     color = "55,126,184"
                                 multiqc_res[s]["header"][k]["colour"] = color
-                                format_ = multiqc_res[s]["header"][k]["format"]
-                                multiqc_res[s]["data"][sample][
-                                    k] = format_.format(value)
+                                format_ = multiqc_res[s]["header"][k].get("format", None)
+                                if format_ is not None:
+                                    multiqc_res[s]["data"][sample][
+                                        k] = format_.format(value)
 
     multiqc_tables = []
     for table in multiqc_res["table"]["data"]:
