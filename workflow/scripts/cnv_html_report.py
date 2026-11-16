@@ -27,10 +27,24 @@ def parse_table(table_def):
     }
 
 
+def purity_ploidy_items(purity_ploidy):
+    if not purity_ploidy:
+        return []
+    labels = [("tc_pathology", "TC pathology"), ("tc_purecn", "TC PureCN"), ("tc_ichorcna", "TC ichorCNA"),
+              ("ploidy_purecn", "Ploidy PureCN"), ("ploidy_ichorcna", "Ploidy ichorCNA")]
+    items = []
+    for key, label in labels:
+        value = purity_ploidy.get(key)
+        if value is None:
+            continue
+        items.append((label, f"{value:.2f}" if isinstance(value, float) else str(value)))
+    return items
+
+
 def create_report(template_filename, json_filename, css_files, js_files,
                   show_table, extra_tables, tc, ploidy, tc_method, wildcards, wide_plot_width,
                   default_simulate_purity, default_absolute_copy_number,
-                  default_gene_focus, default_show_all_datapoints):
+                  default_gene_focus, default_show_all_datapoints, purity_ploidy=None):
     with open(template_filename) as f:
         template = Template(source=f.read())
 
@@ -59,6 +73,7 @@ def create_report(template_filename, json_filename, css_files, js_files,
                 show_table=show_table,
                 tc=tc,
                 ploidy=ploidy,
+                purity_ploidy=purity_ploidy_items(purity_ploidy),
                 tc_method=tc_method,
                 wide_plot_width=wide_plot_width,
                 default_simulate_purity=default_simulate_purity,
@@ -106,6 +121,8 @@ def main():
         snakemake.params.default_absolute_copy_number,
         snakemake.params.default_gene_focus,
         snakemake.params.default_show_all_datapoints,
+        # Pipelines that override this rule's params without purity_ploidy still work
+        getattr(snakemake.params, "purity_ploidy", None),
     )
 
     with open(html_filename, "w") as f:

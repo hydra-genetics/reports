@@ -1,0 +1,2 @@
+"Sampleid","Purity","Ploidy","Sex","Contamination","Flagged","Failed","Curated","Comment"
+"sample1_T",0.42,2.05123456789,"F",0,FALSE,FALSE,FALSE,NA

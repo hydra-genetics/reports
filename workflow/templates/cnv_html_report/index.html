@@ -37,7 +37,7 @@
         
         <h3>Gene Focus</h3>
         <p>
-            The "Gene Focus" option displays data points with equal spacing along the x-axis, regardless of their genomic position. This allows for visualizing the sequential order of probes rather than their physical distance, which can be useful when probes are unevenly distributed.
+            The "Gene Focus" option displays data points with equal spacing along the x-axis, regardless of their genomic position. This allows for visualizing the sequential order of probes rather than their physical distance, which can be useful when probes are unevenly distributed. Because the spacing no longer reflects genomic distance, the x-axis ticks show the genomic position (in Mb) of the data point at each tick, so the gaps between tick values vary; the cursor label shows the position in Mb.
         </p>
 
         <h3 id="help-tumor-purity-adjustment">Tumor purity adjustment</h3>
@@ -85,8 +85,13 @@
           ploidy correction formula the results table's "Adjusted CN" column
           uses. This means segments and points DO move when the baseline
           offset changes, in either view, whenever TC is below 100%
-          ("Simulate purity" enabled with a real TC value) — plots and table
-          always agree, since they share the same formula. Axis labels are
+          ("Simulate purity" enabled with a real TC value). The results table
+          always applies a tumor cell content: the report's own value, or the
+          adjusted value while "Simulate purity" is enabled. After a baseline
+          change, its "Adjusted CN" keeps the chosen reference at exactly 2
+          copies under that tumor cell content, even while the plots assume
+          100% purity. With "Simulate purity" enabled, plots and table agree.
+          Axis labels are
           always the plain, standard values. Small triangle markers on the
           left and right edges of the plot mark wherever a hypothetically
           flat segment currently plots (i.e. the current baseline
@@ -139,13 +144,20 @@
       <h1>CNV report</h1>
       <p class="metadata-line">
         Sample: {{ metadata.sample }} | Date: <time>{{ metadata.date }}</time> | Tumor cell content: {{ metadata.tc if
-        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }}){% if metadata.ploidy is not none %} | Ploidy:
-        {{ metadata.ploidy }}{% endif %}
+        metadata.tc is not none else "N/A" }} ({{ metadata.tc_method }})
       </p>
+      {% if metadata.purity_ploidy %}
+      <p class="metadata-line">
+        {% for label, value in metadata.purity_ploidy %}{{ label }}: {{ value }}{% if not loop.last %} | {% endif %}{% endfor %}
+      </p>
+      {% endif %}
       <!-- x-release-please-start-version -->
       <p class="fix-right">
         <small>
-          <a href="https://github.com/hydra-genetics/reports/tree/v1.3.0">hydra-genetics/reports v1.3.0</a>
+          <!-- Keep one version per line: release-please only updates the first version on a line -->
+          <a href="https://github.com/hydra-genetics/reports/tree/v2.2.4">
+            hydra-genetics/reports v2.2.4
+          </a>
         </small>
         <br />
         <a href="#" onclick="showHelp();" class="no-print help-link"><i class="bi bi-question-circle-fill"></i> Help</a>

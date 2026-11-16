@@ -15,8 +15,9 @@ def metadata(sample, pipeline, tc, units, reference_genome):
                     reference_genome=reference_genome,
                     uri="")
 
-    tc_pathology = tc[0]
-    tc_purecn = tc[1]
+    # tc may come from a pipeline-provided function returning only [tc_pathology, tc_purecn]
+    tc = list(tc) + ["NA"] * (5 - len(tc))
+    tc_pathology, tc_purecn, ploidy_purecn, tc_ichorcna, ploidy_ichorcna = tc[:5]
 
     units = extract_sample_from_units(units, sample)
     dict_ = dict(sample=sample,
@@ -24,6 +25,9 @@ def metadata(sample, pipeline, tc, units, reference_genome):
                  pipeline=pipeline,
                  tc_pathology=tc_pathology,
                  tc_purecn=tc_purecn,
+                 ploidy_purecn=ploidy_purecn,
+                 tc_ichorcna=tc_ichorcna,
+                 ploidy_ichorcna=ploidy_ichorcna,
                  units=units)
     return dict_
 

@@ -1,3 +1,7 @@
+// Same range as the "Ploidy" input in index.html
+const MIN_PSI = 0.5;
+const MAX_PSI = 8;
+
 class ResultsTable extends EventTarget {
   #table;
   #isFiltered;
@@ -7,7 +11,7 @@ class ResultsTable extends EventTarget {
   #activeCaller;
   #tooltip;
   #tc;
-  #baselineOffset;
+  #anchorLog2;
   #roundSegmentsToInteger;
   #filterConfig;
 
@@ -44,7 +48,7 @@ class ResultsTable extends EventTarget {
     this.#data = config?.data;
     this.#activeCaller = config?.caller ?? 0;
     this.#tc = config?.tc ? config.tc : 1;
-    this.#baselineOffset = config?.baselineOffset ? config.baselineOffset : 0;
+    this.#anchorLog2 = config?.anchorLog2 ?? 0;
     this.#roundSegmentsToInteger = config?.roundSegmentsToInteger ? config.roundSegmentsToInteger : false;
     this.#filterConfig = this.#data[0]?.table_filter_config;
 
@@ -68,9 +72,22 @@ class ResultsTable extends EventTarget {
     this.update();
   }
 
-  setBaselineOffset(dy) {
-    this.#baselineOffset = dy;
+  // The raw log2 value that should be exactly 2 copies. The table derives
+  // its own psi from it at the table's TC (the report's TC, or the entered
+  // TC while "Simulate purity" is on), so a baseline change is corrected by
+  // that TC even when the plots assume 100% purity.
+  setBaselineAnchor(anchorLog2) {
+    this.#anchorLog2 = anchorLog2;
     this.update();
+  }
+
+  // Inverse of #toAbsoluteCopyNumber for adjCopies = 2 at the anchor, kept
+  // within the ploidy input's range so an anchor that can't be 2 copies at a
+  // low TC doesn't give a non-positive psi.
+  #psi() {
+    const tc = this.#tc;
+    const psi = (2 ** (1 - this.#anchorLog2) - 2 * (1 - tc)) / tc;
+    return Math.min(MAX_PSI, Math.max(MIN_PSI, psi));
   }
 
   setRoundSegmentsToInteger(checked) {
@@ -87,7 +104,7 @@ class ResultsTable extends EventTarget {
   // artificial 100%-purity assumption.
   #toAbsoluteCopyNumber(x) {
     const tc = this.#tc;
-    const psi = 2 * 2 ** this.#baselineOffset;
+    const psi = this.#psi();
     let adjCopies = (2 ** x * (tc * psi + 2 * (1 - tc)) - 2 * (1 - tc)) / tc;
     if (this.#roundSegmentsToInteger) {
       adjCopies = Math.round(adjCopies);
@@ -318,7 +335,7 @@ class ResultsTable extends EventTarget {
               .append("thead")
               .append("tr")
               .selectAll("th")
-              .data(["caller", "type", "cn"])
+              .data(["caller", "type", "adjustedCn"])
               .join("th")
               .text(this.columnLabel)
           )
@@ -362,6 +379,8 @@ class ResultsTable extends EventTarget {
       )
       .flat();
 
+    const filtering = this.#isFiltered && this.#filterConfig;
+
     // Find the corresponding copy numbers from the other caller(s), recompute
     // this row's live Adjusted CN, and decide whether it (or an overlapping
     // call from another caller) currently passes the live table filter.
@@ -384,7 +403,6 @@ class ResultsTable extends EventTarget {
             .map((c) => ({ caller: d.name, type: c.type, cn: c.cn, di: c, segments: d.segments }))
         )
         .flat();
-      cnv.others = overlappingOtherCnvs.map(({ caller, type, cn }) => ({ caller, type, cn }));
 
       // Live-recomputed copy number, matching the plots: find this call's
       // own raw segment (same caller, overlapping position) and reapply
@@ -406,13 +424,18 @@ class ResultsTable extends EventTarget {
         caller: cnv.caller,
         extra: cnv.extra,
       };
+      // The raw group key (e.g. "amplification"), not #liveType's possibly
+      // label-substituted display string, since that's the vocabulary
+      // gene_allowed_types is configured in (merge_cnv_json.py's
+      // CNV.gene_allowed_types / config_table_filter.yaml's own keys).
+      const liveGroup = this.#firstMatchingGroup(ownFields, false);
       cnv.type = this.#liveType(ownFields, cnv.type);
 
       const ownPasses = this.#passesTableFilter(ownFields);
-      // Cross-caller rescue: if an overlapping call from another caller
-      // currently passes under its own live-recomputed CN, this row should
-      // show as passing too (mirrors merge_cnv_json.py's filter_chr_cnvs).
-      const rescuedByOther = overlappingOtherCnvs.some((other) => {
+      // Overlapping calls from the other callers, evaluated under their own
+      // live-recomputed CN, for the cross-caller rescue below (mirrors
+      // merge_cnv_json.py's filter_chr_cnvs) and the copy number tooltip.
+      const others = overlappingOtherCnvs.map((other) => {
         const otherFields = {
           adjustedCn: this.#liveCn(other.di, other.segments),
           baf: other.di.baf,
@@ -420,13 +443,39 @@ class ResultsTable extends EventTarget {
           caller: other.di.caller,
           extra: other.di.extra,
         };
-        return this.#passesTableFilter(otherFields);
+        return {
+          genes: other.di.genes,
+          passes: this.#passesTableFilter(otherFields),
+          group: this.#firstMatchingGroup(otherFields, false),
+          tooltip: {
+            caller: other.caller,
+            type: this.#liveType(otherFields, other.type),
+            adjustedCn: otherFields.adjustedCn,
+          },
+        };
       });
-      cnv.passesLiveFilter = ownPasses || rescuedByOther;
+      cnv.others = others.map((other) => other.tooltip);
+      cnv.passesLiveFilter = ownPasses || others.some((other) => other.passes);
+
+      // While filtering, a gene restricted to certain types (see
+      // merge_cnv_json.py's CNV.gene_allowed_types) is only shown if this
+      // row's live type, or that of a passing overlapping call from another
+      // caller with the same gene, is one of its allowed types.
+      if (filtering && cnv.gene_allowed_types) {
+        cnv.genes = cnv.genes.filter((g) => {
+          const allowed = cnv.gene_allowed_types[g];
+          return (
+            !allowed ||
+            allowed.includes(liveGroup) ||
+            others.some((other) => other.passes && other.genes.includes(g) && allowed.includes(other.group))
+          );
+        });
+      }
     }
 
-    if (this.#isFiltered && this.#filterConfig) {
-      tableData = tableData.filter((cnv) => cnv.passesLiveFilter);
+    if (filtering) {
+      // A row whose genes were all removed above has no reason left to be shown.
+      tableData = tableData.filter((cnv) => cnv.passesLiveFilter && cnv.genes.length > 0);
     }
 
     const hasData = tableData.length > 0;

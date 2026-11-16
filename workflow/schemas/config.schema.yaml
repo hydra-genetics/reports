@@ -41,6 +41,14 @@ properties:
     format: uri-reference
     description: path to yaml config for the general report
 
+  ichorcna_file:
+    type: string
+    description: >
+      Path template, with `{sample}` and `{type}`, to a tab-separated ichorCNA file whose first two lines are the
+      `Sample`, `Tumor Fraction` and `Ploidy` table, e.g. ichorCNA's params.txt. Its tumor fraction and ploidy are
+      shown in the general report and CNV report headers. Default:
+      `cnv_sv/ichorcna_offtarget_run/{sample}_{type}/{sample}_{type}.params.txt`
+
   general_html_report:
     type: object
     description: parameters for general_html_report
@@ -283,6 +291,23 @@ properties:
             should have a `CALLER` attribute that lists the caller that
             called the variant in question. The path supports `sample`,
             `type` and `tc_method` wildcards.
+      unfiltered_cnv_vcfs_allowed_types:
+        type: array
+        description: >
+          Optional, per-entry list matching `unfiltered_cnv_vcfs` by index: the
+          `table_filter_config` group name(s) a gene annotated from that VCF is
+          allowed to be shown on in the results table. Useful when different
+          entries in `unfiltered_cnv_vcfs` are annotated against different,
+          purpose-specific gene lists (e.g. one for amplification genes, one
+          for deletion/LOH genes) - without this, a gene from one list can end
+          up displayed on a call classified as a type that list was never
+          meant to cover (e.g. an amplification-only gene shown on a
+          deletion). An entry left empty, or the whole attribute omitted,
+          means unrestricted (today's default behavior).
+        items:
+          type: array
+          items:
+            type: string
       table_filter_config:
         type: [string, "null"]
         format: uri-reference

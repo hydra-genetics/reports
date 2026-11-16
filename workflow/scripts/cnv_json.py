@@ -57,14 +57,14 @@ def cnv_parser(file_format, header=True, skip=0, comment="#"):
         def line_generator(file, delim):
             for _ in range(skip):
                 next(file)
-            found_header = False
+            fields = None
             for line in csv.reader(file, delimiter=delim):
-                if line[0].strip()[0] == comment:
+                if not line or line[0].strip()[0] == comment:
                     continue
-                if header and not found_header:
-                    found_header = True
+                if header and fields is None:
+                    fields = line
                     continue
-                yield line
+                yield dict(zip(fields, line)) if fields is not None else line
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -94,10 +94,10 @@ def parse_cnvkit_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=normalize_chrom(line[0]),
-                start=int(line[1]),
-                end=int(line[2]),
-                log2=float(line[5]),
+                chromosome=normalize_chrom(line["chromosome"]),
+                start=int(line["start"]),
+                end=int(line["end"]),
+                log2=float(line["log2"]),
             )
         )
     return ratios
@@ -109,10 +109,10 @@ def parse_cnvkit_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=normalize_chrom(line[0]),
-                start=int(line[1]),
-                end=int(line[2]),
-                log2=float(line[4]),
+                chromosome=normalize_chrom(line["chromosome"]),
+                start=int(line["start"]),
+                end=int(line["end"]),
+                log2=float(line["log2"]),
             )
         )
     return segments
@@ -124,10 +124,10 @@ def parse_gatk_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=normalize_chrom(line[0]),
-                start=int(line[1]),
-                end=int(line[2]),
-                log2=float(line[3]),
+                chromosome=normalize_chrom(line["CONTIG"]),
+                start=int(line["START"]),
+                end=int(line["END"]),
+                log2=float(line["LOG2_COPY_RATIO"]),
             )
         )
     return ratios
@@ -139,10 +139,10 @@ def parse_gatk_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=normalize_chrom(line[0]),
-                start=int(line[1]),
-                end=int(line[2]),
-                log2=float(line[4]),
+                chromosome=normalize_chrom(line["CONTIG"]),
+                start=int(line["START"]),
+                end=int(line["END"]),
+                log2=float(line["MEAN_LOG2_COPY_RATIO"]),
             )
         )
     return segments
@@ -154,10 +154,10 @@ def parse_jumble_ratios(file):
     for line in file:
         ratios.append(
             dict(
-                chromosome=normalize_chrom(line[0]),
-                start=int(line[1]),
-                end=int(line[2]),
-                log2=float(line[5]),
+                chromosome=normalize_chrom(line["chromosome"]),
+                start=int(line["start"]),
+                end=int(line["end"]),
+                log2=float(line["log2"]),
             )
         )
     return ratios
@@ -169,10 +169,10 @@ def parse_jumble_segments(file):
     for line in file:
         segments.append(
             dict(
-                chromosome=normalize_chrom(line[0]),
-                start=int(line[1]),
-                end=int(line[2]),
-                log2=float(line[4]),
+                chromosome=normalize_chrom(line["chromosome"]),
+                start=int(line["start"]),
+                end=int(line["end"]),
+                log2=float(line["log2"]),
             )
         )
     return segments

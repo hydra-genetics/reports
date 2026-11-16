@@ -357,7 +357,6 @@ function setBaselineOffsetUI(dy) {
 
   chromosomePlot.setBaselineOffset(dy);
   genomePlot.setBaselineOffset(dy);
-  resultsTable.setBaselineOffset(dy);
 }
 
 // Recomputes the baseline offset from the tracked anchor at whatever TC is
@@ -404,6 +403,7 @@ currentBaselineOffset.on("change", (e) => {
   // A manual edit defines a fresh anchor at whichever raw log2 this offset
   // currently corresponds to, at the currently-effective TC.
   lastAnchorLog2 = anchorLog2FromBaselineOffset(dy, effectiveTc());
+  resultsTable.setBaselineAnchor(lastAnchorLog2);
 });
 
 ploidyAdjust.on("change", (e) => {
@@ -415,6 +415,7 @@ ploidyAdjust.on("change", (e) => {
   const dy = baselineOffsetFromPsi(psi);
   setBaselineOffsetUI(dy);
   lastAnchorLog2 = anchorLog2FromBaselineOffset(dy, effectiveTc());
+  resultsTable.setBaselineAnchor(lastAnchorLog2);
 });
 
 baselineOffsetReset.on("click", () => {

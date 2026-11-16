@@ -1,5 +1,11 @@
 # General report
 
+The report starts with sample information, including the available purity and ploidy estimates: tumor cell content
+from pathology (`tumor_content` in `samples.tsv`), PureCN and ichorCNA, and ploidy from PureCN and ichorCNA. The
+ichorCNA and ploidy rows are only shown when they have a value, and the rows are hidden when none of the values is
+available. The ichorCNA values are
+read from the file given by `ichorcna_file` in the config (default: ichorCNA's `params.txt` from the cnv_sv module).
+
 ## Configuration
 
 The contents of the general report is defined by the configuration.

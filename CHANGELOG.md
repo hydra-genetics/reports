@@ -1,5 +1,90 @@
 # Changelog
 
+## [2.2.4](https://github.com/hydra-genetics/reports/compare/v2.2.3...v2.2.4) (2026-10-09)
+
+
+### Bug Fixes
+
+* In Gene focus mode use chrom pos on X-axis and hovering and keep zoom when changing callers ([#189](https://github.com/hydra-genetics/reports/issues/189)) ([9cbb1d9](https://github.com/hydra-genetics/reports/commit/9cbb1d91eac6d4e18bc970d712ccb8373d8d019c))
+* In Gene focus mode use chrom pos on X-axis and hovering and keep… ([96eeaba](https://github.com/hydra-genetics/reports/commit/96eeabac3a2cc8f1125981af10f9a91f66585bef))
+
+## [2.2.3](https://github.com/hydra-genetics/reports/compare/v2.2.2...v2.2.3) (2026-09-25)
+
+
+### Bug Fixes
+
+* use header names instead of positional column index ([#186](https://github.com/hydra-genetics/reports/issues/186)) ([f22a6c7](https://github.com/hydra-genetics/reports/commit/f22a6c717f79d214449c8232bb0549fa64cf41c5))
+
+## [2.2.2](https://github.com/hydra-genetics/reports/compare/v2.2.1...v2.2.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* column overlap on small screens ([#183](https://github.com/hydra-genetics/reports/issues/183)) ([bdfbf30](https://github.com/hydra-genetics/reports/commit/bdfbf30b6dbef8f04bb735ae018d9427b65e59ea))
+* column overlap on small screens ([#183](https://github.com/hydra-genetics/reports/issues/183)) ([#184](https://github.com/hydra-genetics/reports/issues/184)) ([1d51abd](https://github.com/hydra-genetics/reports/commit/1d51abdea9a55b062e7ec1eb25fe39721c73639e))
+
+## [2.2.1](https://github.com/hydra-genetics/reports/compare/v2.2.0...v2.2.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* Ploidy rounding to one decimal ([#180](https://github.com/hydra-genetics/reports/issues/180)) ([379f099](https://github.com/hydra-genetics/reports/commit/379f099ba45e5111afa20d61c8a64342ff7ae261))
+* Ploidy rounding to one decimal ([#180](https://github.com/hydra-genetics/reports/issues/180)) ([bf7b22d](https://github.com/hydra-genetics/reports/commit/bf7b22d3001b88d28b0de59ab6547518f6ff8c73))
+
+## [2.2.0](https://github.com/hydra-genetics/reports/compare/v2.1.0...v2.2.0) (2026-08-18)
+
+
+### Features
+
+* Added Ploidy option for baseline shifts and restructured GUI options ([#176](https://github.com/hydra-genetics/reports/issues/176)) ([858e6e0](https://github.com/hydra-genetics/reports/commit/858e6e07349d9ea138231d67b5c6c13028c819bc))
+
+## [2.1.0](https://github.com/hydra-genetics/reports/compare/v2.0.0...v2.1.0) (2026-08-12)
+
+
+### Features
+
+* added ploidy option and restructured GUI options ([#172](https://github.com/hydra-genetics/reports/issues/172)) ([9bc6f94](https://github.com/hydra-genetics/reports/commit/9bc6f94e701940a976fe1eab10dfe75a55ba5ebe))
+
+## [2.0.0](https://github.com/hydra-genetics/reports/compare/v1.3.0...v2.0.0) (2026-07-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* The segment filtering is now calculated in the report itself instead of ahead of time so that the table can be updated when the plots are adjusted. This is now done using a new filter yaml input file to the report. Thereby, the filtered input file is also removed from the rule.
+
+### Features
+
+* add a rule and script for xlsx variant report ([#165](https://github.com/hydra-genetics/reports/issues/165)) ([55dd295](https://github.com/hydra-genetics/reports/commit/55dd295e83fff9e91336122db79493e44716d001))
+* Update table ([#168](https://github.com/hydra-genetics/reports/issues/168)) ([6e18767](https://github.com/hydra-genetics/reports/commit/6e18767271645e34bfff708f6b7fb81e876c5b81))
+
+
+### Bug Fixes
+
+* use typing generics instead of __future__ annotations in compile_xlsx_report ([#167](https://github.com/hydra-genetics/reports/issues/167)) ([b51214e](https://github.com/hydra-genetics/reports/commit/b51214e16a759217f994405a1bc1fab3df55c037))
+
+## [1.3.0](https://github.com/hydra-genetics/reports/compare/v1.2.0...v1.3.0) (2026-06-15)
+
+
+### Features
+
+* Cnv report table fix and improved out-of-range indications ([c3fd09d](https://github.com/hydra-genetics/reports/commit/c3fd09d7886d42ae78ed6b878831fc9d7699b0f1))
+
+## [1.2.0](https://github.com/hydra-genetics/reports/compare/v1.1.1...v1.2.0) (2026-06-02)
+
+
+### Features
+
+* mark amplifications and hom deletions in red ([16aa697](https://github.com/hydra-genetics/reports/commit/16aa697323aeea523d609ffde67aa193d1e88be8))
+* Seg outside plot ([1b35893](https://github.com/hydra-genetics/reports/commit/1b35893668477efbc4c2c3209d379db772b9f6a2))
+
+
+### Bug Fixes
+
+* filter very small red segments ([3f9c500](https://github.com/hydra-genetics/reports/commit/3f9c500261831e4cd2e06b0c9fcf25f0a0233363))
+* merge confict ([6f485c3](https://github.com/hydra-genetics/reports/commit/6f485c3a6f3f91945cf1050b57de23bce4fe2edc))
+* no minimium width for reg segments ([4314a37](https://github.com/hydra-genetics/reports/commit/4314a37c945436c1f9ddc5f1ccd6ecc375e5d825))
+* thinner left panel in general report adapted for smaller screens ([#159](https://github.com/hydra-genetics/reports/issues/159)) ([01d8631](https://github.com/hydra-genetics/reports/commit/01d8631adecd5c71ec599791467bb41d92fdd413))
+
 ## [1.1.1](https://github.com/hydra-genetics/reports/compare/v1.1.0...v1.1.1) (2026-04-08)
 
 
