@@ -33,7 +33,7 @@ concurrency:
 jobs:
   lint:
     name: Lint workflow
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # ubuntu-latest (26.04) has no Python 3.8 build
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.8
@@ -51,7 +51,7 @@ jobs:
 
   pycodestyle:
     name: pycodestyle
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # ubuntu-latest (26.04) has no Python 3.8 build
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.8
@@ -89,7 +89,7 @@ jobs:
   dry-run:
     name: Snakemake dry run
     needs: [lint, pycodestyle, snakefmt]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # ubuntu-latest (26.04) has no Python 3.8 build
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.8
@@ -113,7 +113,7 @@ jobs:
   pytest:
     name: pytest
     needs: [dry-run]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # ubuntu-latest (26.04) has no Python 3.8 build
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.8
@@ -135,7 +135,7 @@ jobs:
     name: Integration test
     needs: [pytest]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # ubuntu-latest (26.04) has no Python 3.8 build
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.8
