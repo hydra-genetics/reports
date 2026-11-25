@@ -1864,6 +1864,7 @@ class ChromosomePlot extends EventTarget {
     const markerSize = 11;
     const y = this.plotHeight + 2;
     const x = (d) => this.xScale(this.equalDistance ? this.getRatioIndex(d.pos) : d.pos);
+    const title = (d) => `${d.gene} ${d.change} · ${this.#data.chromosome}:${d.pos} · VAF ${d.af.toFixed(2)}`;
     const path = (d) => {
       const cx = x(d);
       return `M${cx},${y} L${cx - markerSize / 2},${y + markerSize} L${cx + markerSize / 2},${y + markerSize} Z`;
@@ -1881,10 +1882,11 @@ class ChromosomePlot extends EventTarget {
             .call((e) =>
               e
                 .append("title")
-                .text((d) => `${d.gene} ${d.change} · ${this.#data.chromosome}:${d.pos} · VAF ${d.af.toFixed(2)}`)
+                .text(title)
             ),
         (update) =>
           update
+            .call((u) => u.select("title").text(title))
             .transition()
             .duration(this.animationDuration)
             .attr("d", path),

@@ -261,7 +261,7 @@ def parse_cancer_genes(filename):
         filename: Path to CSV file
 
     Returns:
-        Dict mapping gene names to {color_simple, color_detailed}
+        Dict mapping gene names to {color, role}; color is None if the row has none
     """
     if not filename:
         return {}
@@ -283,14 +283,13 @@ def parse_cancer_genes(filename):
             if not name:
                 continue
 
-            color = row.get("Color", "").strip() or None
+            color = (row.get("Color") or row.get("Simple_Color") or "").strip() or None
             role = row.get("Role", "").strip() or None
 
-            if color:
-                genes[name] = {
-                    "color": color,
-                    "role": role
-                }
+            genes[name] = {
+                "color": color,
+                "role": role
+            }
 
     print(f"Parsed {len(genes)} genes from {filename} into color mapping", file=sys.stderr)
     return genes
@@ -380,9 +379,20 @@ def get_csq_fields(vcf: pysam.VariantFile) -> List[str]:
     return description.split("Format: ")[1].strip().strip('"').split("|")
 
 
-def pick_csq_entry(csq_entries, csq_fields):
+def vep_alleles(ref, alts):
+    """
+    Return the allele strings VEP writes in the CSQ Allele field, one per ALT.
+    For indels VEP drops the first base when it is shared by REF and all ALTs,
+    and writes an empty allele as "-".
+    """
+    alleles = [ref] + list(alts)
+    if any(len(a) != 1 for a in alleles) and len({a[0] for a in alleles}) == 1:
+        return [a[1:] or "-" for a in alts]
+    return list(alts)
+
+
+def pick_csq_entry(entries):
     """Pick the canonical transcript annotation if there is one, otherwise the first one."""
-    entries = [dict(zip(csq_fields, e.split("|"))) for e in csq_entries]
     if not entries:
         return {}
     for entry in entries:
@@ -399,20 +409,30 @@ def short_hgvs(hgvs: str) -> str:
 
 
 def get_somatic_variants(
-    vcf_filename, skip=None, min_af=0.05, exclude_consequences=None, cancer_genes=None
+    vcf_filename, skip=None, min_af=0.05, exclude_consequences=None, cancer_genes=None, sample_name=None
 ) -> List[dict]:
     """
     Read VEP-annotated small variants to show as markers in the chromosome
-    plot. Variants with an allele frequency below min_af, and variants where
-    every consequence is in exclude_consequences, are left out. Each variant
-    is flagged with whether its gene is in the cancer gene list.
+    plot, one per ALT allele. Variants with an allele frequency below min_af,
+    and variants where every consequence is in exclude_consequences, are left
+    out. Each variant is flagged with whether its gene is in the cancer gene
+    list. The allele frequency is read from the sample named sample_name, or
+    from the only sample in a single-sample VCF.
     """
     skip = skip or []
     exclude_consequences = set(exclude_consequences or [])
     cancer_genes = cancer_genes or {}
     vcf = pysam.VariantFile(str(vcf_filename))
     csq_fields = get_csq_fields(vcf)
-    sample = vcf.header.samples[0] if len(vcf.header.samples) > 0 else None
+    samples = list(vcf.header.samples)
+    if sample_name in samples:
+        sample = sample_name
+    elif len(samples) == 1:
+        sample = samples[0]
+    elif len(samples) == 0:
+        sample = None
+    else:
+        raise ValueError(f"sample {sample_name} not found among {samples} in {vcf_filename}")
 
     variants = []
     for record in vcf.fetch():
@@ -420,32 +440,42 @@ def get_somatic_variants(
         if chrom in skip:
             continue
 
-        af = None
+        afs = None
         if sample is not None and "AF" in record.samples[sample]:
-            af = record.samples[sample]["AF"]
-        if af is None and "AF" in record.info:
-            af = record.info["AF"]
-        if isinstance(af, (list, tuple)):
-            af = af[0]
-        if af is None or af < min_af:
+            afs = record.samples[sample]["AF"]
+        if afs is None and "AF" in record.info:
+            afs = record.info["AF"]
+        if afs is None:
             continue
+        if not isinstance(afs, (list, tuple)):
+            afs = [afs]
 
-        csq = pick_csq_entry(record.info.get("CSQ", []), csq_fields) if csq_fields else {}
-        consequences = set(filter(None, csq.get("Consequence", "").split("&")))
-        if consequences and consequences <= exclude_consequences:
-            continue
+        csq_entries = [dict(zip(csq_fields, e.split("|"))) for e in record.info.get("CSQ", [])] if csq_fields else []
+        alts = record.alts or ()
+        for alt_index, allele in enumerate(vep_alleles(record.ref, alts)):
+            af = afs[alt_index] if alt_index < len(afs) else None
+            if af is None or af < min_af:
+                continue
 
-        gene = csq.get("SYMBOL", "")
-        variants.append(
-            dict(
-                chromosome=chrom,
-                pos=record.pos,
-                gene=gene,
-                change=short_hgvs(csq.get("HGVSp", "")) or short_hgvs(csq.get("HGVSc", "")),
-                af=float(af),
-                cancer_gene=gene in cancer_genes,
+            allele_entries = [e for e in csq_entries if e.get("Allele") == allele]
+            if not allele_entries and len(alts) == 1:
+                allele_entries = csq_entries
+            csq = pick_csq_entry(allele_entries)
+            consequences = set(filter(None, csq.get("Consequence", "").split("&")))
+            if consequences and consequences <= exclude_consequences:
+                continue
+
+            gene = csq.get("SYMBOL", "")
+            variants.append(
+                dict(
+                    chromosome=chrom,
+                    pos=record.pos,
+                    gene=gene,
+                    change=short_hgvs(csq.get("HGVSp", "")) or short_hgvs(csq.get("HGVSc", "")),
+                    af=float(af),
+                    cancer_gene=gene in cancer_genes,
+                )
             )
-        )
 
     vcf.close()
     return variants
@@ -747,7 +777,8 @@ def merge_cnv_dicts(
 
             color = None
             role = None
-            if cancer_genes and name in cancer_genes:
+            # Role is only used together with a colour in the report
+            if cancer_genes and name in cancer_genes and cancer_genes[name].get("color"):
                 color = cancer_genes[name].get("color")
                 role = cancer_genes[name].get("role")
 
@@ -767,6 +798,8 @@ def merge_cnv_dicts(
     # Automatically add cancer genes from ref_genes index if not already in annotations
     if cancer_genes and gene_index:
         for gene_name, color_info in cancer_genes.items():
+            if not color_info.get("color"):
+                continue
             if gene_name in gene_index:
                 g = gene_index[gene_name]
                 chrom = g["chrom"]
@@ -963,7 +996,8 @@ def main():
     somatic_variants = None
     if somatic_vcf is not None:
         somatic_variants = get_somatic_variants(
-            somatic_vcf, skip_chromosomes, somatic_min_af, somatic_exclude_consequences, cancer_genes
+            somatic_vcf, skip_chromosomes, somatic_min_af, somatic_exclude_consequences, cancer_genes,
+            f"{snakemake.wildcards.sample}_{snakemake.wildcards.type}",
         )
 
     table_filter_config = {}

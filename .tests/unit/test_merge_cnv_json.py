@@ -22,6 +22,8 @@ from merge_cnv_json import (  # noqa
     classify_cnv,
     expand_contig_patterns,
     get_somatic_variants,
+    parse_cancer_genes,
+    vep_alleles,
     DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES,
 )
 
@@ -1023,3 +1025,64 @@ class TestGetSomaticVariants(unittest.TestCase):
         # Without a somatic VCF the key is absent, so the report hides its controls.
         without_variants = merge_cnv_dicts([], [], [], [], chromosomes, [], [])
         assert all("somatic_variants" not in d for d in without_variants)
+
+
+def write_vcf(lines):
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".vcf", delete=False) as f:
+        f.write("\n".join(lines) + "\n")
+        return f.name
+
+
+VCF_HEADER = [
+    "##fileformat=VCFv4.2",
+    "##contig=<ID=chr1>",
+    '##INFO=<ID=CSQ,Number=.,Type=String,Description="Ensembl VEP. Format: Allele|Consequence|SYMBOL|HGVSc|HGVSp|CANONICAL">',
+    '##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">',
+]
+
+
+class TestSomaticVariantAlleles(unittest.TestCase):
+    def test_vep_alleles(self):
+        assert vep_alleles("C", ["T", "G"]) == ["T", "G"]
+        assert vep_alleles("CA", ["C"]) == ["-"]
+        assert vep_alleles("C", ["CTT"]) == ["TT"]
+        assert vep_alleles("CA", ["C", "CAA"]) == ["-", "AA"]
+
+    def test_multiallelic_af_follows_its_allele(self):
+        vcf_path = write_vcf(VCF_HEADER + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_T",
+            "chr1\t100\t.\tC\tT,G\t.\tPASS\t"
+            "CSQ=G|missense_variant|GENEA|c.1C>G|p.Pro1Ala|YES,T|stop_gained|GENEA|c.1C>T|p.Pro1Ter|YES"
+            "\tAF\t0.02,0.30",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path)
+            assert [(v["change"], round(v["af"], 2)) for v in variants] == [("p.Pro1Ala", 0.3)]
+        finally:
+            os.remove(vcf_path)
+
+    def test_tumor_sample_selected_by_name(self):
+        vcf_path = write_vcf(VCF_HEADER + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_N\ts1_T",
+            "chr1\t100\t.\tC\tT\t.\tPASS\tCSQ=T|missense_variant|GENEA|c.1C>T|p.Pro1Ser|YES\tAF\t0.0\t0.40",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path, sample_name="s1_T")
+            assert [round(v["af"], 2) for v in variants] == [0.4]
+            with self.assertRaises(ValueError):
+                get_somatic_variants(vcf_path, sample_name="s2_T")
+        finally:
+            os.remove(vcf_path)
+
+
+class TestParseCancerGenes(unittest.TestCase):
+    def test_membership_without_color_and_simple_color(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("Gene,Role,Simple_Color\nGENEA,OG,#ff0000\nGENEB,TSG,\n")
+            csv_path = f.name
+        try:
+            genes = parse_cancer_genes(csv_path)
+            assert genes["GENEA"] == {"color": "#ff0000", "role": "OG"}
+            assert genes["GENEB"] == {"color": None, "role": "TSG"}
+        finally:
+            os.remove(csv_path)
