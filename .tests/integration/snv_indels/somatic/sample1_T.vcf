@@ -1,0 +1,11 @@
+##fileformat=VCFv4.2
+##contig=<ID=chrA,length=5381>
+##contig=<ID=chrB,length=7375>
+##INFO=<ID=CSQ,Number=.,Type=String,Description="Consequence annotations from Ensembl VEP. Format: Allele|Consequence|SYMBOL|HGVSc|HGVSp|CANONICAL">
+##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1_T
+chrA	1100	.	C	T	.	PASS	CSQ=T|stop_gained|gene1|NM_1.1:c.100C>T|NP_1.1:p.Arg34Ter|YES	AF	0.62
+chrA	3300	.	G	A	.	PASS	CSQ=A|missense_variant|gene2|NM_2.1:c.20G>A|NP_2.1:p.Gly7Asp|YES	AF	0.21
+chrB	1900	.	G	A	.	PASS	CSQ=A|missense_variant|gene3|NM_3.1:c.20G>A|NP_3.1:p.Gly7Asp|YES	AF	0.03
+chrB	2000	.	G	A	.	PASS	CSQ=A|synonymous_variant|gene3|NM_3.1:c.30G>A|NP_3.1:p.Gly10%3D|YES	AF	0.40
+chrB	3000	.	C	T	.	PASS	CSQ=T|missense_variant|geneX|NM_9.1:c.50C>T|NP_9.1:p.Ala17Val|YES	AF	0.33

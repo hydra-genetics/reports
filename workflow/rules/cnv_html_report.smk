@@ -39,6 +39,7 @@ rule cnv_html_report:
         default_absolute_copy_number=config.get("cnv_html_report", {}).get("default_absolute_copy_number", False),
         default_gene_focus=config.get("cnv_html_report", {}).get("default_gene_focus", False),
         default_show_all_datapoints=config.get("cnv_html_report", {}).get("default_show_all_datapoints", False),
+        default_show_somatic_variants=config.get("cnv_html_report", {}).get("default_show_somatic_variants", False),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.cnv_report.html.log",
     benchmark:
@@ -100,6 +101,7 @@ rule merge_cnv_json:
         fai=config.get("reference", {}).get("fai", ""),
         annotation_bed=config.get("merge_cnv_json", {}).get("annotations", []),
         germline_vcf=get_germline_vcf,
+        somatic_vcf=get_somatic_vcf,
         cnv_vcfs=get_unfiltered_cnv_vcf,
         cytobands=lambda wildcards: config.get("merge_cnv_json", {}).get("cytobands", []),
         ref_genes=lambda wildcards: config.get("merge_cnv_json", {}).get("ref_genes", []),
@@ -112,6 +114,8 @@ rule merge_cnv_json:
         skip_contigs=config.get("reference", {}).get("skip_contigs", []),
         cytobands=config.get("cnv_html_report", {}).get("cytobands", False),
         allowed_gene_types=config.get("merge_cnv_json", {}).get("unfiltered_cnv_vcfs_allowed_types", []),
+        somatic_min_af=config.get("merge_cnv_json", {}).get("somatic_min_af", 0.05),
+        somatic_exclude_consequences=config.get("merge_cnv_json", {}).get("somatic_exclude_consequences", None),
     log:
         "reports/cnv_html_report/{sample}_{type}.{tc_method}.merged.json.log",
     benchmark:

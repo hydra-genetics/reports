@@ -181,6 +181,12 @@ properties:
             description: >
               Optional VCF file with germline variants. Supplied by input
               function that takes it from the config.
+          somatic_vcf:
+            type: string
+            description: >
+              Optional VEP-annotated VCF file with somatic small variants to
+              show in the chromosome view. Supplied by input function that
+              takes it from the config.
           cnv_vcfs:
             type: string
             description: >

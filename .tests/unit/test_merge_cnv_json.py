@@ -21,6 +21,8 @@ from merge_cnv_json import (  # noqa
     passes_table_filter,
     classify_cnv,
     expand_contig_patterns,
+    get_somatic_variants,
+    DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES,
 )
 
 
@@ -947,3 +949,77 @@ class TestExpandContigPatterns(unittest.TestCase):
     def test_pattern_matching_nothing_is_ignored(self):
         matched = expand_contig_patterns(self.fai_path, ["chrDoesNotExist"])
         assert matched == []
+
+
+class TestGetSomaticVariants(unittest.TestCase):
+    csq_format = "Allele|Consequence|SYMBOL|HGVSc|HGVSp|CANONICAL"
+
+    def setUp(self):
+        records = [
+            # Canonical transcript is the second entry, and should be picked.
+            ("chr17", 7577120, "C", "T", 0.42,
+             "T|missense_variant|TP53|NM_1.1:c.100C>T|NP_1.1:p.Arg34Gln|,"
+             "T|missense_variant|TP53|NM_000546.6:c.818G>A|NP_000537.3:p.Arg273His|YES"),
+            # Below the default minimum AF.
+            ("chr17", 7578000, "G", "A", 0.03, "A|missense_variant|TP53|NM_000546.6:c.700C>T|NP_000537.3:p.Arg233Cys|YES"),
+            # Synonymous only, left out by default.
+            ("chr7", 55249071, "C", "T", 0.30, "T|synonymous_variant|EGFR|NM_005228.5:c.2361G>A|NP_005219.2:p.Gln787%3D|YES"),
+            # Splice variant without a protein change, falls back to HGVSc. Not a cancer gene.
+            ("chr7", 55250000, "G", "A", 0.10, "A|splice_region_variant&intron_variant|GENEX|NM_9.1:c.10+3G>A||YES"),
+            # Non-coding only, left out by the default list.
+            ("chr7", 55260000, "C", "T", 0.25, "T|intron_variant|EGFR|NM_005228.5:c.2500+50C>T||YES"),
+            ("chr7", 55270000, "C", "T", 0.25, "T|3_prime_UTR_variant|EGFR|NM_005228.5:c.*20C>T||YES"),
+            # Skipped chromosome.
+            ("chrM", 100, "A", "G", 0.90, "G|missense_variant|MT-ND1|c.1A>G|p.Met1Val|YES"),
+        ]
+        lines = [
+            "##fileformat=VCFv4.2",
+            "##contig=<ID=chr7>",
+            "##contig=<ID=chr17>",
+            "##contig=<ID=chrM>",
+            f'##INFO=<ID=CSQ,Number=.,Type=String,Description="Ensembl VEP. Format: {self.csq_format}">',
+            '##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">',
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample1",
+        ]
+        for chrom, pos, ref, alt, af, csq in records:
+            lines.append(f"{chrom}\t{pos}\t.\t{ref}\t{alt}\t.\tPASS\tCSQ={csq}\tAF\t{af}")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".vcf", delete=False) as f:
+            f.write("\n".join(lines) + "\n")
+            self.vcf_path = f.name
+        self.cancer_genes = {"TP53": {"color": "#f00", "role": "TSG"}, "EGFR": {"color": "#0f0", "role": "OG"}}
+
+    def tearDown(self):
+        os.remove(self.vcf_path)
+
+    def test_default_filters(self):
+        variants = get_somatic_variants(
+            self.vcf_path, skip=["chrM"], exclude_consequences=DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES,
+            cancer_genes=self.cancer_genes
+        )
+        for v in variants:
+            v["af"] = round(v["af"], 3)
+        assert variants == [
+            dict(chromosome="chr17", pos=7577120, gene="TP53", change="p.Arg273His", af=0.42, cancer_gene=True),
+            dict(chromosome="chr7", pos=55250000, gene="GENEX", change="c.10+3G>A", af=0.1, cancer_gene=False),
+        ]
+
+    def test_min_af_and_no_consequence_filter(self):
+        variants = get_somatic_variants(self.vcf_path, skip=["chrM"], min_af=0.02, cancer_genes=self.cancer_genes)
+        by_pos = {v["pos"]: v for v in variants}
+        assert 7578000 in by_pos
+        assert by_pos[55249071]["change"] == "p.Gln787="
+        assert 55260000 in by_pos
+        assert 55270000 in by_pos
+
+    def test_merge_cnv_dicts_adds_somatic_variants(self):
+        chromosomes = [("chr7", 1000), ("chr17", 1000)]
+        variants = get_somatic_variants(self.vcf_path, skip=["chrM"], cancer_genes=self.cancer_genes)
+
+        with_variants = merge_cnv_dicts([], [], [], [], chromosomes, [], [], somatic_variants=variants)
+        by_chrom = {d["chromosome"]: d for d in with_variants}
+        assert [v["pos"] for v in by_chrom["chr17"]["somatic_variants"]] == [7577120]
+        assert "chromosome" not in by_chrom["chr17"]["somatic_variants"][0]
+
+        # Without a somatic VCF the key is absent, so the report hides its controls.
+        without_variants = merge_cnv_dicts([], [], [], [], chromosomes, [], [])
+        assert all("somatic_variants" not in d for d in without_variants)

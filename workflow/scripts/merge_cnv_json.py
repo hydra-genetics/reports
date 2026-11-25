@@ -353,6 +353,104 @@ def get_baf(vcf_filename: Union[str, bytes, Path], skip=None) -> List[tuple]:
     return variants
 
 
+# Consequences left out of the somatic variant markers by default: synonymous
+# and non-coding variants, which would otherwise dominate WGS data.
+DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES = [
+    "synonymous_variant",
+    "intron_variant",
+    "intergenic_variant",
+    "upstream_gene_variant",
+    "downstream_gene_variant",
+    "5_prime_UTR_variant",
+    "3_prime_UTR_variant",
+    "non_coding_transcript_exon_variant",
+    "non_coding_transcript_variant",
+    "regulatory_region_variant",
+    "TF_binding_site_variant",
+]
+
+
+def get_csq_fields(vcf: pysam.VariantFile) -> List[str]:
+    """Return the field names of the VEP CSQ annotation, or an empty list if absent."""
+    if "CSQ" not in vcf.header.info:
+        return []
+    description = vcf.header.info["CSQ"].description
+    if "Format: " not in description:
+        return []
+    return description.split("Format: ")[1].strip().strip('"').split("|")
+
+
+def pick_csq_entry(csq_entries, csq_fields):
+    """Pick the canonical transcript annotation if there is one, otherwise the first one."""
+    entries = [dict(zip(csq_fields, e.split("|"))) for e in csq_entries]
+    if not entries:
+        return {}
+    for entry in entries:
+        if entry.get("CANONICAL") == "YES":
+            return entry
+    return entries[0]
+
+
+def short_hgvs(hgvs: str) -> str:
+    """Strip the transcript/protein id from an HGVS string, e.g. NP_1.2:p.Tyr86Asn -> p.Tyr86Asn."""
+    if not hgvs:
+        return ""
+    return hgvs.split(":", 1)[-1].replace("%3D", "=")
+
+
+def get_somatic_variants(
+    vcf_filename, skip=None, min_af=0.05, exclude_consequences=None, cancer_genes=None
+) -> List[dict]:
+    """
+    Read VEP-annotated small variants to show as markers in the chromosome
+    plot. Variants with an allele frequency below min_af, and variants where
+    every consequence is in exclude_consequences, are left out. Each variant
+    is flagged with whether its gene is in the cancer gene list.
+    """
+    skip = skip or []
+    exclude_consequences = set(exclude_consequences or [])
+    cancer_genes = cancer_genes or {}
+    vcf = pysam.VariantFile(str(vcf_filename))
+    csq_fields = get_csq_fields(vcf)
+    sample = vcf.header.samples[0] if len(vcf.header.samples) > 0 else None
+
+    variants = []
+    for record in vcf.fetch():
+        chrom = normalize_chrom(record.chrom)
+        if chrom in skip:
+            continue
+
+        af = None
+        if sample is not None and "AF" in record.samples[sample]:
+            af = record.samples[sample]["AF"]
+        if af is None and "AF" in record.info:
+            af = record.info["AF"]
+        if isinstance(af, (list, tuple)):
+            af = af[0]
+        if af is None or af < min_af:
+            continue
+
+        csq = pick_csq_entry(record.info.get("CSQ", []), csq_fields) if csq_fields else {}
+        consequences = set(filter(None, csq.get("Consequence", "").split("&")))
+        if consequences and consequences <= exclude_consequences:
+            continue
+
+        gene = csq.get("SYMBOL", "")
+        variants.append(
+            dict(
+                chromosome=chrom,
+                pos=record.pos,
+                gene=gene,
+                change=short_hgvs(csq.get("HGVSp", "")) or short_hgvs(csq.get("HGVSc", "")),
+                af=float(af),
+                cancer_gene=gene in cancer_genes,
+            )
+        )
+
+    vcf.close()
+    return variants
+
+
 def get_cnvs(vcf_filename, skip=None, extra_info_fields=None, allowed_types=None) -> Dict[str, Dict[str, List[CNV]]]:
     cnvs = defaultdict(lambda: defaultdict(list))
     vcf = pysam.VariantFile(vcf_filename)
@@ -614,7 +712,8 @@ def merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
 
 def merge_cnv_dicts(
     dicts, baf, annotations, cytobands, chromosomes,
-    filtered_cnvs, unfiltered_cnvs, gene_index=None, cancer_genes=None, table_filter_config=None
+    filtered_cnvs, unfiltered_cnvs, gene_index=None, cancer_genes=None, table_filter_config=None,
+    somatic_variants=None
 ):
     callers = list(map(lambda x: x["caller"], dicts))
     caller_labels = dict(
@@ -711,6 +810,15 @@ def merge_cnv_dicts(
                     "baf": val
                 })
 
+    # Only present when a somatic VCF was given, so the report can hide its
+    # somatic variant controls when the feature is not in use.
+    if somatic_variants is not None:
+        for chrom_data in cnvs.values():
+            chrom_data["somatic_variants"] = []
+        for v in somatic_variants:
+            if v["chromosome"] in cnvs:
+                cnvs[v["chromosome"]]["somatic_variants"].append({k: val for k, val in v.items() if k != "chromosome"})
+
     for cnv in merge_cnv_calls(unfiltered_cnvs, filtered_cnvs):
         cnvs[cnv.chromosome]["callers"][cnv.caller]["cnvs"].append(cnv)
 
@@ -788,6 +896,14 @@ def main():
     if len(germline_vcf) == 0:
         germline_vcf = None
 
+    somatic_vcf = snakemake.input.get("somatic_vcf", [])
+    if len(somatic_vcf) == 0:
+        somatic_vcf = None
+    somatic_min_af = snakemake.params.get("somatic_min_af", 0.05)
+    somatic_exclude_consequences = snakemake.params.get("somatic_exclude_consequences")
+    if somatic_exclude_consequences is None:
+        somatic_exclude_consequences = DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES
+
     output_file = snakemake.output["json"]
 
     skip_chromosomes = snakemake.params["skip_chromosomes"]
@@ -844,6 +960,12 @@ def main():
     if cancer_genes_file:
         cancer_genes = parse_cancer_genes(cancer_genes_file)
 
+    somatic_variants = None
+    if somatic_vcf is not None:
+        somatic_variants = get_somatic_variants(
+            somatic_vcf, skip_chromosomes, somatic_min_af, somatic_exclude_consequences, cancer_genes
+        )
+
     table_filter_config = {}
     if table_filter_config_file:
         with open(table_filter_config_file) as f:
@@ -871,7 +993,7 @@ def main():
 
     cnvs = merge_cnv_dicts(
         cnv_dicts, baf, annotations, cytobands, fai, filtered_cnv_vcfs,
-        unfiltered_cnv_vcfs, gene_index, cancer_genes, table_filter_config
+        unfiltered_cnv_vcfs, gene_index, cancer_genes, table_filter_config, somatic_variants
     )
 
     with open(output_file, "w") as f:

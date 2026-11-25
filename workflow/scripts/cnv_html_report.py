@@ -44,7 +44,8 @@ def purity_ploidy_items(purity_ploidy):
 def create_report(template_filename, json_filename, css_files, js_files,
                   show_table, extra_tables, tc, ploidy, tc_method, wildcards, wide_plot_width,
                   default_simulate_purity, default_absolute_copy_number,
-                  default_gene_focus, default_show_all_datapoints, purity_ploidy=None):
+                  default_gene_focus, default_show_all_datapoints, purity_ploidy=None,
+                  default_show_somatic_variants=False):
     with open(template_filename) as f:
         template = Template(source=f.read())
 
@@ -80,6 +81,7 @@ def create_report(template_filename, json_filename, css_files, js_files,
                 default_absolute_copy_number=default_absolute_copy_number,
                 default_gene_focus=default_gene_focus,
                 default_show_all_datapoints=default_show_all_datapoints,
+                default_show_somatic_variants=default_show_somatic_variants,
             ),
         ))
 
@@ -123,6 +125,7 @@ def main():
         snakemake.params.default_show_all_datapoints,
         # Pipelines that override this rule's params without purity_ploidy still work
         getattr(snakemake.params, "purity_ploidy", None),
+        getattr(snakemake.params, "default_show_somatic_variants", False),
     )
 
     with open(html_filename, "w") as f:

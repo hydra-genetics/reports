@@ -225,6 +225,19 @@
               <div id="cancer-gene-legend" class="legend-container hidden">
                 <!-- Legend items will be populated here -->
               </div>
+
+              <div class="somatic-variant-controls">
+                <div class="control-group">
+                  <input type="checkbox" id="chromosome-show-somatic-variants"
+                    {% if metadata.default_show_somatic_variants %}checked{% endif %} />
+                  <label for="chromosome-show-somatic-variants">Show somatic variants</label>
+                </div>
+                <div class="control-group somatic-variant-sub-control">
+                  <input type="checkbox" id="chromosome-somatic-variants-all-genes" disabled />
+                  <label for="chromosome-somatic-variants-all-genes"
+                    title="By default only variants in cancer genes are shown">All genes</label>
+                </div>
+              </div>
             </div>
 
             <div class="control-column">
