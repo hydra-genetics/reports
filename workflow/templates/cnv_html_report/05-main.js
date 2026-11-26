@@ -213,6 +213,11 @@ if (!cnvData[0].somatic_variants) {
   d3.select(".somatic-variant-controls").classed("hidden", true);
 }
 
+// Without a cancer gene list all variants are shown, so "All genes" has no effect.
+if (cnvData[0].has_cancer_gene_list === false) {
+  d3.select(".somatic-variant-sub-control").classed("hidden", true);
+}
+
 showSomaticVariantsToggle.on("change", (e) => {
   chromosomePlot.showSomaticVariants = e.target.checked;
   somaticVariantsAllGenesToggle.property("disabled", !e.target.checked);

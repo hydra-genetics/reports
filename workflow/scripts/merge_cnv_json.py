@@ -382,13 +382,20 @@ def get_csq_fields(vcf: pysam.VariantFile) -> List[str]:
 def vep_alleles(ref, alts):
     """
     Return the allele strings VEP writes in the CSQ Allele field, one per ALT.
-    For indels VEP drops the first base when it is shared by REF and all ALTs,
-    and writes an empty allele as "-".
+    When an ALT differs in length from REF, VEP drops the first base if it is
+    shared by REF and all ALTs, and writes an empty allele as "-".
     """
     alleles = [ref] + list(alts)
-    if any(len(a) != 1 for a in alleles) and len({a[0] for a in alleles}) == 1:
+    if any(len(a) != len(ref) for a in alts) and len({a[0] for a in alleles}) == 1:
         return [a[1:] or "-" for a in alts]
     return list(alts)
+
+
+def as_af_list(value):
+    """Return an AF value from pysam as a list, one value per ALT."""
+    if value is None:
+        return []
+    return list(value) if isinstance(value, (list, tuple)) else [value]
 
 
 def pick_csq_entry(entries):
@@ -417,7 +424,8 @@ def get_somatic_variants(
     and variants where every consequence is in exclude_consequences, are left
     out. Each variant is flagged with whether its gene is in the cancer gene
     list. The allele frequency is read from the sample named sample_name, or
-    from the only sample in a single-sample VCF.
+    from the only sample in a single-sample VCF, with INFO/AF as fallback.
+    ALT alleles without a matching CSQ annotation are left out.
     """
     skip = skip or []
     exclude_consequences = set(exclude_consequences or [])
@@ -432,7 +440,12 @@ def get_somatic_variants(
     elif len(samples) == 0:
         sample = None
     else:
-        raise ValueError(f"sample {sample_name} not found among {samples} in {vcf_filename}")
+        print(
+            f"Warning: sample {sample_name} not found among {samples} in {vcf_filename}, "
+            "using INFO/AF for the somatic variants",
+            file=sys.stderr,
+        )
+        sample = None
 
     variants = []
     for record in vcf.fetch():
@@ -440,15 +453,12 @@ def get_somatic_variants(
         if chrom in skip:
             continue
 
-        afs = None
+        afs = []
         if sample is not None and "AF" in record.samples[sample]:
-            afs = record.samples[sample]["AF"]
-        if afs is None and "AF" in record.info:
-            afs = record.info["AF"]
-        if afs is None:
-            continue
-        if not isinstance(afs, (list, tuple)):
-            afs = [afs]
+            afs = as_af_list(record.samples[sample]["AF"])
+        # A FORMAT/AF written as "." is read as (None,), treat it as missing
+        if all(a is None for a in afs) and "AF" in record.info:
+            afs = as_af_list(record.info["AF"])
 
         csq_entries = [dict(zip(csq_fields, e.split("|"))) for e in record.info.get("CSQ", [])] if csq_fields else []
         alts = record.alts or ()
@@ -460,10 +470,14 @@ def get_somatic_variants(
             allele_entries = [e for e in csq_entries if e.get("Allele") == allele]
             if not allele_entries and len(alts) == 1:
                 allele_entries = csq_entries
-            csq = pick_csq_entry(allele_entries)
-            consequences = set(filter(None, csq.get("Consequence", "").split("&")))
+            if not allele_entries:
+                continue
+
+            # Filter on the consequences of all transcripts, display the canonical one
+            consequences = {c for e in allele_entries for c in e.get("Consequence", "").split("&") if c}
             if consequences and consequences <= exclude_consequences:
                 continue
+            csq = pick_csq_entry(allele_entries)
 
             gene = csq.get("SYMBOL", "")
             variants.append(
@@ -890,6 +904,8 @@ def merge_cnv_dicts(
             cnvs[first_chrom]["gene_search_index"] = gene_index
         if table_filter_config:
             cnvs[first_chrom]["table_filter_config"] = table_filter_config
+        if somatic_variants is not None:
+            cnvs[first_chrom]["has_cancer_gene_list"] = bool(cancer_genes)
 
         # Collect binning info from all callers
         binned_callers = [d["caller"] for d in dicts if d.get("is_binned")]

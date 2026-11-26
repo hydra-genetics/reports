@@ -464,15 +464,16 @@ class ChromosomePlot extends EventTarget {
 
     this.initialiseMousetrap();
 
-    this.annotations = this.#plotArea
-      .append("g")
-      .attr("class", "annotation-container");
-
-    // Drawn after the annotations so the markers are on top and get hover events.
+    // Above the mousetrap so the markers get hover events, below the gene
+    // labels so the labels keep their own hover and click handling.
     this.#somaticVariantGroup = this.#plotArea
       .append("g")
       .attr("class", "somatic-variant-container")
       .attr("clip-path", "url(#annotation-clip)");
+
+    this.annotations = this.#plotArea
+      .append("g")
+      .attr("class", "annotation-container");
 
     // Setup Canvas for high-performance scatter rendering
     this.#setupCanvas();
@@ -1851,18 +1852,19 @@ class ChromosomePlot extends EventTarget {
       );
   }
 
-  // Somatic small variants as small triangles just below the log2 ratio panel,
-  // pointing up at the position. Hover shows gene, protein change, position and VAF.
+  // Somatic small variants as small triangles at the bottom of the gap between
+  // the log2 ratio and BAF panels, below the gene labels and the out-of-range
+  // arrows. Hover shows gene, protein change, position and VAF.
   #plotSomaticVariants() {
     let variants = [];
     if (this.#showSomaticVariants && this.#data.somatic_variants) {
       variants = this.#data.somatic_variants.filter(
-        (d) => this.#somaticVariantsAllGenes || d.cancer_gene
+        (d) => this.#somaticVariantsAllGenes || d.cancer_gene || this.#data.has_cancer_gene_list === false
       );
     }
 
     const markerSize = 11;
-    const y = this.plotHeight + 2;
+    const y = this.plotHeight + this.margin.between - markerSize - 1;
     const x = (d) => this.xScale(this.equalDistance ? this.getRatioIndex(d.pos) : d.pos);
     const title = (d) => `${d.gene} ${d.change} · ${this.#data.chromosome}:${d.pos} · VAF ${d.af.toFixed(2)}`;
     const path = (d) => {

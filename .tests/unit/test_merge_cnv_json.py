@@ -1026,6 +1026,15 @@ class TestGetSomaticVariants(unittest.TestCase):
         without_variants = merge_cnv_dicts([], [], [], [], chromosomes, [], [])
         assert all("somatic_variants" not in d for d in without_variants)
 
+    def test_merge_cnv_dicts_flags_missing_cancer_gene_list(self):
+        chromosomes = [("chr7", 1000), ("chr17", 1000)]
+        with_list = merge_cnv_dicts(
+            [], [], [], [], chromosomes, [], [], cancer_genes=self.cancer_genes, somatic_variants=[]
+        )
+        without_list = merge_cnv_dicts([], [], [], [], chromosomes, [], [], somatic_variants=[])
+        assert with_list[0]["has_cancer_gene_list"] is True
+        assert without_list[0]["has_cancer_gene_list"] is False
+
 
 def write_vcf(lines):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".vcf", delete=False) as f:
@@ -1047,6 +1056,7 @@ class TestSomaticVariantAlleles(unittest.TestCase):
         assert vep_alleles("CA", ["C"]) == ["-"]
         assert vep_alleles("C", ["CTT"]) == ["TT"]
         assert vep_alleles("CA", ["C", "CAA"]) == ["-", "AA"]
+        assert vep_alleles("CA", ["CT", "CG"]) == ["CT", "CG"]
 
     def test_multiallelic_af_follows_its_allele(self):
         vcf_path = write_vcf(VCF_HEADER + [
@@ -1069,8 +1079,54 @@ class TestSomaticVariantAlleles(unittest.TestCase):
         try:
             variants = get_somatic_variants(vcf_path, sample_name="s1_T")
             assert [round(v["af"], 2) for v in variants] == [0.4]
-            with self.assertRaises(ValueError):
-                get_somatic_variants(vcf_path, sample_name="s2_T")
+            # An unknown sample name falls back to INFO/AF, here absent, instead of failing
+            assert get_somatic_variants(vcf_path, sample_name="s2_T") == []
+        finally:
+            os.remove(vcf_path)
+
+    def test_missing_format_af_falls_back_to_info_af(self):
+        header = VCF_HEADER + ['##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">']
+        vcf_path = write_vcf(header + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_T",
+            "chr1\t100\t.\tC\tT\t.\tPASS\tAF=0.3;CSQ=T|missense_variant|GENEA|c.1C>T|p.Pro1Ser|YES\tAF\t.",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path, sample_name="s1_T")
+            assert [round(v["af"], 2) for v in variants] == [0.3]
+        finally:
+            os.remove(vcf_path)
+
+    def test_consequences_of_all_transcripts_are_used_for_filtering(self):
+        vcf_path = write_vcf(VCF_HEADER + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_T",
+            # Canonical transcript intronic, other transcript missense: kept, canonical change shown
+            "chr1\t100\t.\tC\tT\t.\tPASS\t"
+            "CSQ=T|intron_variant|GENEA|c.10+50C>T||YES,T|missense_variant|GENEA|c.1C>T|p.Pro1Ser|\tAF\t0.40",
+            # All transcripts intronic: left out
+            "chr1\t200\t.\tC\tT\t.\tPASS\t"
+            "CSQ=T|intron_variant|GENEA|c.10+150C>T||YES,T|intron_variant|GENEA|c.20+150C>T||\tAF\t0.40",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path, exclude_consequences=DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES)
+            assert [(v["pos"], v["change"]) for v in variants] == [(100, "c.10+50C>T")]
+        finally:
+            os.remove(vcf_path)
+
+    def test_multiallelic_mnv_and_unmatched_alleles(self):
+        vcf_path = write_vcf(VCF_HEADER + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_T",
+            # Same-length MNVs keep their first base in the CSQ Allele field
+            "chr1\t100\t.\tCA\tCT,CG\t.\tPASS\t"
+            "CSQ=CT|missense_variant|GENEA|c.2A>T|p.Lys1Met|YES,CG|missense_variant|GENEA|c.2A>G|p.Lys1Arg|YES"
+            "\tAF\t0.30,0.20",
+            # Second ALT has no CSQ annotation: left out rather than shown blank
+            "chr1\t200\t.\tC\tT,G\t.\tPASS\tCSQ=T|missense_variant|GENEA|c.5C>T|p.Ala2Val|YES\tAF\t0.30,0.20",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path)
+            assert [(v["pos"], v["change"]) for v in variants] == [
+                (100, "p.Lys1Met"), (100, "p.Lys1Arg"), (200, "p.Ala2Val")
+            ]
         finally:
             os.remove(vcf_path)
 

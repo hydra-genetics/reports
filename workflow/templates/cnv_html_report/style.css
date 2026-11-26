@@ -643,9 +643,9 @@ tbody tr:hover {
 }
 .somatic-variant {
   fill: #5b2a86;
-  /* A wide transparent stroke enlarges the hover area beyond the visible marker. */
+  /* A transparent stroke enlarges the hover area beyond the visible marker. */
   stroke: transparent;
-  stroke-width: 8;
+  stroke-width: 3;
   stroke-linejoin: round;
   cursor: default;
 }
