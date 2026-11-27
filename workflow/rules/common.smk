@@ -183,6 +183,10 @@ def get_germline_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     return config.get("merge_cnv_json", {}).get("germline_vcf", [])
 
 
+def get_somatic_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
+    return config.get("merge_cnv_json", {}).get("somatic_vcf", [])
+
+
 def get_unfiltered_cnv_vcf(wildcards: Wildcards) -> List[Union[str, Path]]:
     if not config.get("cnv_html_report", {}).get("show_table", True):
         return []
