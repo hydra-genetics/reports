@@ -21,6 +21,10 @@ from merge_cnv_json import (  # noqa
     passes_table_filter,
     classify_cnv,
     expand_contig_patterns,
+    get_somatic_variants,
+    parse_cancer_genes,
+    vep_alleles,
+    DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES,
 )
 
 
@@ -947,3 +951,194 @@ class TestExpandContigPatterns(unittest.TestCase):
     def test_pattern_matching_nothing_is_ignored(self):
         matched = expand_contig_patterns(self.fai_path, ["chrDoesNotExist"])
         assert matched == []
+
+
+class TestGetSomaticVariants(unittest.TestCase):
+    csq_format = "Allele|Consequence|SYMBOL|HGVSc|HGVSp|CANONICAL"
+
+    def setUp(self):
+        records = [
+            # Canonical transcript is the second entry, and should be picked.
+            ("chr17", 7577120, "C", "T", 0.42,
+             "T|missense_variant|TP53|NM_1.1:c.100C>T|NP_1.1:p.Arg34Gln|,"
+             "T|missense_variant|TP53|NM_000546.6:c.818G>A|NP_000537.3:p.Arg273His|YES"),
+            # Below the default minimum AF.
+            ("chr17", 7578000, "G", "A", 0.03, "A|missense_variant|TP53|NM_000546.6:c.700C>T|NP_000537.3:p.Arg233Cys|YES"),
+            # Synonymous only, left out by default.
+            ("chr7", 55249071, "C", "T", 0.30, "T|synonymous_variant|EGFR|NM_005228.5:c.2361G>A|NP_005219.2:p.Gln787%3D|YES"),
+            # Splice variant without a protein change, falls back to HGVSc. Not a cancer gene.
+            ("chr7", 55250000, "G", "A", 0.10, "A|splice_region_variant&intron_variant|GENEX|NM_9.1:c.10+3G>A||YES"),
+            # Non-coding only, left out by the default list.
+            ("chr7", 55260000, "C", "T", 0.25, "T|intron_variant|EGFR|NM_005228.5:c.2500+50C>T||YES"),
+            ("chr7", 55270000, "C", "T", 0.25, "T|3_prime_UTR_variant|EGFR|NM_005228.5:c.*20C>T||YES"),
+            # Skipped chromosome.
+            ("chrM", 100, "A", "G", 0.90, "G|missense_variant|MT-ND1|c.1A>G|p.Met1Val|YES"),
+        ]
+        lines = [
+            "##fileformat=VCFv4.2",
+            "##contig=<ID=chr7>",
+            "##contig=<ID=chr17>",
+            "##contig=<ID=chrM>",
+            f'##INFO=<ID=CSQ,Number=.,Type=String,Description="Ensembl VEP. Format: {self.csq_format}">',
+            '##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">',
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tsample1",
+        ]
+        for chrom, pos, ref, alt, af, csq in records:
+            lines.append(f"{chrom}\t{pos}\t.\t{ref}\t{alt}\t.\tPASS\tCSQ={csq}\tAF\t{af}")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".vcf", delete=False) as f:
+            f.write("\n".join(lines) + "\n")
+            self.vcf_path = f.name
+        self.cancer_genes = {"TP53": {"color": "#f00", "role": "TSG"}, "EGFR": {"color": "#0f0", "role": "OG"}}
+
+    def tearDown(self):
+        os.remove(self.vcf_path)
+
+    def test_default_filters(self):
+        variants = get_somatic_variants(
+            self.vcf_path, skip=["chrM"], exclude_consequences=DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES,
+            cancer_genes=self.cancer_genes
+        )
+        for v in variants:
+            v["af"] = round(v["af"], 3)
+        assert variants == [
+            dict(chromosome="chr17", pos=7577120, gene="TP53", change="p.Arg273His", af=0.42, cancer_gene=True),
+            dict(chromosome="chr7", pos=55250000, gene="GENEX", change="c.10+3G>A", af=0.1, cancer_gene=False),
+        ]
+
+    def test_min_af_and_no_consequence_filter(self):
+        variants = get_somatic_variants(self.vcf_path, skip=["chrM"], min_af=0.02, cancer_genes=self.cancer_genes)
+        by_pos = {v["pos"]: v for v in variants}
+        assert 7578000 in by_pos
+        assert by_pos[55249071]["change"] == "p.Gln787="
+        assert 55260000 in by_pos
+        assert 55270000 in by_pos
+
+    def test_merge_cnv_dicts_adds_somatic_variants(self):
+        chromosomes = [("chr7", 1000), ("chr17", 1000)]
+        variants = get_somatic_variants(self.vcf_path, skip=["chrM"], cancer_genes=self.cancer_genes)
+
+        with_variants = merge_cnv_dicts([], [], [], [], chromosomes, [], [], somatic_variants=variants)
+        by_chrom = {d["chromosome"]: d for d in with_variants}
+        assert [v["pos"] for v in by_chrom["chr17"]["somatic_variants"]] == [7577120]
+        assert "chromosome" not in by_chrom["chr17"]["somatic_variants"][0]
+
+        # Without a somatic VCF the key is absent, so the report hides its controls.
+        without_variants = merge_cnv_dicts([], [], [], [], chromosomes, [], [])
+        assert all("somatic_variants" not in d for d in without_variants)
+
+    def test_merge_cnv_dicts_flags_missing_cancer_gene_list(self):
+        chromosomes = [("chr7", 1000), ("chr17", 1000)]
+        with_list = merge_cnv_dicts(
+            [], [], [], [], chromosomes, [], [], cancer_genes=self.cancer_genes, somatic_variants=[]
+        )
+        without_list = merge_cnv_dicts([], [], [], [], chromosomes, [], [], somatic_variants=[])
+        assert with_list[0]["has_cancer_gene_list"] is True
+        assert without_list[0]["has_cancer_gene_list"] is False
+
+
+def write_vcf(lines):
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".vcf", delete=False) as f:
+        f.write("\n".join(lines) + "\n")
+        return f.name
+
+
+VCF_HEADER = [
+    "##fileformat=VCFv4.2",
+    "##contig=<ID=chr1>",
+    '##INFO=<ID=CSQ,Number=.,Type=String,Description="Ensembl VEP. Format: Allele|Consequence|SYMBOL|HGVSc|HGVSp|CANONICAL">',
+    '##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">',
+]
+
+
+class TestSomaticVariantAlleles(unittest.TestCase):
+    def test_vep_alleles(self):
+        assert vep_alleles("C", ["T", "G"]) == ["T", "G"]
+        assert vep_alleles("CA", ["C"]) == ["-"]
+        assert vep_alleles("C", ["CTT"]) == ["TT"]
+        assert vep_alleles("CA", ["C", "CAA"]) == ["-", "AA"]
+        assert vep_alleles("CA", ["CT", "CG"]) == ["CT", "CG"]
+
+    def test_multiallelic_af_follows_its_allele(self):
+        vcf_path = write_vcf(VCF_HEADER + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_T",
+            "chr1\t100\t.\tC\tT,G\t.\tPASS\t"
+            "CSQ=G|missense_variant|GENEA|c.1C>G|p.Pro1Ala|YES,T|stop_gained|GENEA|c.1C>T|p.Pro1Ter|YES"
+            "\tAF\t0.02,0.30",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path)
+            assert [(v["change"], round(v["af"], 2)) for v in variants] == [("p.Pro1Ala", 0.3)]
+        finally:
+            os.remove(vcf_path)
+
+    def test_tumor_sample_selected_by_name(self):
+        vcf_path = write_vcf(VCF_HEADER + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_N\ts1_T",
+            "chr1\t100\t.\tC\tT\t.\tPASS\tCSQ=T|missense_variant|GENEA|c.1C>T|p.Pro1Ser|YES\tAF\t0.0\t0.40",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path, sample_name="s1_T")
+            assert [round(v["af"], 2) for v in variants] == [0.4]
+            # An unknown sample name falls back to INFO/AF, here absent, instead of failing
+            assert get_somatic_variants(vcf_path, sample_name="s2_T") == []
+        finally:
+            os.remove(vcf_path)
+
+    def test_missing_format_af_falls_back_to_info_af(self):
+        header = VCF_HEADER + ['##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">']
+        vcf_path = write_vcf(header + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_T",
+            "chr1\t100\t.\tC\tT\t.\tPASS\tAF=0.3;CSQ=T|missense_variant|GENEA|c.1C>T|p.Pro1Ser|YES\tAF\t.",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path, sample_name="s1_T")
+            assert [round(v["af"], 2) for v in variants] == [0.3]
+        finally:
+            os.remove(vcf_path)
+
+    def test_consequences_of_all_transcripts_are_used_for_filtering(self):
+        vcf_path = write_vcf(VCF_HEADER + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_T",
+            # Canonical transcript intronic, other transcript missense: kept, canonical change shown
+            "chr1\t100\t.\tC\tT\t.\tPASS\t"
+            "CSQ=T|intron_variant|GENEA|c.10+50C>T||YES,T|missense_variant|GENEA|c.1C>T|p.Pro1Ser|\tAF\t0.40",
+            # All transcripts intronic: left out
+            "chr1\t200\t.\tC\tT\t.\tPASS\t"
+            "CSQ=T|intron_variant|GENEA|c.10+150C>T||YES,T|intron_variant|GENEA|c.20+150C>T||\tAF\t0.40",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path, exclude_consequences=DEFAULT_SOMATIC_EXCLUDE_CONSEQUENCES)
+            assert [(v["pos"], v["change"]) for v in variants] == [(100, "c.10+50C>T")]
+        finally:
+            os.remove(vcf_path)
+
+    def test_multiallelic_mnv_and_unmatched_alleles(self):
+        vcf_path = write_vcf(VCF_HEADER + [
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ts1_T",
+            # Same-length MNVs keep their first base in the CSQ Allele field
+            "chr1\t100\t.\tCA\tCT,CG\t.\tPASS\t"
+            "CSQ=CT|missense_variant|GENEA|c.2A>T|p.Lys1Met|YES,CG|missense_variant|GENEA|c.2A>G|p.Lys1Arg|YES"
+            "\tAF\t0.30,0.20",
+            # Second ALT has no CSQ annotation: left out rather than shown blank
+            "chr1\t200\t.\tC\tT,G\t.\tPASS\tCSQ=T|missense_variant|GENEA|c.5C>T|p.Ala2Val|YES\tAF\t0.30,0.20",
+        ])
+        try:
+            variants = get_somatic_variants(vcf_path)
+            assert [(v["pos"], v["change"]) for v in variants] == [
+                (100, "p.Lys1Met"), (100, "p.Lys1Arg"), (200, "p.Ala2Val")
+            ]
+        finally:
+            os.remove(vcf_path)
+
+
+class TestParseCancerGenes(unittest.TestCase):
+    def test_membership_without_color_and_simple_color(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            f.write("Gene,Role,Simple_Color\nGENEA,OG,#ff0000\nGENEB,TSG,\n")
+            csv_path = f.name
+        try:
+            genes = parse_cancer_genes(csv_path)
+            assert genes["GENEA"] == {"color": "#ff0000", "role": "OG"}
+            assert genes["GENEB"] == {"color": None, "role": "TSG"}
+        finally:
+            os.remove(csv_path)

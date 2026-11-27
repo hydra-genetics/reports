@@ -153,6 +153,13 @@ properties:
         description: >
           Whether the "Show all data points" checkbox should be checked by
           default when the report is opened.
+      default_show_somatic_variants:
+        type: boolean
+        default: false
+        description: >
+          Whether the "Show somatic variants" checkbox (chromosome view) should
+          be checked by default when the report is opened. Only has an effect
+          if `merge_cnv_json.somatic_vcf` is set.
     required:
       - show_table
 
@@ -255,6 +262,32 @@ properties:
           Path to a germline VCF file that will be used to display BAFs in the
           plots of the report. The path supports the wildcards `sample` and
           `type` wildcards.
+      somatic_vcf:
+        type: string
+        format: uri-reference
+        description: >
+          Optional path to a VEP-annotated VCF file with somatic small variants
+          that will be shown as markers in the chromosome view, with gene,
+          protein change and allele frequency on hover. The path supports the
+          `sample` and `type` wildcards.
+      somatic_min_af:
+        type: number
+        default: 0.05
+        description: >
+          Minimum allele frequency for a variant in `somatic_vcf` to be shown.
+      somatic_exclude_consequences:
+        type: array
+        description: >
+          VEP consequences to leave out of `somatic_vcf`. A variant is left out
+          if all of its consequences are in this list, so e.g. a
+          `splice_region_variant&intron_variant` is kept. If not set, synonymous
+          and non-coding consequences are left out (synonymous, intron,
+          intergenic, upstream/downstream, UTR, non-coding transcript,
+          regulatory region and TF binding site variants), which keeps the
+          number of markers manageable for WGS data. Set to an empty list to
+          keep all consequences.
+        items:
+          type: string
       unfiltered_cnv_vcfs:
         type: array
         description: >

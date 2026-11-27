@@ -205,6 +205,28 @@ cancerGeneColoringToggle.on("change", (e) => {
   }
 });
 
+const showSomaticVariantsToggle = d3.select("#chromosome-show-somatic-variants");
+const somaticVariantsAllGenesToggle = d3.select("#chromosome-somatic-variants-all-genes");
+
+// The somatic variant data is only present when the pipeline gave a somatic VCF.
+if (!cnvData[0].somatic_variants) {
+  d3.select(".somatic-variant-controls").classed("hidden", true);
+}
+
+// Without a cancer gene list all variants are shown, so "All genes" has no effect.
+if (cnvData[0].has_cancer_gene_list === false) {
+  d3.select(".somatic-variant-sub-control").classed("hidden", true);
+}
+
+showSomaticVariantsToggle.on("change", (e) => {
+  chromosomePlot.showSomaticVariants = e.target.checked;
+  somaticVariantsAllGenesToggle.property("disabled", !e.target.checked);
+});
+
+somaticVariantsAllGenesToggle.on("change", (e) => {
+  chromosomePlot.somaticVariantsAllGenes = e.target.checked;
+});
+
 function updateCancerGeneLegend(data) {
   const legend = d3.select("#cancer-gene-legend");
   legend.html(""); // Clear existing
@@ -699,6 +721,7 @@ updateRoundSegmentsEnablement();
   "#round-segments-integer",
   "#chromosome-equal-distance",
   "#chromosome-show-all-datapoints",
+  "#chromosome-show-somatic-variants",
 ].forEach((selector) => {
   const node = d3.select(selector).node();
   if (node.checked) {

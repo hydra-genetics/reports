@@ -237,6 +237,9 @@ class ChromosomePlot extends EventTarget {
   #zoomEndTimeout = null;
   #animationDurationOriginal = 500;
   #cancerGeneColoring = false;
+  #showSomaticVariants = false;
+  #somaticVariantsAllGenes = false;
+  #somaticVariantGroup;
   #equalDistance;
   #highlightedRegion;
   #highlightedRegions;
@@ -460,6 +463,13 @@ class ChromosomePlot extends EventTarget {
     this.#setLabels();
 
     this.initialiseMousetrap();
+
+    // Above the mousetrap so the markers get hover events, below the gene
+    // labels so the labels keep their own hover and click handling.
+    this.#somaticVariantGroup = this.#plotArea
+      .append("g")
+      .attr("class", "somatic-variant-container")
+      .attr("clip-path", "url(#annotation-clip)");
 
     this.annotations = this.#plotArea
       .append("g")
@@ -1842,6 +1852,50 @@ class ChromosomePlot extends EventTarget {
       );
   }
 
+  // Somatic small variants as small triangles at the bottom of the gap between
+  // the log2 ratio and BAF panels, below the gene labels and the out-of-range
+  // arrows. Hover shows gene, protein change, position and VAF.
+  #plotSomaticVariants() {
+    let variants = [];
+    if (this.#showSomaticVariants && this.#data.somatic_variants) {
+      variants = this.#data.somatic_variants.filter(
+        (d) => this.#somaticVariantsAllGenes || d.cancer_gene || this.#data.has_cancer_gene_list === false
+      );
+    }
+
+    const markerSize = 11;
+    const y = this.plotHeight + this.margin.between - markerSize - 1;
+    const x = (d) => this.xScale(this.equalDistance ? this.getRatioIndex(d.pos) : d.pos);
+    const title = (d) => `${d.gene} ${d.change} · ${this.#data.chromosome}:${d.pos} · VAF ${d.af.toFixed(2)}`;
+    const path = (d) => {
+      const cx = x(d);
+      return `M${cx},${y} L${cx - markerSize / 2},${y + markerSize} L${cx + markerSize / 2},${y + markerSize} Z`;
+    };
+
+    this.#somaticVariantGroup
+      .selectAll(".somatic-variant")
+      .data(variants, (d) => [d.pos, d.gene, d.change])
+      .join(
+        (enter) =>
+          enter
+            .append("path")
+            .attr("class", "somatic-variant")
+            .attr("d", path)
+            .call((e) =>
+              e
+                .append("title")
+                .text(title)
+            ),
+        (update) =>
+          update
+            .call((u) => u.select("title").text(title))
+            .transition()
+            .duration(this.animationDuration)
+            .attr("d", path),
+        (exit) => exit.remove()
+      );
+  }
+
   #setupCanvas() {
     const container = this.element.parentNode;
     this.#canvas = document.createElement("canvas");
@@ -2489,6 +2543,24 @@ class ChromosomePlot extends EventTarget {
     this.update();
   }
 
+  get showSomaticVariants() {
+    return this.#showSomaticVariants;
+  }
+
+  set showSomaticVariants(value) {
+    this.#showSomaticVariants = value;
+    this.update();
+  }
+
+  get somaticVariantsAllGenes() {
+    return this.#somaticVariantsAllGenes;
+  }
+
+  set somaticVariantsAllGenes(value) {
+    this.#somaticVariantsAllGenes = value;
+    this.update();
+  }
+
   get cancerGeneColoring() {
     return this.#cancerGeneColoring;
   }
@@ -2526,6 +2598,7 @@ class ChromosomePlot extends EventTarget {
     this.#plotOutOfRangeIndicators();
     this.#plotBAF();
     this.#plotAnnotations();
+    this.#plotSomaticVariants();
     this.#plotCytobands();
 
     this.#drawHighlights();

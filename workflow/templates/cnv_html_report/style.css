@@ -641,3 +641,15 @@ tbody tr:hover {
     display: block !important;
   }
 }
+.somatic-variant {
+  fill: #5b2a86;
+  /* A transparent stroke enlarges the hover area beyond the visible marker. */
+  stroke: transparent;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  cursor: default;
+}
+
+.somatic-variant-sub-control {
+  margin-left: 1.5em;
+}

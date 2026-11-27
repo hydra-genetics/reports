@@ -11,3 +11,4 @@ results/
 .vscode/
 .DS_Store
 CLAUDE.md
+.tests/integration/reports/
