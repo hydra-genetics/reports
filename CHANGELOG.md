@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/hydra-genetics/reports/compare/v2.4.4...v2.5.0) (2026-11-27)
+
+
+### Features
+
+* show somatic variants in the cnv html report chromosome view ([#218](https://github.com/hydra-genetics/reports/issues/218)) ([7ed3e82](https://github.com/hydra-genetics/reports/commit/7ed3e82eedbb325aa01654451c86cf04409e6853))
+
 ## [2.4.4](https://github.com/hydra-genetics/reports/compare/v2.4.3...v2.4.4) (2026-11-09)
 
 
